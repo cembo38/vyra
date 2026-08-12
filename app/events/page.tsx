@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { computeReadiness, getBudgetSummary, listEventsForUser } from "@/lib/data/store";
 import { CardHover } from "@/components/ui/Card";
@@ -14,7 +15,11 @@ import { CalendarHeart, MapPin, Sparkles, Users } from "lucide-react";
 
 export default async function MyEventsPage() {
   const user = await getCurrentUser();
-  const events = listEventsForUser(user.id);
+  if (!user) redirect("/login");
+  const events = await listEventsForUser(user.id);
+  const cards = await Promise.all(
+    events.map(async (event) => ({ event, readiness: await computeReadiness(event.id), budget: await getBudgetSummary(event.id) }))
+  );
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
@@ -39,9 +44,7 @@ export default async function MyEventsPage() {
         </div>
       ) : (
         <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {events.map((event) => {
-            const readiness = computeReadiness(event.id);
-            const budget = getBudgetSummary(event.id);
+          {cards.map(({ event, readiness, budget }) => {
             const guests = (event.guestCountAdults ?? 0) + (event.guestCountChildren ?? 0);
             return (
               <Link key={event.id} href={`/events/${event.id}`}>

@@ -1,32 +1,48 @@
 import "server-only";
-import { cookies } from "next/headers";
-import { DEMO_USER_ID, getUser, getOrCreateUser } from "@/lib/data/store";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getUser } from "@/lib/data/store";
 import { UserAccount } from "@/lib/types";
 
-const COOKIE_NAME = "ef_uid";
+/**
+ * Echte authenticatie via Supabase Auth (magic link per e-mail — geen
+ * wachtwoord nodig). `getCurrentUser()` geeft `null` terug als niemand is
+ * ingelogd; de callers (layouts/pages) sturen dan door naar /login.
+ */
+export async function getCurrentUser(): Promise<UserAccount | null> {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return null;
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  return getUser(user.id);
+}
 
 /**
- * Mock-authenticatie voor deze demo. In productie vervang je dit door
- * Supabase Auth (of vergelijkbaar) met echte sessies/JWT's — de rest van de
- * applicatie roept alleen `getCurrentUser()` aan en hoeft dan niet te
- * wijzigen.
- *
- * Zonder ingelogde sessie vallen we terug op de demo-gebruiker, zodat het
- * platform vanaf de eerste klik te ervaren is.
+ * Stuurt een magic link naar het opgegeven e-mailadres. Als er nog geen
+ * account bestaat, maakt Supabase Auth er automatisch één aan (de
+ * database-trigger `handle_new_user` maakt dan meteen het bijbehorende
+ * profiel aan — zie supabase/migrations/0001_init.sql).
  */
-export async function getCurrentUser(): Promise<UserAccount> {
-  const store = await cookies();
-  const uid = store.get(COOKIE_NAME)?.value ?? DEMO_USER_ID;
-  return getUser(uid) ?? getUser(DEMO_USER_ID)!;
+export async function sendMagicLink(email: string, redirectTo: string, extra?: { firstName?: string; lastName?: string }) {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) {
+    throw new Error("Supabase is niet geconfigureerd. Zet NEXT_PUBLIC_SUPABASE_URL en NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local.");
+  }
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: {
+      emailRedirectTo: redirectTo,
+      data: { first_name: extra?.firstName ?? "", last_name: extra?.lastName ?? "" },
+    },
+  });
+  if (error) throw error;
 }
 
-export async function setCurrentUserCookie(userId: string) {
-  const store = await cookies();
-  store.set(COOKIE_NAME, userId, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 24 * 30 });
-}
-
-export async function loginOrSignup(email: string, extra?: Partial<UserAccount>) {
-  const user = getOrCreateUser(email, extra);
-  await setCurrentUserCookie(user.id);
-  return user;
+export async function signOut() {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return;
+  await supabase.auth.signOut();
 }

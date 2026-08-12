@@ -9,7 +9,8 @@ import { EVENT_TYPE_LABELS } from "@/lib/types";
 export default async function EventLayout(props: LayoutProps<"/events/[id]">) {
   const { id } = await props.params;
   const user = await getCurrentUser();
-  const event = getEvent(id);
+  if (!user) redirect("/login");
+  const event = await getEvent(id);
 
   if (!event) notFound();
   if (event.ownerId !== user.id) redirect("/events");

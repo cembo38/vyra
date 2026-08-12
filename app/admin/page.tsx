@@ -17,13 +17,15 @@ import { AlertCircle, Building2, CalendarDays, LineChart, Percent, Star, Users }
 
 export const metadata = { title: "Admin — Vyra" };
 
-export default function AdminPage() {
-  const events = listAllEvents();
-  const payments = listAllPayments();
+export default async function AdminPage() {
+  const [events, payments, requests, offers, users] = await Promise.all([
+    listAllEvents(),
+    listAllPayments(),
+    listAllRequests(),
+    listAllOffers(),
+    listAllUsers(),
+  ]);
   const suppliers = allSuppliers();
-  const requests = listAllRequests();
-  const offers = listAllOffers();
-  const users = listAllUsers();
 
   const paidPayments = payments.filter((p) => p.status === "paid");
   const gmv = paidPayments.reduce((sum, p) => sum + p.supplierAmountCents, 0);

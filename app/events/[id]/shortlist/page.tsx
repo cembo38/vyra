@@ -11,11 +11,11 @@ import { CheckCircle2, Heart, Hourglass, Sparkles, XCircle } from "lucide-react"
 
 export default async function ShortlistPage(props: PageProps<"/events/[id]/shortlist">) {
   const { id } = await props.params;
-  const event = getEvent(id);
+  const event = await getEvent(id);
   if (!event) notFound();
 
-  const requirements = getRequirements(id).filter((r) => r.selected);
-  const offers = getOffersForEvent(id);
+  const [allRequirements, offers] = await Promise.all([getRequirements(id), getOffersForEvent(id)]);
+  const requirements = allRequirements.filter((r) => r.selected);
 
   if (requirements.length === 0) {
     return (

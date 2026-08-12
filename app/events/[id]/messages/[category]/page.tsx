@@ -10,17 +10,18 @@ import { cn, formatDateNL } from "@/lib/utils";
 
 export default async function MessageThreadPage(props: PageProps<"/events/[id]/messages/[category]">) {
   const { id, category } = await props.params;
-  const event = getEvent(id);
+  const event = await getEvent(id);
   if (!event) notFound();
 
   const categoryKey = category as SupplierCategory;
   const label = SUPPLIER_CATEGORY_LABELS[categoryKey];
   if (!label) notFound();
 
-  const request = getRequestsForEvent(id).find((r) => r.categoryKey === categoryKey);
+  const requests = await getRequestsForEvent(id);
+  const request = requests.find((r) => r.categoryKey === categoryKey);
   const supplierId = request?.supplierIds[0];
   const supplier = supplierId ? getSupplierById(supplierId) : null;
-  const messages = getMessages(id, categoryKey);
+  const messages = await getMessages(id, categoryKey);
 
   return (
     <div className="mx-auto max-w-2xl">

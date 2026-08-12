@@ -17,10 +17,10 @@ const SECTIONS: { key: RequirementPriority; title: string; description: string }
 
 export default async function PlanPage(props: PageProps<"/events/[id]/plan">) {
   const { id } = await props.params;
-  const event = getEvent(id);
+  const event = await getEvent(id);
   if (!event) notFound();
 
-  const requirements = getRequirements(id);
+  const requirements = await getRequirements(id);
 
   if (requirements.length === 0) {
     return (

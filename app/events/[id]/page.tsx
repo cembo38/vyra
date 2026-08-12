@@ -27,14 +27,17 @@ function categoryHref(eventId: string, status: string, categoryKey: string) {
 
 export default async function EventDashboardPage(props: PageProps<"/events/[id]">) {
   const { id } = await props.params;
-  const event = getEvent(id);
+  const event = await getEvent(id);
   if (!event) notFound();
 
-  const readiness = computeReadiness(id);
-  const budget = getBudgetSummary(id);
-  const requirements = getRequirements(id).filter((r) => r.selected);
-  const risks = getRisks(id);
-  const tasks = getTasks(id);
+  const [readiness, budget, allRequirements, risks, tasks] = await Promise.all([
+    computeReadiness(id),
+    getBudgetSummary(id),
+    getRequirements(id),
+    getRisks(id),
+    getTasks(id),
+  ]);
+  const requirements = allRequirements.filter((r) => r.selected);
 
   const openTasks = tasks.filter((t) => !t.done);
   const confirmedCount = requirements.filter((r) => ["confirmed", "paid", "completed"].includes(r.status)).length;

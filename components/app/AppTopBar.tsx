@@ -9,7 +9,8 @@ import { Plus } from "lucide-react";
 
 export async function AppTopBar() {
   const user = await getCurrentUser();
-  const notifications = getNotifications(user.id);
+  if (!user) return null;
+  const notifications = await getNotifications(user.id);
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-paper/90 backdrop-blur-md">

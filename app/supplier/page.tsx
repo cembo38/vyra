@@ -6,8 +6,7 @@ import { SupplierOfferBuilder } from "@/components/app/SupplierOfferBuilder";
 import { Card } from "@/components/ui/Card";
 import { LinkButton } from "@/components/ui/Button";
 import { DeadlineCountdown } from "@/components/ui/Countdown";
-import { SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
-import { DEMO_USER_ID, getRequestsForEvent, listEventsForUser } from "@/lib/data/store";
+import { SUPPLIER_CATEGORY_LABELS, ServiceRequest } from "@/lib/types";
 import { getSupplierById } from "@/lib/data/suppliers";
 import { formatCurrency } from "@/lib/config";
 import { CheckCircle2, Clock, Percent, Sparkles, Star } from "lucide-react";
@@ -15,10 +14,13 @@ import { CheckCircle2, Clock, Percent, Sparkles, Star } from "lucide-react";
 export const metadata = { title: "Voor leveranciers — Vyra" };
 
 export default function SupplierLandingPage() {
-  const demoEvent = listEventsForUser(DEMO_USER_ID).find((e) => e.type === "wedding");
-  const openRequests = demoEvent
-    ? getRequestsForEvent(demoEvent.id).filter((r) => r.status === "awaiting_response")
-    : [];
+  // Deze marketingpagina toont normaliter een live voorbeeld uit een echt
+  // account; met echte, per-gebruiker beveiligde data (RLS) is er geen
+  // platformbreed "demo-event" meer beschikbaar zonder in te loggen. De
+  // volledige leverancier-flow (met eigen account) is een volgende stap —
+  // zie docs/ARCHITECTURE.md.
+  const demoEvent: { name: string } | null = null as { name: string } | null;
+  const openRequests: ServiceRequest[] = [];
 
   return (
     <>

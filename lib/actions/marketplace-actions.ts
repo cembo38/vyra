@@ -23,10 +23,10 @@ export async function sendRequestAction(params: {
   specialRequests: string;
   budgetCents: number | null;
 }) {
-  const event = getEvent(params.eventId);
+  const event = await getEvent(params.eventId);
   if (!event) return;
 
-  const { request, offers } = createAndSendRequest({
+  const { request, offers } = await createAndSendRequest({
     eventId: params.eventId,
     categoryKey: params.categoryKey,
     desiredService: params.desiredService,
@@ -35,10 +35,10 @@ export async function sendRequestAction(params: {
     locationLabel: event.locationLabel,
   });
 
-  updateRequirementStatus(params.eventId, params.categoryKey, offers.length > 0 ? "offers_received" : "awaiting_response");
+  await updateRequirementStatus(params.eventId, params.categoryKey, offers.length > 0 ? "offers_received" : "awaiting_response");
 
   if (offers.length > 0) {
-    pushNotification({
+    await pushNotification({
       userId: event.ownerId,
       eventId: event.id,
       type: "new_offer",
@@ -53,10 +53,10 @@ export async function sendRequestAction(params: {
 }
 
 export async function swipeOfferAction(offerId: string, decision: "shortlisted" | "rejected" | "none") {
-  const offer = decideSwipe(offerId, decision);
+  const offer = await decideSwipe(offerId, decision);
   if (offer) {
     if (decision === "shortlisted") {
-      updateRequirementStatus(offer.eventId, offer.categoryKey, "shortlisted");
+      await updateRequirementStatus(offer.eventId, offer.categoryKey, "shortlisted");
     }
     revalidatePath(`/events/${offer.eventId}`, "layout");
   }
@@ -64,25 +64,26 @@ export async function swipeOfferAction(offerId: string, decision: "shortlisted" 
 }
 
 export async function acceptOfferAction(offerId: string) {
-  const offer = getOffer(offerId);
+  const offer = await getOffer(offerId);
   if (!offer) return;
-  const payment = createPaymentForOffer(offerId);
+  const payment = await createPaymentForOffer(offerId);
   if (!payment) return;
   revalidatePath(`/events/${offer.eventId}`, "layout");
   redirect(`/events/${offer.eventId}/checkout/${payment.id}`);
 }
 
 export async function confirmPaymentAction(paymentId: string) {
-  const payment = markPaymentPaid(paymentId);
+  const payment = await markPaymentPaid(paymentId);
   if (!payment) return;
 
-  const supplier = getOffer(payment.offerId);
-  pushNotification({
-    userId: getEvent(payment.eventId)!.ownerId,
+  const offer = await getOffer(payment.offerId);
+  const event = await getEvent(payment.eventId);
+  await pushNotification({
+    userId: event!.ownerId,
     eventId: payment.eventId,
     type: "payment_confirmed",
     title: "Betaling bevestigd",
-    body: `Je betaling van ${formatCurrency(payment.totalCents)} is bevestigd${supplier ? " voor " + (getSupplierById(supplier.supplierId)?.companyName ?? "je leverancier") : ""}.`,
+    body: `Je betaling van ${formatCurrency(payment.totalCents)} is bevestigd${offer ? " voor " + (getSupplierById(offer.supplierId)?.companyName ?? "je leverancier") : ""}.`,
     href: `/events/${payment.eventId}/budget`,
   });
 

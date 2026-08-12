@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { Logo } from "@/components/marketing/Logo";
 import { Field, Input, Select } from "@/components/ui/Form";
 import { getCurrentUser } from "@/lib/auth";
@@ -7,6 +8,7 @@ export const metadata = { title: "Welkom — Vyra" };
 
 export default async function OnboardingPage() {
   const user = await getCurrentUser();
+  if (!user) redirect("/login");
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-paper-dim px-6 py-12">

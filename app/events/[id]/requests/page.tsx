@@ -12,12 +12,11 @@ import { ArrowRight, Inbox } from "lucide-react";
 
 export default async function RequestsPage(props: PageProps<"/events/[id]/requests">) {
   const { id } = await props.params;
-  const event = getEvent(id);
+  const event = await getEvent(id);
   if (!event) notFound();
 
-  const requirements = getRequirements(id).filter((r) => r.selected);
-  const requests = getRequestsForEvent(id);
-  const offers = getOffersForEvent(id);
+  const [allRequirements, requests, offers] = await Promise.all([getRequirements(id), getRequestsForEvent(id), getOffersForEvent(id)]);
+  const requirements = allRequirements.filter((r) => r.selected);
 
   if (requirements.length === 0) {
     return (

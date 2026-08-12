@@ -6,15 +6,18 @@ import { MessageSquare } from "lucide-react";
 
 export default async function MessagesOverviewPage(props: PageProps<"/events/[id]/messages">) {
   const { id } = await props.params;
-  const event = getEvent(id);
+  const event = await getEvent(id);
   if (!event) notFound();
 
-  const requests = getRequestsForEvent(id);
-  const requirements = getRequirements(id);
+  const [requests, requirements] = await Promise.all([getRequestsForEvent(id), getRequirements(id)]);
 
   if (requests.length === 0) {
     return <EmptyState icon={<MessageSquare className="size-6" />} title="Nog geen gesprekken" description="Zodra je een aanvraag verstuurt naar leveranciers, kun je hier met ze chatten." />;
   }
+
+  const threads = await Promise.all(
+    requests.map(async (req) => ({ req, messages: await getMessages(id, req.categoryKey) }))
+  );
 
   return (
     <div>
@@ -22,8 +25,7 @@ export default async function MessagesOverviewPage(props: PageProps<"/events/[id
       <p className="mb-6 text-sm text-ink-faint">Gesprekken met leveranciers, per categorie.</p>
 
       <div className="divide-y divide-line-soft rounded-2xl border border-line bg-white">
-        {requests.map((req) => {
-          const messages = getMessages(id, req.categoryKey);
+        {threads.map(({ req, messages }) => {
           const label = requirements.find((r) => r.categoryKey === req.categoryKey)?.label ?? req.categoryKey;
           const last = messages[messages.length - 1];
           return (

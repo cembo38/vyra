@@ -24,8 +24,8 @@ import { detectChangeImpact } from "@/lib/ai/assistant";
 import { EVENT_TYPE_LABELS } from "@/lib/types";
 import { uid } from "@/lib/utils";
 
-function applyExtractedFields(eventId: string, extracted: Awaited<ReturnType<typeof extractEventFields>>["data"]) {
-  const event = getEvent(eventId);
+async function applyExtractedFields(eventId: string, extracted: Awaited<ReturnType<typeof extractEventFields>>["data"]) {
+  const event = await getEvent(eventId);
   if (!event) return;
   const patch: Parameters<typeof updateEvent>[1] = {};
 
@@ -42,63 +42,64 @@ function applyExtractedFields(eventId: string, extracted: Awaited<ReturnType<typ
   if (extracted.eventName) patch.name = extracted.eventName;
   else if (event.name === "Nieuw evenement" && extracted.eventType) patch.name = `${EVENT_TYPE_LABELS[extracted.eventType]}${extracted.locationLabel ? " in " + extracted.locationLabel : ""}`;
 
-  if (Object.keys(patch).length > 0) updateEvent(eventId, patch);
+  if (Object.keys(patch).length > 0) await updateEvent(eventId, patch);
 }
 
 export async function startInterviewAction(description: string) {
   const user = await getCurrentUser();
-  const event = createEvent(user.id, description);
-  addInterviewMessage({ eventId: event.id, role: "user", text: description });
+  if (!user) redirect("/login");
+  const event = await createEvent(user.id, description);
+  await addInterviewMessage({ eventId: event.id, role: "user", text: description });
 
   const { data: extracted } = await extractEventFields(description);
-  applyExtractedFields(event.id, extracted);
+  await applyExtractedFields(event.id, extracted);
 
-  const updatedEvent = getEvent(event.id)!;
-  const { data: nextQ } = await generateNextQuestion(updatedEvent, getInterviewMessages(event.id));
+  const updatedEvent = (await getEvent(event.id))!;
+  const { data: nextQ } = await generateNextQuestion(updatedEvent, await getInterviewMessages(event.id));
 
   const assistantMessage = nextQ.done
     ? "Dank je, ik heb genoeg om een eerste plan voor je te maken. Klik hieronder om je AI-eventplan te bekijken."
     : nextQ.question ?? "Vertel me gerust meer over je evenement.";
 
-  addInterviewMessage({ eventId: event.id, role: "assistant", text: assistantMessage });
+  await addInterviewMessage({ eventId: event.id, role: "assistant", text: assistantMessage });
 
   revalidatePath("/events");
   return { eventId: event.id, assistantMessage, done: nextQ.done };
 }
 
 export async function continueInterviewAction(eventId: string, userMessage: string) {
-  addInterviewMessage({ eventId, role: "user", text: userMessage });
+  await addInterviewMessage({ eventId, role: "user", text: userMessage });
 
   const { data: extracted } = await extractEventFields(userMessage);
-  applyExtractedFields(eventId, extracted);
+  await applyExtractedFields(eventId, extracted);
 
-  const updatedEvent = getEvent(eventId)!;
-  const { data: nextQ } = await generateNextQuestion(updatedEvent, getInterviewMessages(eventId));
+  const updatedEvent = (await getEvent(eventId))!;
+  const { data: nextQ } = await generateNextQuestion(updatedEvent, await getInterviewMessages(eventId));
 
   const assistantMessage = nextQ.done
     ? "Helder — ik denk dat ik nu voldoende weet om een sterk eerste plan te maken. Klik hieronder om je AI-eventplan te bekijken."
     : nextQ.question ?? "Vertel me gerust meer.";
 
-  addInterviewMessage({ eventId, role: "assistant", text: assistantMessage });
+  await addInterviewMessage({ eventId, role: "assistant", text: assistantMessage });
   revalidatePath(`/events/${eventId}`, "layout");
   return { assistantMessage, done: nextQ.done };
 }
 
 export async function generatePlanAction(eventId: string) {
-  const event = getEvent(eventId);
+  const event = await getEvent(eventId);
   if (!event) return;
 
   const { categories } = await generateRequirementPlan(event);
-  setRequirements(eventId, categories);
+  await setRequirements(eventId, categories);
 
   const { timeline } = await generateTimeline(event, categories);
-  setTimeline(eventId, timeline);
+  await setTimeline(eventId, timeline);
 
   const { risks } = await detectRisks(event, categories);
-  setRisks(eventId, risks);
+  await setRisks(eventId, risks);
 
   const urgentEssentials = categories.filter((c) => c.selected && c.priority === "essential");
-  setTasks(
+  await setTasks(
     eventId,
     urgentEssentials.slice(0, 2).map((c) => ({
       id: uid("task"),
@@ -111,20 +112,21 @@ export async function generatePlanAction(eventId: string) {
     }))
   );
 
-  updateEvent(eventId, { stage: "planning" });
+  await updateEvent(eventId, { stage: "planning" });
   revalidatePath(`/events/${eventId}`, "layout");
   redirect(`/events/${eventId}/plan`);
 }
 
 export async function toggleRequirementAction(eventId: string, categoryId: string, selected: boolean) {
-  toggleRequirementSelection(eventId, categoryId, selected);
+  await toggleRequirementSelection(eventId, categoryId, selected);
   revalidatePath(`/events/${eventId}`, "layout");
 }
 
 export async function confirmRequirementsAction(eventId: string) {
-  const selected = getRequirements(eventId).filter((c) => c.selected);
+  const requirements = await getRequirements(eventId);
+  const selected = requirements.filter((c) => c.selected);
   if (selected.length > 0) {
-    updateEvent(eventId, { stage: "sourcing" });
+    await updateEvent(eventId, { stage: "sourcing" });
   }
   revalidatePath(`/events/${eventId}`, "layout");
   redirect(`/events/${eventId}/requests`);
@@ -145,14 +147,14 @@ function mockChangeImpact(text: string): string {
 }
 
 export async function addNoteAction(eventId: string, text: string) {
-  const event = getEvent(eventId);
+  const event = await getEvent(eventId);
   if (!event || !text.trim()) return;
 
   const aiImpact = await detectChangeImpact(text, event);
   const impact = aiImpact ?? mockChangeImpact(text);
 
-  addEventNote(eventId, text, "user", impact);
-  pushNotification({
+  await addEventNote(eventId, text, "user", impact);
+  await pushNotification({
     userId: event.ownerId,
     eventId,
     type: "event_info_changed",

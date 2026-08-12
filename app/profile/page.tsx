@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { AppTopBar } from "@/components/app/AppTopBar";
 import { Card } from "@/components/ui/Card";
 import { Field, Input, Select } from "@/components/ui/Form";
@@ -11,8 +12,9 @@ export const metadata = { title: "Profiel — Vyra" };
 
 export default async function ProfilePage(props: PageProps<"/profile">) {
   const user = await getCurrentUser();
+  if (!user) redirect("/login");
   const searchParams = await props.searchParams;
-  const events = listEventsForUser(user.id);
+  const events = await listEventsForUser(user.id);
 
   return (
     <div className="min-h-screen bg-paper">

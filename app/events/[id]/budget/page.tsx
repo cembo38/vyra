@@ -17,20 +17,19 @@ import { AlertTriangle, Sparkles, Wallet } from "lucide-react";
 
 export default async function BudgetPage(props: PageProps<"/events/[id]/budget">) {
   const { id } = await props.params;
-  const event = getEvent(id);
+  const event = await getEvent(id);
   if (!event) notFound();
 
-  const budget = getBudgetSummary(id);
-  const requirements = getRequirements(id).filter((r) => r.selected);
-  const advice = await getBudgetAdvice({
-    event,
-    requirements,
-    requests: getRequestsForEvent(id),
-    offers: getOffersForEvent(id),
-    budget,
-    tasks: getTasks(id),
-    timeline: getTimeline(id),
-  });
+  const [budget, allRequirements, requests, offers, tasks, timeline] = await Promise.all([
+    getBudgetSummary(id),
+    getRequirements(id),
+    getRequestsForEvent(id),
+    getOffersForEvent(id),
+    getTasks(id),
+    getTimeline(id),
+  ]);
+  const requirements = allRequirements.filter((r) => r.selected);
+  const advice = await getBudgetAdvice({ event, requirements, requests, offers, budget, tasks, timeline });
 
   const committedPct = budget.totalCents ? Math.min(100, (budget.committedCents / budget.totalCents) * 100) : 0;
   const pendingPct = budget.totalCents ? Math.min(100 - committedPct, (budget.pendingCents / budget.totalCents) * 100) : 0;

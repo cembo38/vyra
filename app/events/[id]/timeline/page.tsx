@@ -8,10 +8,11 @@ import { CalendarClock, CheckCircle2, Circle } from "lucide-react";
 
 export default async function TimelinePage(props: PageProps<"/events/[id]/timeline">) {
   const { id } = await props.params;
-  const event = getEvent(id);
+  const event = await getEvent(id);
   if (!event) notFound();
 
-  const timeline = getTimeline(id).sort((a, b) => {
+  const rawTimeline = await getTimeline(id);
+  const timeline = rawTimeline.sort((a, b) => {
     if (!a.dueDate) return 1;
     if (!b.dueDate) return -1;
     return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();

@@ -10,11 +10,11 @@ import { CheckCircle2, Lock, ShieldCheck } from "lucide-react";
 
 export default async function CheckoutPage(props: PageProps<"/events/[id]/checkout/[paymentId]">) {
   const { id, paymentId } = await props.params;
-  const event = getEvent(id);
-  const payment = getPayment(paymentId);
+  const event = await getEvent(id);
+  const payment = await getPayment(paymentId);
   if (!event || !payment || payment.eventId !== id) notFound();
 
-  const offer = getOffer(payment.offerId);
+  const offer = await getOffer(payment.offerId);
   const supplier = offer ? getSupplierById(offer.supplierId) : null;
 
   return (

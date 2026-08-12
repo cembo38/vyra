@@ -6,14 +6,15 @@ import { SUPPLIER_CATEGORY_LABELS, SupplierCategory } from "@/lib/types";
 
 export default async function CategoryOffersPage(props: PageProps<"/events/[id]/offers/[category]">) {
   const { id, category } = await props.params;
-  const event = getEvent(id);
+  const event = await getEvent(id);
   if (!event) notFound();
 
   const categoryKey = category as SupplierCategory;
   const label = SUPPLIER_CATEGORY_LABELS[categoryKey];
   if (!label) notFound();
 
-  const offers: OfferWithSupplier[] = getOffersForEvent(id, categoryKey)
+  const rawOffers = await getOffersForEvent(id, categoryKey);
+  const offers: OfferWithSupplier[] = rawOffers
     .map((o) => {
       const supplier = getSupplierById(o.supplierId);
       if (!supplier) return null;
