@@ -29,7 +29,7 @@ export async function getCurrentUser(): Promise<UserAccount | null> {
 export async function sendMagicLink(
   email: string,
   redirectTo: string,
-  extra?: { firstName?: string; lastName?: string; role?: "customer" | "supplier" }
+  extra?: { firstName?: string; lastName?: string; role?: "customer" | "supplier" | "both" }
 ) {
   const supabase = await createSupabaseServerClient();
   if (!supabase) {

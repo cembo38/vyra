@@ -9,6 +9,13 @@ export const metadata = { title: "Account aanmaken — Vyra" };
 export default async function SignupPage(props: PageProps<"/signup">) {
   const params = await props.searchParams;
   const errorCode = typeof params.error === "string" ? params.error : undefined;
+  const intent = typeof params.intent === "string" ? params.intent : undefined;
+
+  // Vooraf aangevinkt op basis van waar iemand vandaan komt (bv. de
+  // leveranciers-landingspagina), maar altijd nog te wijzigen — één account
+  // kan prima zowel organisator als leverancier zijn.
+  const defaultOrganizer = intent !== "supplier";
+  const defaultSupplier = intent === "supplier" || intent === "both";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-paper-dim px-6 py-12">
@@ -32,6 +39,35 @@ export default async function SignupPage(props: PageProps<"/signup">) {
             <Field label="E-mailadres" required>
               <Input type="email" name="email" required placeholder="jij@voorbeeld.nl" />
             </Field>
+
+            <fieldset>
+              <legend className="mb-1.5 text-sm font-medium text-ink">Wat wil je op Vyra doen? <span className="text-coral">*</span></legend>
+              <div className="space-y-2 rounded-xl border border-line p-3">
+                <label className="flex items-start gap-2.5 text-sm text-ink-soft">
+                  <input
+                    type="checkbox"
+                    name="asOrganizer"
+                    defaultChecked={defaultOrganizer}
+                    className="mt-0.5 size-4 rounded border-line text-coral accent-coral"
+                  />
+                  <span>
+                    <span className="font-medium text-ink">Evenementen organiseren</span> — plan je eigen bruiloft, feest of event met AI-hulp
+                  </span>
+                </label>
+                <label className="flex items-start gap-2.5 text-sm text-ink-soft">
+                  <input
+                    type="checkbox"
+                    name="asSupplier"
+                    defaultChecked={defaultSupplier}
+                    className="mt-0.5 size-4 rounded border-line text-coral accent-coral"
+                  />
+                  <span>
+                    <span className="font-medium text-ink">Als leverancier aanvragen ontvangen</span> — bied je diensten aan en ontvang aanvragen van organisatoren
+                  </span>
+                </label>
+              </div>
+              <p className="mt-1.5 text-xs text-ink-faint">Je kunt allebei aanvinken — je hoeft hiervoor maar één account aan te maken.</p>
+            </fieldset>
 
             <label className="flex items-start gap-2.5 text-sm text-ink-soft">
               <input

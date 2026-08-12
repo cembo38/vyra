@@ -4,7 +4,7 @@ import { UserAvatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { UserAccount, SupplierAccount } from "@/lib/types";
 import { logoutAction } from "@/lib/actions/auth-actions";
-import { LogOut } from "lucide-react";
+import { LogOut, CalendarHeart } from "lucide-react";
 
 export function SupplierTopBar({ user, supplier }: { user: UserAccount; supplier: SupplierAccount }) {
   return (
@@ -17,6 +17,9 @@ export function SupplierTopBar({ user, supplier }: { user: UserAccount; supplier
             <Link href="/supplier/dashboard" className="hover:text-ink">Dashboard</Link>
             <Link href="/supplier/requests" className="hover:text-ink">Aanvragen</Link>
             <Link href="/supplier/orders" className="hover:text-ink">Orders</Link>
+            <Link href="/events" className="inline-flex items-center gap-1.5 hover:text-ink">
+              <CalendarHeart className="size-3.5" /> Mijn evenementen
+            </Link>
           </nav>
         </div>
         <div className="flex items-center gap-3">

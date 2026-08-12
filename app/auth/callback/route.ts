@@ -17,9 +17,15 @@ export async function GET(request: NextRequest) {
       if (!error && data.user) {
         const { data: profile } = await supabase.from("profiles").select("first_name, role").eq("id", data.user.id).single();
 
-        if (profile?.role === "supplier") {
+        // Iemand kan zowel organisator als leverancier zijn ("both"). We
+        // sturen die eerst naar het leveranciersprofiel als dat nog moet
+        // worden ingericht (dat is verplicht om als leverancier verder te
+        // kunnen), en anders naar de evenementen — de leveranciersportaal
+        // blijft altijd bereikbaar via de navigatie.
+        if (profile?.role === "supplier" || profile?.role === "both") {
           const { data: supplierRow } = await supabase.from("suppliers").select("id").eq("owner_id", data.user.id).maybeSingle();
-          return NextResponse.redirect(`${origin}${supplierRow ? "/supplier/dashboard" : "/supplier/onboarding"}`);
+          if (!supplierRow) return NextResponse.redirect(`${origin}/supplier/onboarding`);
+          if (profile.role === "supplier") return NextResponse.redirect(`${origin}/supplier/dashboard`);
         }
 
         const needsOnboarding = !profile?.first_name;

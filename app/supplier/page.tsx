@@ -33,7 +33,7 @@ export default function SupplierLandingPage() {
             Geen koude acquisitie meer. Vyra stuurt je alleen aanvragen die matchen met je categorie, locatie en beschikbaarheid — jij reageert binnen 48 uur met een offerte.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <LinkButton href="/supplier/signup" size="lg">Registreer je bedrijf</LinkButton>
+            <LinkButton href="/signup?intent=supplier" size="lg">Registreer je bedrijf</LinkButton>
             <LinkButton href="#offerte-assistent" size="lg" variant="outline">Bekijk de AI-offerte-assistent</LinkButton>
           </div>
         </section>
@@ -89,7 +89,7 @@ export default function SupplierLandingPage() {
               <p className="font-display text-xl">Klaar om aanvragen te ontvangen?</p>
             </div>
             <p className="mt-2 text-sm text-white/70">Registreer je bedrijf met categorie, werkgebied en portfolio — je eerste aanvraag kan al deze week binnenkomen.</p>
-            <Link href="/supplier/signup" className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-coral">
+            <Link href="/signup?intent=supplier" className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-coral">
               <CheckCircle2 className="size-4" /> Start je registratie
             </Link>
           </Card>

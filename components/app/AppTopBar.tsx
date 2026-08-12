@@ -4,13 +4,13 @@ import { UserAvatar } from "@/components/ui/Avatar";
 import { NotificationsBell } from "@/components/app/NotificationsBell";
 import { LinkButton } from "@/components/ui/Button";
 import { getCurrentUser } from "@/lib/auth";
-import { getNotifications } from "@/lib/data/store";
-import { Plus } from "lucide-react";
+import { getNotifications, getSupplierAccountByOwner } from "@/lib/data/store";
+import { Plus, Store } from "lucide-react";
 
 export async function AppTopBar() {
   const user = await getCurrentUser();
   if (!user) return null;
-  const notifications = await getNotifications(user.id);
+  const [notifications, supplier] = await Promise.all([getNotifications(user.id), getSupplierAccountByOwner(user.id)]);
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-paper/90 backdrop-blur-md">
@@ -19,6 +19,9 @@ export async function AppTopBar() {
           <Logo />
           <nav className="hidden items-center gap-6 text-sm font-medium text-ink-soft sm:flex">
             <Link href="/events" className="hover:text-ink">Mijn evenementen</Link>
+            <Link href={supplier ? "/supplier/dashboard" : "/supplier/onboarding"} className="inline-flex items-center gap-1.5 hover:text-ink">
+              <Store className="size-3.5" /> {supplier ? "Leveranciersportaal" : "Ook leverancier worden?"}
+            </Link>
           </nav>
         </div>
         <div className="flex items-center gap-2">

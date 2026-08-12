@@ -29,18 +29,21 @@ export async function signupAction(formData: FormData) {
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim();
   const consent = formData.get("consent");
-  const role = formData.get("role") === "supplier" ? "supplier" : "customer";
-  const base = role === "supplier" ? "/supplier/signup" : "/signup";
-  if (!consent) redirect(`${base}?error=consent`);
+  const asOrganizer = formData.get("asOrganizer") === "on";
+  const asSupplier = formData.get("asSupplier") === "on";
+
+  if (!asOrganizer && !asSupplier) redirect("/signup?error=role");
+  if (!consent) redirect("/signup?error=consent");
   if (!email) return;
+
+  const role = asOrganizer && asSupplier ? "both" : asSupplier ? "supplier" : "customer";
   const origin = await siteOrigin();
   try {
     await sendMagicLink(email, `${origin}/auth/callback`, { firstName, lastName, role });
   } catch (err) {
-    redirect(`${base}?error=${authErrorCode(err)}`);
+    redirect(`/signup?error=${authErrorCode(err)}`);
   }
-  const checkEmailBase = role === "supplier" ? "/supplier/signup/check-email" : "/signup/check-email";
-  redirect(`${checkEmailBase}?email=${encodeURIComponent(email)}`);
+  redirect(`/signup/check-email?email=${encodeURIComponent(email)}`);
 }
 
 export async function loginAction(formData: FormData) {
