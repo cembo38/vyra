@@ -15,7 +15,13 @@ export async function GET(request: NextRequest) {
     if (supabase) {
       const { data, error } = await supabase.auth.exchangeCodeForSession(code);
       if (!error && data.user) {
-        const { data: profile } = await supabase.from("profiles").select("first_name").eq("id", data.user.id).single();
+        const { data: profile } = await supabase.from("profiles").select("first_name, role").eq("id", data.user.id).single();
+
+        if (profile?.role === "supplier") {
+          const { data: supplierRow } = await supabase.from("suppliers").select("id").eq("owner_id", data.user.id).maybeSingle();
+          return NextResponse.redirect(`${origin}${supplierRow ? "/supplier/dashboard" : "/supplier/onboarding"}`);
+        }
+
         const needsOnboarding = !profile?.first_name;
         return NextResponse.redirect(`${origin}${needsOnboarding ? "/onboarding" : "/events"}`);
       }

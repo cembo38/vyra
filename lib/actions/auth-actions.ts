@@ -18,11 +18,13 @@ export async function signupAction(formData: FormData) {
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim();
   const consent = formData.get("consent");
-  if (!consent) redirect("/signup?error=consent");
+  const role = formData.get("role") === "supplier" ? "supplier" : "customer";
+  if (!consent) redirect(role === "supplier" ? "/supplier/signup?error=consent" : "/signup?error=consent");
   if (!email) return;
   const origin = await siteOrigin();
-  await sendMagicLink(email, `${origin}/auth/callback`, { firstName, lastName });
-  redirect(`/signup/check-email?email=${encodeURIComponent(email)}`);
+  await sendMagicLink(email, `${origin}/auth/callback`, { firstName, lastName, role });
+  const checkEmailBase = role === "supplier" ? "/supplier/signup/check-email" : "/signup/check-email";
+  redirect(`${checkEmailBase}?email=${encodeURIComponent(email)}`);
 }
 
 export async function loginAction(formData: FormData) {

@@ -283,6 +283,57 @@ export interface SupplierAvailabilitySlot {
   available: boolean;
 }
 
+/**
+ * Een écht, inlogbaar leveranciersaccount (i.t.t. `SupplierProfile`, dat de
+ * statische demo-catalogus beschrijft). Gekoppeld 1-op-1 aan een Supabase
+ * Auth-gebruiker via `ownerId`.
+ */
+export interface SupplierAccount {
+  id: string;
+  ownerId: string;
+  companyName: string;
+  contactPerson: string;
+  category: SupplierCategory;
+  serviceAreas: string[];
+  description: string;
+  minPriceCents: number;
+  avgPriceCents: number;
+  ratingAvg: number;
+  ratingCount: number;
+  verified: boolean;
+  avgResponseHours: number;
+  acceptedOfferRate: number;
+  tags: string[];
+  yearsActive: number;
+  portfolioHighlights: string[];
+  createdAt: string;
+}
+
+export type RequestTargetStatus = "pending" | "responded" | "expired";
+
+/** Koppelt een échte leverancier aan een specifieke aanvraag. */
+export interface RequestTarget {
+  id: string;
+  requestId: string;
+  supplierId: string;
+  status: RequestTargetStatus;
+  createdAt: string;
+}
+
+/** Een aanvraag zoals een leverancier die in zijn inbox ziet, met eventcontext. */
+export interface SupplierLead {
+  target: RequestTarget;
+  request: ServiceRequest;
+  event: EventCore;
+}
+
+/** Een geaccepteerde offerte zoals een leverancier die als "order" ziet. */
+export interface SupplierOrder {
+  offer: OfferOption;
+  event: EventCore | null;
+  payment: Payment | null;
+}
+
 /* ------------------------------------------------------------------ */
 /* TRANSACTION / MARKETPLACE DATA                                      */
 /* ------------------------------------------------------------------ */

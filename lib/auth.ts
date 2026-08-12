@@ -26,7 +26,11 @@ export async function getCurrentUser(): Promise<UserAccount | null> {
  * database-trigger `handle_new_user` maakt dan meteen het bijbehorende
  * profiel aan — zie supabase/migrations/0001_init.sql).
  */
-export async function sendMagicLink(email: string, redirectTo: string, extra?: { firstName?: string; lastName?: string }) {
+export async function sendMagicLink(
+  email: string,
+  redirectTo: string,
+  extra?: { firstName?: string; lastName?: string; role?: "customer" | "supplier" }
+) {
   const supabase = await createSupabaseServerClient();
   if (!supabase) {
     throw new Error("Supabase is niet geconfigureerd. Zet NEXT_PUBLIC_SUPABASE_URL en NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local.");
@@ -35,7 +39,10 @@ export async function sendMagicLink(email: string, redirectTo: string, extra?: {
     email,
     options: {
       emailRedirectTo: redirectTo,
-      data: { first_name: extra?.firstName ?? "", last_name: extra?.lastName ?? "" },
+      // Let op: deze metadata wordt door de `handle_new_user`-trigger alleen
+      // gebruikt bij het ALLEREERSTE keer aanmaken van het account — bij een
+      // volgende login met hetzelfde e-mailadres heeft dit geen effect meer.
+      data: { first_name: extra?.firstName ?? "", last_name: extra?.lastName ?? "", role: extra?.role ?? "customer" },
     },
   });
   if (error) throw error;

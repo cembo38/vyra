@@ -15,11 +15,15 @@ import {
   Message,
   OfferOption,
   Payment,
+  RequestTarget,
   RequirementCategory,
   RequirementPriority,
   RiskFlag,
   ServiceRequest,
+  SupplierAccount,
   SupplierCategory,
+  SupplierLead,
+  SupplierOrder,
   UserAccount,
 } from "@/lib/types";
 
@@ -37,7 +41,7 @@ import {
  * aparte "userId === ownerId"-check nodig in deze functies zelf.
  */
 
-async function sb() {
+export async function sb() {
   const client = await createSupabaseServerClient();
   if (!client) {
     throw new Error(
@@ -198,6 +202,33 @@ function rowToMessage(r: Row): Message {
 
 function rowToNotification(r: Row): AppNotification {
   return { id: r.id, userId: r.user_id, eventId: r.event_id, type: r.type, title: r.title, body: r.body ?? "", read: r.read, createdAt: r.created_at, href: r.href };
+}
+
+function rowToSupplierAccount(r: Row): SupplierAccount {
+  return {
+    id: r.id,
+    ownerId: r.owner_id,
+    companyName: r.company_name,
+    contactPerson: r.contact_person ?? "",
+    category: r.category,
+    serviceAreas: r.service_areas ?? [],
+    description: r.description ?? "",
+    minPriceCents: r.min_price_cents ?? 0,
+    avgPriceCents: r.avg_price_cents ?? 0,
+    ratingAvg: Number(r.rating_avg ?? 0),
+    ratingCount: r.rating_count ?? 0,
+    verified: r.verified ?? false,
+    avgResponseHours: r.avg_response_hours ?? 24,
+    acceptedOfferRate: Number(r.accepted_offer_rate ?? 0),
+    tags: r.tags ?? [],
+    yearsActive: r.years_active ?? 0,
+    portfolioHighlights: r.portfolio_highlights ?? [],
+    createdAt: r.created_at,
+  };
+}
+
+function rowToRequestTarget(r: Row): RequestTarget {
+  return { id: r.id, requestId: r.request_id, supplierId: r.supplier_id, status: r.status, createdAt: r.created_at };
 }
 
 /* ------------------------------------------------------------------ */
@@ -370,6 +401,210 @@ export function findMatchingSuppliers(categoryKey: SupplierCategory, opts: { loc
 }
 
 /* ------------------------------------------------------------------ */
+/* ECHTE LEVERANCIERSACCOUNTS                                          */
+/* ------------------------------------------------------------------ */
+
+export async function getSupplierAccountByOwner(ownerId: string): Promise<SupplierAccount | null> {
+  const supabase = await sb();
+  const { data } = await supabase.from("suppliers").select("*").eq("owner_id", ownerId).maybeSingle();
+  return data ? rowToSupplierAccount(data) : null;
+}
+
+export async function getSupplierAccount(supplierId: string): Promise<SupplierAccount | null> {
+  const supabase = await sb();
+  const { data } = await supabase.from("suppliers").select("*").eq("id", supplierId).maybeSingle();
+  return data ? rowToSupplierAccount(data) : null;
+}
+
+export async function createSupplierAccount(
+  ownerId: string,
+  patch: {
+    companyName: string;
+    contactPerson: string;
+    category: SupplierCategory;
+    serviceAreas: string[];
+    description: string;
+    minPriceCents: number;
+    avgPriceCents: number;
+  }
+): Promise<SupplierAccount> {
+  const supabase = await sb();
+  const { data, error } = await supabase
+    .from("suppliers")
+    .insert({
+      owner_id: ownerId,
+      company_name: patch.companyName,
+      contact_person: patch.contactPerson,
+      category: patch.category,
+      service_areas: patch.serviceAreas,
+      description: patch.description,
+      min_price_cents: patch.minPriceCents,
+      avg_price_cents: patch.avgPriceCents,
+    })
+    .select()
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "Kon leveranciersprofiel niet aanmaken");
+  // Rol bijwerken zodat de rest van de app (redirects e.d.) weet dat dit een leverancier is.
+  await supabase.from("profiles").update({ role: "supplier" }).eq("id", ownerId);
+  return rowToSupplierAccount(data);
+}
+
+/** Real (DB-backed) suppliers die matchen op categorie, náást de statische demo-catalogus. */
+async function findRealMatchingSuppliers(categoryKey: SupplierCategory, opts: { locationLabel?: string | null; limit?: number }) {
+  const supabase = await sb();
+  const { data } = await supabase.from("suppliers").select("*").eq("category", categoryKey).limit(opts.limit ?? 10);
+  const pool = (data ?? []).map(rowToSupplierAccount);
+  const scored = pool.map((sup) => {
+    let score = 60;
+    if (opts.locationLabel && sup.serviceAreas.some((a) => a.toLowerCase().includes(opts.locationLabel!.toLowerCase()))) {
+      score += 20;
+    }
+    score += Math.round(sup.ratingAvg * 4);
+    if (sup.verified) score += 5;
+    return { supplier: sup, score: Math.min(99, score) };
+  });
+  scored.sort((a, b) => b.score - a.score);
+  return scored.slice(0, opts.limit ?? 2);
+}
+
+/* ------------------------------------------------------------------ */
+/* LEVERANCIER — AANVRAGEN-INBOX & OFFERTE INDIENEN                    */
+/* ------------------------------------------------------------------ */
+
+export async function getSupplierLeads(supplierId: string): Promise<SupplierLead[]> {
+  const supabase = await sb();
+  const { data } = await supabase
+    .from("request_targets")
+    .select("*, request:requests(*, event:events(*))")
+    .eq("supplier_id", supplierId)
+    .order("created_at", { ascending: false });
+  return (data ?? [])
+    .filter((r: Row) => r.request && r.request.event)
+    .map((r: Row) => ({
+      target: rowToRequestTarget(r),
+      request: rowToRequest(r.request),
+      event: rowToEvent(r.request.event),
+    }));
+}
+
+export async function getSupplierLead(supplierId: string, requestId: string): Promise<SupplierLead | null> {
+  const leads = await getSupplierLeads(supplierId);
+  return leads.find((l) => l.request.id === requestId) ?? null;
+}
+
+export async function getSupplierOfferForRequest(supplierId: string, requestId: string): Promise<OfferOption | null> {
+  const supabase = await sb();
+  const { data } = await supabase.from("offers").select("*").eq("request_id", requestId).eq("supplier_id", supplierId).maybeSingle();
+  return data ? rowToOffer(data) : null;
+}
+
+export async function submitSupplierOffer(params: {
+  supplierId: string;
+  requestId: string;
+  eventId: string;
+  categoryKey: SupplierCategory;
+  totalPriceCents: number;
+  includes: string[];
+  excludes: string[];
+  staffIncluded: boolean;
+  deliveryIncluded: boolean;
+  setupIncluded: boolean;
+  remarks: string | null;
+}): Promise<OfferOption> {
+  const supabase = await sb();
+  const { data, error } = await supabase
+    .from("offers")
+    .insert({
+      request_id: params.requestId,
+      event_id: params.eventId,
+      supplier_id: params.supplierId,
+      category_key: params.categoryKey,
+      status: "available",
+      total_price_cents: params.totalPriceCents,
+      price_per_person_cents: null,
+      includes: params.includes,
+      excludes: params.excludes,
+      extra_costs_note: null,
+      staff_included: params.staffIncluded,
+      delivery_included: params.deliveryIncluded,
+      setup_included: params.setupIncluded,
+      teardown_included: false,
+      travel_costs_cents: null,
+      cancellation_policy: "Kosteloos annuleren tot 30 dagen vooraf, daarna 50% van het totaalbedrag verschuldigd.",
+      payment_terms: "50% aanbetaling bij boeking, restant 14 dagen voor het evenement.",
+      valid_until: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+      remarks: params.remarks,
+      match_score: 70,
+      match_rationale: "Rechtstreeks ingediend door de leverancier.",
+      swipe_decision: "none",
+    })
+    .select()
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "Kon offerte niet indienen");
+
+  await supabase
+    .from("request_targets")
+    .update({ status: "responded" })
+    .eq("request_id", params.requestId)
+    .eq("supplier_id", params.supplierId);
+
+  return rowToOffer(data);
+}
+
+/* ------------------------------------------------------------------ */
+/* LEVERANCIER — ORDERS & VERDIENSTEN                                  */
+/* ------------------------------------------------------------------ */
+
+export async function getSupplierOrders(supplierId: string): Promise<SupplierOrder[]> {
+  const supabase = await sb();
+  const { data: offerRows } = await supabase
+    .from("offers")
+    .select("*, event:events(*)")
+    .eq("supplier_id", supplierId)
+    .eq("status", "accepted")
+    .order("responded_at", { ascending: false });
+  const offers = offerRows ?? [];
+  if (offers.length === 0) return [];
+
+  const offerIds = offers.map((o: Row) => o.id);
+  const { data: paymentRows } = await supabase.from("payments").select("*").in("offer_id", offerIds);
+  const paymentByOffer = new Map((paymentRows ?? []).map((p: Row) => [p.offer_id, rowToPayment(p)]));
+
+  return offers.map((o: Row) => ({
+    offer: rowToOffer(o),
+    event: o.event ? rowToEvent(o.event) : null,
+    payment: paymentByOffer.get(o.id) ?? null,
+  }));
+}
+
+export interface SupplierEarningsSummary {
+  paidCents: number;
+  pendingCents: number;
+  openLeadsCount: number;
+  activeOrdersCount: number;
+  upcomingThisMonthCount: number;
+}
+
+export async function getSupplierEarningsSummary(supplierId: string): Promise<SupplierEarningsSummary> {
+  const [orders, leads] = await Promise.all([getSupplierOrders(supplierId), getSupplierLeads(supplierId)]);
+  const paidCents = orders.filter((o) => o.payment?.status === "paid").reduce((sum, o) => sum + (o.payment?.supplierAmountCents ?? 0), 0);
+  const pendingCents = orders.filter((o) => o.payment && o.payment.status !== "paid").reduce((sum, o) => sum + (o.payment?.supplierAmountCents ?? 0), 0);
+  const now = new Date();
+  const upcomingThisMonthCount = orders.filter((o) => {
+    if (!o.event?.date) return false;
+    const d = new Date(o.event.date);
+    return d >= now && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }).length;
+  return {
+    paidCents,
+    pendingCents,
+    openLeadsCount: leads.filter((l) => l.target.status === "pending").length,
+    activeOrdersCount: orders.length,
+    upcomingThisMonthCount,
+  };
+}
+
+/* ------------------------------------------------------------------ */
 /* REQUESTS & OFFERS                                                   */
 /* ------------------------------------------------------------------ */
 
@@ -452,6 +687,17 @@ export async function createAndSendRequest(params: {
     .single();
   if (requestError || !requestRow) throw new Error(requestError?.message ?? "Kon aanvraag niet versturen");
   const request = rowToRequest(requestRow);
+
+  // Naast de gesimuleerde demo-catalogus matchen we ook échte, geregistreerde
+  // leveranciers in deze categorie. Zij krijgen geen automatisch gesimuleerde
+  // offerte — zij zien de aanvraag in hun eigen dashboard en dienen zelf een
+  // offerte in.
+  const realMatches = await findRealMatchingSuppliers(params.categoryKey, { locationLabel: params.locationLabel, limit: 2 });
+  if (realMatches.length > 0) {
+    await supabase.from("request_targets").insert(
+      realMatches.map(({ supplier }) => ({ request_id: request.id, supplier_id: supplier.id, status: "pending" }))
+    );
+  }
 
   // Demo-modus: we simuleren dat leveranciers (met wisselende snelheid)
   // binnen de 48-uursvenster reageren, zodat de kernflow direct te
