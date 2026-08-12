@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import { redirect } from "next/navigation";
 import { AppTopBar } from "@/components/app/AppTopBar";
 import { Card } from "@/components/ui/Card";
 import { StageBadge } from "@/components/ui/Badge";
@@ -11,13 +12,18 @@ import {
   listAllRequests,
   listAllUsers,
 } from "@/lib/data/store";
-import { formatCurrency, PLATFORM_COMMISSION_RATE } from "@/lib/config";
+import { formatCurrency, PLATFORM_COMMISSION_RATE, ADMIN_EMAILS } from "@/lib/config";
+import { getCurrentUser } from "@/lib/auth";
 import { EVENT_TYPE_LABELS } from "@/lib/types";
 import { AlertCircle, Building2, CalendarDays, LineChart, Percent, Star, Users } from "lucide-react";
 
 export const metadata = { title: "Admin — Vyra" };
 
 export default async function AdminPage() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  if (!ADMIN_EMAILS.includes(user.email.toLowerCase())) redirect("/events");
+
   const [events, payments, requests, offers, users] = await Promise.all([
     listAllEvents(),
     listAllPayments(),

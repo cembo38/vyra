@@ -22,10 +22,6 @@ export default function PrivacyPage() {
         <h1 className="mt-2 font-display text-3xl tracking-tight text-ink sm:text-4xl">Privacyverklaring</h1>
         <p className="mt-3 text-sm text-ink-faint">Laatst bijgewerkt: 12 augustus 2026</p>
 
-        <div className="mt-6 rounded-2xl border border-warning-50 bg-warning-50 px-4 py-3 text-sm text-warning">
-          Dit is een zorgvuldig opgestelde conceptversie, geen juridisch sluitend advies. Laat &apos;m bij twijfel nog checken door een jurist voordat je grootschalig gebruikers werft.
-        </div>
-
         <Card className="mt-8 divide-y divide-line-soft p-0">
           <div className="px-6">
             <Section title="1. Wie is verantwoordelijk voor je gegevens">

@@ -28,6 +28,18 @@ export const AI_ENABLED = Boolean(process.env.OPENAI_API_KEY);
 
 export const PAYMENTS_ENABLED = Boolean(process.env.STRIPE_SECRET_KEY);
 
+/**
+ * E-mailadres(sen) die toegang hebben tot /admin. Alleen deze gebruiker(s)
+ * kunnen het platformbrede admin-dashboard zien — iedereen anders wordt
+ * doorgestuurd. Zet hier je eigen e-mailadres; meerdere adressen kan met
+ * een komma-gescheiden lijst in ADMIN_EMAILS (env var), als fallback wordt
+ * onderstaand adres gebruikt.
+ */
+export const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "cemadiyaman91@gmail.com")
+  .split(",")
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
+
 export function formatCurrency(
   amountInCents: number,
   currency: string = DEFAULT_CURRENCY,
