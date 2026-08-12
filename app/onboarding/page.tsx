@@ -1,0 +1,61 @@
+import { Logo } from "@/components/marketing/Logo";
+import { Field, Input, Select } from "@/components/ui/Form";
+import { getCurrentUser } from "@/lib/auth";
+import { completeOnboardingAction } from "@/lib/actions/auth-actions";
+
+export const metadata = { title: "Welkom — Vyra" };
+
+export default async function OnboardingPage() {
+  const user = await getCurrentUser();
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-paper-dim px-6 py-12">
+      <div className="w-full max-w-md">
+        <div className="mb-8 flex justify-center"><Logo /></div>
+        <div className="rounded-2xl border border-line bg-white p-8 [box-shadow:var(--shadow-card)]">
+          <h1 className="font-display text-2xl text-ink">Nog een paar details</h1>
+          <p className="mt-1 text-sm text-ink-faint">Zo stemmen we de app af op jouw voorkeuren.</p>
+
+          <form action={completeOnboardingAction} className="mt-6 space-y-4">
+            <input type="hidden" name="userId" value={user.id} />
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Voornaam" required>
+                <Input name="firstName" defaultValue={user.firstName} required />
+              </Field>
+              <Field label="Achternaam" required>
+                <Input name="lastName" defaultValue={user.lastName} required />
+              </Field>
+            </div>
+            <Field label="Land">
+              <Select name="country" defaultValue={user.country}>
+                <option value="NL">Nederland</option>
+                <option value="BE">België</option>
+                <option value="DE">Duitsland</option>
+                <option value="FR">Frankrijk</option>
+                <option value="GB">Verenigd Koninkrijk</option>
+              </Select>
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Voorkeurstaal">
+                <Select name="language" defaultValue={user.language}>
+                  <option value="nl">Nederlands</option>
+                  <option value="en">English</option>
+                </Select>
+              </Field>
+              <Field label="Valuta">
+                <Select name="currency" defaultValue={user.currency}>
+                  <option value="EUR">EUR (€)</option>
+                  <option value="USD">USD ($)</option>
+                  <option value="GBP">GBP (£)</option>
+                </Select>
+              </Field>
+            </div>
+            <button type="submit" className="w-full rounded-full bg-ink py-2.5 text-sm font-medium text-paper transition-colors hover:bg-ink/90">
+              Ga naar mijn evenementen
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}

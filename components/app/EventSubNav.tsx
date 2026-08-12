@@ -1,0 +1,42 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
+
+export function EventSubNav({ eventId }: { eventId: string }) {
+  const pathname = usePathname();
+  const base = `/events/${eventId}`;
+  const tabs = [
+    { href: base, label: "Overzicht", match: (p: string) => p === base },
+    { href: `${base}/plan`, label: "Plan" },
+    { href: `${base}/requests`, label: "Aanvragen", match: (p: string) => p.startsWith(`${base}/requests`) || p.startsWith(`${base}/offers`) },
+    { href: `${base}/shortlist`, label: "Shortlist" },
+    { href: `${base}/budget`, label: "Budget" },
+    { href: `${base}/timeline`, label: "Planning" },
+    { href: `${base}/messages`, label: "Berichten" },
+  ];
+
+  return (
+    <div className="border-b border-line bg-white">
+      <nav className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-6 no-scrollbar">
+        {tabs.map((tab) => {
+          const active = tab.match ? tab.match(pathname) : pathname === tab.href;
+          return (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              className={cn(
+                "relative shrink-0 px-3.5 py-3.5 text-sm font-medium transition-colors",
+                active ? "text-ink" : "text-ink-faint hover:text-ink-soft"
+              )}
+            >
+              {tab.label}
+              {active && <span className="absolute inset-x-3.5 -bottom-px h-0.5 rounded-full bg-coral" />}
+            </Link>
+          );
+        })}
+      </nav>
+    </div>
+  );
+}

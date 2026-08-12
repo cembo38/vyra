@@ -1,0 +1,415 @@
+/**
+ * Centraal datamodel voor het platform.
+ *
+ * Ontwerpregel (zie productspec §57): we maken expliciet onderscheid tussen
+ * USER DATA, EVENT DATA, AI GENERATED DATA, SUPPLIER DATA en TRANSACTION DATA.
+ * AI-gegenereerde informatie wordt nooit opgeslagen alsof deze door de
+ * gebruiker of leverancier is bevestigd — vandaar het `Provenance`-type dat
+ * overal wordt meegegeven waar dat onderscheid ertoe doet.
+ */
+
+export type Provenance = "user" | "ai_recommendation" | "supplier" | "system";
+
+export interface AttributedValue<T> {
+  value: T;
+  source: Provenance;
+  /** Alleen relevant bij source = ai_recommendation: korte uitleg waarom. */
+  rationale?: string;
+  updatedAt: string;
+}
+
+/* ------------------------------------------------------------------ */
+/* USER DATA                                                          */
+/* ------------------------------------------------------------------ */
+
+export type UserRole = "customer" | "supplier" | "admin";
+
+export interface UserAccount {
+  id: string;
+  role: UserRole;
+  email: string;
+  firstName: string;
+  lastName: string;
+  country: string;
+  language: "nl" | "en";
+  currency: string;
+  createdAt: string;
+  avatarColor: string; // gebruikt voor gegenereerde avatar-initials
+}
+
+/* ------------------------------------------------------------------ */
+/* EVENT DATA                                                          */
+/* ------------------------------------------------------------------ */
+
+export type EventType =
+  | "wedding"
+  | "birthday"
+  | "anniversary"
+  | "christmas_party"
+  | "new_year_party"
+  | "corporate_party"
+  | "baby_shower"
+  | "bachelor_party"
+  | "festival"
+  | "graduation_party"
+  | "dinner"
+  | "garden_party"
+  | "kids_party"
+  | "cultural_event"
+  | "business_conference"
+  | "product_launch"
+  | "private_party"
+  | "other";
+
+export const EVENT_TYPE_LABELS: Record<EventType, string> = {
+  wedding: "Bruiloft",
+  birthday: "Verjaardag",
+  anniversary: "Jubileum",
+  christmas_party: "Kerstfeest",
+  new_year_party: "Nieuwjaarsfeest",
+  corporate_party: "Bedrijfsfeest",
+  baby_shower: "Babyshower",
+  bachelor_party: "Vrijgezellenfeest",
+  festival: "Festival",
+  graduation_party: "Afstudeerfeest",
+  dinner: "Diner",
+  garden_party: "Tuinfeest",
+  kids_party: "Kinderfeest",
+  cultural_event: "Religieuze / culturele festiviteit",
+  business_conference: "Zakelijk congres",
+  product_launch: "Productlancering",
+  private_party: "Private party",
+  other: "Evenement",
+};
+
+export type EventStage =
+  | "draft" // net gestart, interview loopt nog
+  | "planning" // plan gegenereerd, requirements worden gekozen
+  | "sourcing" // aanvragen verstuurd, offertes worden verzameld
+  | "booking" // shortlist/keuzes, betalingen lopen
+  | "confirmed" // alles geboekt
+  | "completed";
+
+export interface EventBudget {
+  totalCents: number;
+  source: Provenance;
+}
+
+export interface EventCore {
+  id: string;
+  ownerId: string;
+  name: string;
+  type: EventType;
+  stage: EventStage;
+  createdAt: string;
+  updatedAt: string;
+
+  date: string | null; // ISO date
+  startTime: string | null; // HH:mm
+  endTime: string | null;
+  timezone: string;
+
+  guestCountAdults: number | null;
+  guestCountChildren: number | null;
+
+  locationLabel: string | null; // bv. "Amsterdam"
+  locationType: "home" | "external_venue" | "tbd" | null;
+  indoorOutdoor: "indoor" | "outdoor" | "both" | null;
+
+  budget: EventBudget | null;
+
+  style: string | null; // bv. "modern & minimalistisch"
+  theme: string | null;
+  formality: "casual" | "semi_formal" | "formal" | null;
+  isProfessional: boolean; // zakelijk vs privé
+
+  description: string; // de oorspronkelijke vrije-tekst beschrijving
+  notes: EventNote[];
+}
+
+export interface EventNote {
+  id: string;
+  eventId: string;
+  text: string;
+  createdAt: string;
+  source: Provenance;
+  /** Als AI een wijziging signaleert die impact heeft op eerdere keuzes. */
+  impactSummary?: string;
+}
+
+/* ------------------------------------------------------------------ */
+/* AI GENERATED DATA                                                   */
+/* ------------------------------------------------------------------ */
+
+export type RequirementPriority = "essential" | "recommended" | "optional";
+
+export interface RequirementCategory {
+  id: string;
+  eventId: string;
+  categoryKey: SupplierCategory;
+  label: string;
+  priority: RequirementPriority;
+  aiRationale: string; // "Dit is een AI-aanbeveling: ..."
+  selected: boolean; // gebruikerskeuze
+  estimatedBudgetCents: number | null;
+  status:
+    | "suggested"
+    | "selected"
+    | "requested"
+    | "awaiting_response"
+    | "offers_received"
+    | "shortlisted"
+    | "confirmed"
+    | "paid"
+    | "completed"
+    | "rejected";
+}
+
+export interface AiInterviewMessage {
+  id: string;
+  eventId: string;
+  role: "assistant" | "user";
+  text: string;
+  createdAt: string;
+  /** Gestructureerde velden die deze beurt heeft bijgewerkt (voor audit trail). */
+  extractedFields?: Record<string, unknown>;
+}
+
+export interface EventTimelineItem {
+  id: string;
+  eventId: string;
+  title: string;
+  dueDate: string | null; // ISO date
+  leadTimeLabel: string; // bv. "6 maanden vooraf"
+  categoryKey: SupplierCategory | null;
+  done: boolean;
+  source: Provenance;
+}
+
+export interface EventTask {
+  id: string;
+  eventId: string;
+  title: string;
+  urgency: "urgent" | "soon" | "normal";
+  done: boolean;
+  source: Provenance;
+  relatedCategory?: SupplierCategory;
+}
+
+export interface RiskFlag {
+  id: string;
+  eventId: string;
+  severity: "warning" | "info";
+  message: string;
+  createdAt: string;
+}
+
+/* ------------------------------------------------------------------ */
+/* SUPPLIER DATA                                                       */
+/* ------------------------------------------------------------------ */
+
+export type SupplierCategory =
+  | "venue"
+  | "catering"
+  | "cake"
+  | "florist"
+  | "decoration"
+  | "dj_music"
+  | "band"
+  | "photography"
+  | "videography"
+  | "furniture_rental"
+  | "lighting_sound"
+  | "cleaning"
+  | "security"
+  | "staffing"
+  | "transport"
+  | "tent_rental"
+  | "entertainment"
+  | "planner"
+  | "photobooth"
+  | "invitations"
+  | "av_equipment";
+
+export const SUPPLIER_CATEGORY_LABELS: Record<SupplierCategory, string> = {
+  venue: "Locatie",
+  catering: "Catering",
+  cake: "Taart",
+  florist: "Bloemist",
+  decoration: "Decoratie",
+  dj_music: "DJ",
+  band: "Live muziek",
+  photography: "Fotografie",
+  videography: "Videografie",
+  furniture_rental: "Meubelverhuur",
+  lighting_sound: "Licht & geluid",
+  cleaning: "Schoonmaak",
+  security: "Beveiliging",
+  staffing: "Bedienend personeel",
+  transport: "Transport",
+  tent_rental: "Tentverhuur",
+  entertainment: "Entertainment",
+  planner: "Eventplanner",
+  photobooth: "Photobooth",
+  invitations: "Uitnodigingen",
+  av_equipment: "AV-apparatuur",
+};
+
+export interface SupplierProfile {
+  id: string;
+  companyName: string;
+  contactPerson: string;
+  category: SupplierCategory;
+  serviceAreas: string[]; // steden/regio's
+  description: string;
+  minPriceCents: number;
+  avgPriceCents: number;
+  ratingAvg: number; // 0-5
+  ratingCount: number;
+  verified: boolean;
+  responseRateSummary: string; // bv. "Reageert meestal binnen 12 uur"
+  avgResponseHours: number;
+  acceptedOfferRate: number; // 0-1
+  photoGradient: [string, string]; // premium placeholder ipv echte foto
+  initials: string;
+  tags: string[];
+  yearsActive: number;
+  portfolioHighlights: string[];
+}
+
+export interface SupplierAvailabilitySlot {
+  supplierId: string;
+  date: string;
+  available: boolean;
+}
+
+/* ------------------------------------------------------------------ */
+/* TRANSACTION / MARKETPLACE DATA                                      */
+/* ------------------------------------------------------------------ */
+
+export type RequestStatus = "sent" | "awaiting_response" | "responded" | "expired" | "cancelled";
+
+export interface ServiceRequest {
+  id: string;
+  eventId: string;
+  categoryKey: SupplierCategory;
+  supplierIds: string[]; // 3-5 gematchte leveranciers
+  desiredService: string;
+  specialRequests: string;
+  budgetCents: number | null;
+  status: RequestStatus;
+  sentAt: string;
+  deadlineAt: string; // sentAt + 48u
+}
+
+export type OfferStatus =
+  | "pending"
+  | "available"
+  | "unavailable"
+  | "shortlisted"
+  | "accepted"
+  | "declined"
+  | "expired";
+
+export interface OfferOption {
+  id: string;
+  requestId: string;
+  eventId: string;
+  supplierId: string;
+  categoryKey: SupplierCategory;
+  status: OfferStatus;
+  totalPriceCents: number;
+  pricePerPersonCents: number | null;
+  includes: string[];
+  excludes: string[];
+  extraCostsNote: string | null;
+  staffIncluded: boolean;
+  deliveryIncluded: boolean;
+  setupIncluded: boolean;
+  teardownIncluded: boolean;
+  travelCostsCents: number | null;
+  cancellationPolicy: string;
+  paymentTerms: string;
+  validUntil: string;
+  remarks: string | null;
+  matchScore: number; // 0-100, AI-berekend
+  matchRationale: string;
+  respondedAt: string;
+  swipeDecision: "none" | "shortlisted" | "rejected";
+}
+
+export interface Shortlist {
+  eventId: string;
+  categoryKey: SupplierCategory;
+  offerId: string;
+  decision: "shortlisted" | "selected" | "rejected";
+  updatedAt: string;
+}
+
+export interface Message {
+  id: string;
+  eventId: string;
+  categoryKey: SupplierCategory;
+  supplierId: string;
+  sender: "customer" | "supplier" | "ai_summary";
+  text: string;
+  createdAt: string;
+}
+
+export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
+
+export interface Payment {
+  id: string;
+  eventId: string;
+  offerId: string;
+  categoryKey: SupplierCategory;
+  supplierAmountCents: number;
+  platformFeeCents: number;
+  totalCents: number;
+  commissionRate: number;
+  status: PaymentStatus;
+  createdAt: string;
+  paidAt: string | null;
+  provider: "stripe" | "mock";
+}
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  eventId: string | null;
+  type:
+    | "new_offer"
+    | "supplier_responded"
+    | "deadline_approaching"
+    | "payment_required"
+    | "payment_confirmed"
+    | "event_deadline"
+    | "budget_exceeded"
+    | "new_ai_recommendation"
+    | "new_shortlist_candidate"
+    | "supplier_question"
+    | "event_info_changed";
+  title: string;
+  body: string;
+  read: boolean;
+  createdAt: string;
+  href: string | null;
+}
+
+/* ------------------------------------------------------------------ */
+/* Helper aggregates                                                   */
+/* ------------------------------------------------------------------ */
+
+export interface EventReadiness {
+  score: number; // 0-100
+  missingEssentials: SupplierCategory[];
+  categoryStatus: Record<string, "confirmed" | "in_progress" | "missing">;
+}
+
+export interface EventBudgetSummary {
+  totalCents: number;
+  committedCents: number; // geaccepteerde offertes
+  pendingCents: number; // verwachte kosten van open categorieën
+  remainingCents: number;
+  percentOverBudget: number; // 0 als binnen budget
+}

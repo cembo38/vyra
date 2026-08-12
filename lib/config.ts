@@ -1,0 +1,47 @@
+/**
+ * Centrale platformconfiguratie.
+ *
+ * Belangrijk: bedrijfsregels zoals het commissiepercentage staan hier op
+ * één plek. Nergens anders in de applicatie mag 0.095 hardcoded worden.
+ * Dit maakt het later triviaal om het percentage te wijzigen, per
+ * leverancierscategorie te differentiëren, of A/B te testen — zonder de
+ * rest van de applicatie aan te raken.
+ */
+
+export const PLATFORM_COMMISSION_RATE = 0.095; // 9,5% platformcommissie
+
+export const SUPPLIER_RESPONSE_WINDOW_HOURS = 48;
+
+export const DEFAULT_CURRENCY = "EUR";
+export const DEFAULT_LOCALE = "nl-NL";
+export const DEFAULT_COUNTRY = "NL";
+
+/** Aantal leveranciers dat standaard per aanvraag wordt benaderd (anti-spam). */
+export const SUPPLIERS_PER_REQUEST = { min: 3, max: 5 };
+
+/**
+ * Of er een echte AI-provider is geconfigureerd. Als dit false is, valt de
+ * hele AI-laag terug op deterministische mock-logica zodat de app zonder
+ * API-key volledig te demonstreren blijft. Zie lib/ai/client.ts.
+ */
+export const AI_ENABLED = Boolean(process.env.OPENAI_API_KEY);
+
+export const PAYMENTS_ENABLED = Boolean(process.env.STRIPE_SECRET_KEY);
+
+export function formatCurrency(
+  amountInCents: number,
+  currency: string = DEFAULT_CURRENCY,
+  locale: string = DEFAULT_LOCALE
+): string {
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency,
+    maximumFractionDigits: 0,
+  }).format(amountInCents / 100);
+}
+
+export function calculateCommission(supplierAmountInCents: number, rate: number = PLATFORM_COMMISSION_RATE) {
+  const platformFee = Math.round(supplierAmountInCents * rate);
+  const total = supplierAmountInCents + platformFee;
+  return { supplierAmount: supplierAmountInCents, platformFee, total, rate };
+}
