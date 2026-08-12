@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { Logo } from "@/components/marketing/Logo";
 import { Field, Input } from "@/components/ui/Form";
+import { AuthErrorBanner } from "@/components/app/AuthErrorBanner";
 import { signupAction } from "@/lib/actions/auth-actions";
 
 export const metadata = { title: "Account aanmaken — Vyra" };
 
 export default async function SignupPage(props: PageProps<"/signup">) {
   const params = await props.searchParams;
-  const hasError = params.error === "consent";
+  const errorCode = typeof params.error === "string" ? params.error : undefined;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-paper-dim px-6 py-12">
@@ -17,11 +18,7 @@ export default async function SignupPage(props: PageProps<"/signup">) {
           <h1 className="font-display text-2xl text-ink">Maak je account</h1>
           <p className="mt-1 text-sm text-ink-faint">Gratis, en zonder wachtwoord — we sturen je een inloglink per e-mail.</p>
 
-          {hasError && (
-            <div className="mt-4 rounded-xl border border-warning-50 bg-warning-50 px-3 py-2 text-sm text-warning">
-              Je moet akkoord gaan met de voorwaarden en de privacyverklaring om een account aan te maken.
-            </div>
-          )}
+          <AuthErrorBanner code={errorCode} />
 
           <form action={signupAction} className="mt-6 space-y-4">
             <div className="grid grid-cols-2 gap-3">

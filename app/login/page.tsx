@@ -1,11 +1,15 @@
 import Link from "next/link";
 import { Logo } from "@/components/marketing/Logo";
 import { Field, Input } from "@/components/ui/Form";
+import { AuthErrorBanner } from "@/components/app/AuthErrorBanner";
 import { loginAction } from "@/lib/actions/auth-actions";
 
 export const metadata = { title: "Inloggen — Vyra" };
 
-export default function LoginPage() {
+export default async function LoginPage(props: PageProps<"/login">) {
+  const params = await props.searchParams;
+  const errorCode = typeof params.error === "string" ? params.error : undefined;
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-paper-dim px-6 py-12">
       <div className="w-full max-w-sm">
@@ -13,6 +17,8 @@ export default function LoginPage() {
         <div className="rounded-2xl border border-line bg-white p-8 [box-shadow:var(--shadow-card)]">
           <h1 className="font-display text-2xl text-ink">Welkom terug</h1>
           <p className="mt-1 text-sm text-ink-faint">Vul je e-mailadres in — we sturen je een inloglink, geen wachtwoord nodig.</p>
+
+          <AuthErrorBanner code={errorCode} />
 
           <form action={loginAction} className="mt-6 space-y-4">
             <Field label="E-mailadres" required>

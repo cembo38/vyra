@@ -13,16 +13,32 @@ async function siteOrigin() {
   return `${proto}://${host}`;
 }
 
+/**
+ * Vertaalt een Supabase Auth-fout naar een korte errorcode voor in de URL,
+ * zodat de loginpagina een nette Nederlandse melding kan tonen i.p.v. een
+ * onbehandelde crash (de generieke Next.js-foutpagina met een cijfercode).
+ */
+function authErrorCode(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  if (/rate limit/i.test(message)) return "ratelimit";
+  return "send_failed";
+}
+
 export async function signupAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim();
   const consent = formData.get("consent");
   const role = formData.get("role") === "supplier" ? "supplier" : "customer";
-  if (!consent) redirect(role === "supplier" ? "/supplier/signup?error=consent" : "/signup?error=consent");
+  const base = role === "supplier" ? "/supplier/signup" : "/signup";
+  if (!consent) redirect(`${base}?error=consent`);
   if (!email) return;
   const origin = await siteOrigin();
-  await sendMagicLink(email, `${origin}/auth/callback`, { firstName, lastName, role });
+  try {
+    await sendMagicLink(email, `${origin}/auth/callback`, { firstName, lastName, role });
+  } catch (err) {
+    redirect(`${base}?error=${authErrorCode(err)}`);
+  }
   const checkEmailBase = role === "supplier" ? "/supplier/signup/check-email" : "/signup/check-email";
   redirect(`${checkEmailBase}?email=${encodeURIComponent(email)}`);
 }
@@ -31,7 +47,11 @@ export async function loginAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   if (!email) return;
   const origin = await siteOrigin();
-  await sendMagicLink(email, `${origin}/auth/callback`);
+  try {
+    await sendMagicLink(email, `${origin}/auth/callback`);
+  } catch (err) {
+    redirect(`/login?error=${authErrorCode(err)}`);
+  }
   redirect(`/login/check-email?email=${encodeURIComponent(email)}`);
 }
 
