@@ -31,7 +31,8 @@ export function Footer() {
               <p className="font-medium text-ink">Platform</p>
               <div className="mt-3 flex flex-col gap-2 text-ink-faint">
                 <Link href="/admin" className="hover:text-ink">Admin</Link>
-                <span>Privacy & voorwaarden</span>
+                <Link href="/privacy" className="hover:text-ink">Privacyverklaring</Link>
+                <Link href="/voorwaarden" className="hover:text-ink">Algemene voorwaarden</Link>
               </div>
             </div>
           </div>

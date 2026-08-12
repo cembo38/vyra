@@ -17,6 +17,8 @@ export async function signupAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim();
+  const consent = formData.get("consent");
+  if (!consent) redirect("/signup?error=consent");
   if (!email) return;
   const origin = await siteOrigin();
   await sendMagicLink(email, `${origin}/auth/callback`, { firstName, lastName });
