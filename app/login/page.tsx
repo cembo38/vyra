@@ -16,7 +16,7 @@ export default async function LoginPage(props: PageProps<"/login">) {
         <div className="mb-8 flex justify-center"><Logo /></div>
         <div className="rounded-2xl border border-line bg-white p-8 [box-shadow:var(--shadow-card)]">
           <h1 className="font-display text-2xl text-ink">Welkom terug</h1>
-          <p className="mt-1 text-sm text-ink-faint">Vul je e-mailadres in — we sturen je een inloglink, geen wachtwoord nodig.</p>
+          <p className="mt-1 text-sm text-ink-faint">Log in met je e-mailadres en wachtwoord.</p>
 
           <AuthErrorBanner code={errorCode} />
 
@@ -24,8 +24,11 @@ export default async function LoginPage(props: PageProps<"/login">) {
             <Field label="E-mailadres" required>
               <Input type="email" name="email" required placeholder="jij@voorbeeld.nl" />
             </Field>
+            <Field label="Wachtwoord" required>
+              <Input type="password" name="password" required placeholder="••••••••" />
+            </Field>
             <button type="submit" className="w-full rounded-full bg-ink py-2.5 text-sm font-medium text-paper transition-colors hover:bg-ink/90">
-              Stuur inloglink
+              Inloggen
             </button>
           </form>
 

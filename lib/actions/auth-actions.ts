@@ -3,8 +3,8 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { sendMagicLink, signOut, getCurrentUser } from "@/lib/auth";
-import { updateUser } from "@/lib/data/store";
+import { signUpWithPassword, signInWithPassword, signOut, getCurrentUser } from "@/lib/auth";
+import { updateUser, getSupplierAccountByOwner } from "@/lib/data/store";
 
 async function siteOrigin() {
   const h = await headers();
@@ -14,18 +14,35 @@ async function siteOrigin() {
 }
 
 /**
- * Vertaalt een Supabase Auth-fout naar een korte errorcode voor in de URL,
- * zodat de loginpagina een nette Nederlandse melding kan tonen i.p.v. een
- * onbehandelde crash (de generieke Next.js-foutpagina met een cijfercode).
+ * Vertaalt een Supabase Auth-foutmelding naar een korte errorcode voor in de
+ * URL, zodat de login-/aanmeldpagina een nette Nederlandse melding kan tonen
+ * i.p.v. een onbehandelde crash (de generieke Next.js-foutpagina met een
+ * cijfercode).
  */
-function authErrorCode(err: unknown): string {
-  const message = err instanceof Error ? err.message : String(err);
+function authErrorCode(message: string): string {
+  if (/already registered|already exists/i.test(message)) return "already_registered";
+  if (/invalid login credentials/i.test(message)) return "invalid_credentials";
+  if (/email not confirmed/i.test(message)) return "not_confirmed";
+  if (/password.*(least|short|weak)/i.test(message)) return "password";
   if (/rate limit/i.test(message)) return "ratelimit";
   return "send_failed";
 }
 
+/** Stuurt een net ingelogde gebruiker naar de juiste plek: leveranciersprofiel afronden, of meteen naar zijn/haar eigen pagina. */
+async function redirectAfterAuth(): Promise<never> {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?error=send_failed");
+
+  if (user.role === "supplier" || user.role === "both") {
+    const supplier = await getSupplierAccountByOwner(user.id);
+    redirect(supplier ? "/supplier/dashboard" : "/supplier/onboarding");
+  }
+  redirect("/events");
+}
+
 export async function signupAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
+  const password = String(formData.get("password") ?? "");
   const firstName = String(formData.get("firstName") ?? "").trim();
   const lastName = String(formData.get("lastName") ?? "").trim();
   const consent = formData.get("consent");
@@ -34,28 +51,40 @@ export async function signupAction(formData: FormData) {
 
   if (!asOrganizer && !asSupplier) redirect("/signup?error=role");
   if (!consent) redirect("/signup?error=consent");
-  if (!email) return;
+  if (!email || password.length < 8) redirect("/signup?error=password");
 
   const role = asOrganizer && asSupplier ? "both" : asSupplier ? "supplier" : "customer";
   const origin = await siteOrigin();
-  try {
-    await sendMagicLink(email, `${origin}/auth/callback`, { firstName, lastName, role });
-  } catch (err) {
-    redirect(`/signup?error=${authErrorCode(err)}`);
+  const { error, confirmedSession } = await signUpWithPassword({
+    email,
+    password,
+    firstName,
+    lastName,
+    role,
+    emailRedirectTo: `${origin}/auth/callback`,
+  });
+  if (error) redirect(`/signup?error=${authErrorCode(error)}`);
+
+  if (!confirmedSession) {
+    // "Confirm email" staat nog aan in Supabase — pas na het klikken op de
+    // link in de mail is er een sessie. Zodra dat uitstaat, komt dit pad
+    // nooit meer voor en ga je hierboven meteen door naar je eigen pagina.
+    redirect(`/signup/check-email?email=${encodeURIComponent(email)}`);
   }
-  redirect(`/signup/check-email?email=${encodeURIComponent(email)}`);
+
+  revalidatePath("/", "layout");
+  await redirectAfterAuth();
 }
 
 export async function loginAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
-  if (!email) return;
-  const origin = await siteOrigin();
-  try {
-    await sendMagicLink(email, `${origin}/auth/callback`);
-  } catch (err) {
-    redirect(`/login?error=${authErrorCode(err)}`);
-  }
-  redirect(`/login/check-email?email=${encodeURIComponent(email)}`);
+  const password = String(formData.get("password") ?? "");
+  if (!email || !password) redirect("/login?error=missing");
+
+  const { error } = await signInWithPassword(email, password);
+  if (error) redirect(`/login?error=${authErrorCode(error)}`);
+
+  await redirectAfterAuth();
 }
 
 export async function completeOnboardingAction(formData: FormData) {

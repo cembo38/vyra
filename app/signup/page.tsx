@@ -23,7 +23,7 @@ export default async function SignupPage(props: PageProps<"/signup">) {
         <div className="mb-8 flex justify-center"><Logo /></div>
         <div className="rounded-2xl border border-line bg-white p-8 [box-shadow:var(--shadow-card)]">
           <h1 className="font-display text-2xl text-ink">Maak je account</h1>
-          <p className="mt-1 text-sm text-ink-faint">Gratis, en zonder wachtwoord — we sturen je een inloglink per e-mail.</p>
+          <p className="mt-1 text-sm text-ink-faint">Gratis — met e-mail en wachtwoord, je komt meteen op je eigen pagina.</p>
 
           <AuthErrorBanner code={errorCode} />
 
@@ -38,6 +38,9 @@ export default async function SignupPage(props: PageProps<"/signup">) {
             </div>
             <Field label="E-mailadres" required>
               <Input type="email" name="email" required placeholder="jij@voorbeeld.nl" />
+            </Field>
+            <Field label="Wachtwoord" required hint="Minimaal 8 tekens">
+              <Input type="password" name="password" required minLength={8} placeholder="••••••••" />
             </Field>
 
             <fieldset>

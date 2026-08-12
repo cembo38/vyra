@@ -22,7 +22,7 @@ export interface AttributedValue<T> {
 /* USER DATA                                                          */
 /* ------------------------------------------------------------------ */
 
-export type UserRole = "customer" | "supplier" | "admin";
+export type UserRole = "customer" | "supplier" | "both" | "admin";
 
 export interface UserAccount {
   id: string;
