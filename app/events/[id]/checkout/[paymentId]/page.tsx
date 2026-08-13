@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
-import { getEvent, getOffer, getPayment } from "@/lib/data/store";
-import { getSupplierById } from "@/lib/data/suppliers";
+import { getEvent, getOffer, getPayment, resolveSupplierDisplay } from "@/lib/data/store";
 import { Card } from "@/components/ui/Card";
 import { SupplierAvatar } from "@/components/ui/Avatar";
 import { formatCurrency, PLATFORM_COMMISSION_RATE, PAYMENTS_ENABLED } from "@/lib/config";
@@ -15,7 +14,7 @@ export default async function CheckoutPage(props: PageProps<"/events/[id]/checko
   if (!event || !payment || payment.eventId !== id) notFound();
 
   const offer = await getOffer(payment.offerId);
-  const supplier = offer ? getSupplierById(offer.supplierId) : null;
+  const supplier = offer ? await resolveSupplierDisplay(offer.supplierId) : null;
 
   return (
     <div className="mx-auto max-w-lg">
@@ -25,7 +24,7 @@ export default async function CheckoutPage(props: PageProps<"/events/[id]/checko
       <Card>
         {supplier && (
           <div className="mb-5 flex items-center gap-3 border-b border-line-soft pb-5">
-            <SupplierAvatar gradient={supplier.photoGradient} initials={supplier.initials} verified={supplier.verified} />
+            <SupplierAvatar gradient={supplier.photoGradient} initials={supplier.initials} imageUrl={supplier.logoUrl} verified={supplier.verified} />
             <div>
               <p className="font-medium text-ink">{supplier.companyName}</p>
               <p className="text-sm text-ink-faint">{SUPPLIER_CATEGORY_LABELS[payment.categoryKey]}</p>

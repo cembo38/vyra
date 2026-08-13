@@ -1,6 +1,5 @@
 import { notFound } from "next/navigation";
-import { getEvent, getOffersForEvent } from "@/lib/data/store";
-import { getSupplierById } from "@/lib/data/suppliers";
+import { getEvent, getOffersForEvent, resolveSupplierDisplay } from "@/lib/data/store";
 import { OfferBrowser, OfferWithSupplier } from "@/components/app/OfferBrowser";
 import { SUPPLIER_CATEGORY_LABELS, SupplierCategory } from "@/lib/types";
 
@@ -14,13 +13,14 @@ export default async function CategoryOffersPage(props: PageProps<"/events/[id]/
   if (!label) notFound();
 
   const rawOffers = await getOffersForEvent(id, categoryKey);
-  const offers: OfferWithSupplier[] = rawOffers
-    .map((o) => {
-      const supplier = getSupplierById(o.supplierId);
+  const resolved = await Promise.all(
+    rawOffers.map(async (o) => {
+      const supplier = await resolveSupplierDisplay(o.supplierId);
       if (!supplier) return null;
       return { ...o, supplier };
     })
-    .filter(Boolean) as OfferWithSupplier[];
+  );
+  const offers: OfferWithSupplier[] = resolved.filter(Boolean) as OfferWithSupplier[];
 
   offers.sort((a, b) => b.matchScore - a.matchScore);
 

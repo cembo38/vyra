@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
-import { Heart, X, ArrowRight, Undo2, Star, ShieldCheck, ListChecks, Rows3, CheckCircle2, Loader2 } from "lucide-react";
+import { Heart, X, ArrowRight, Undo2, Star, ShieldCheck, ListChecks, Rows3, CheckCircle2, Loader2, ExternalLink } from "lucide-react";
 import { SupplierAvatar } from "@/components/ui/Avatar";
 import { Badge, OfferStatusBadge } from "@/components/ui/Badge";
 import { formatCurrency } from "@/lib/config";
@@ -186,7 +187,13 @@ function SwipeCard({ offer, stackIndex, interactive, onDecide }: { offer: OfferW
           <div>
             <h3 className="font-display text-xl text-ink">{offer.supplier.companyName}</h3>
             <div className="mt-1 flex items-center gap-1.5 text-sm text-ink-faint">
-              <Star className="size-3.5 fill-gold text-gold" /> {offer.supplier.ratingAvg.toFixed(1)} ({offer.supplier.ratingCount})
+              {offer.supplier.ratingCount > 0 ? (
+                <>
+                  <Star className="size-3.5 fill-gold text-gold" /> {offer.supplier.ratingAvg.toFixed(1)} ({offer.supplier.ratingCount})
+                </>
+              ) : (
+                <span>Nog geen reviews</span>
+              )}
               {offer.supplier.verified && <ShieldCheck className="ml-1 size-3.5 text-violet" />}
             </div>
           </div>
@@ -221,14 +228,32 @@ function OfferListCard({ offer, compact }: { offer: OfferWithSupplier; compact?:
   return (
     <div className="rounded-2xl border border-line bg-white p-5">
       <div className="flex items-start gap-3">
-        <SupplierAvatar gradient={offer.supplier.photoGradient} initials={offer.supplier.initials} verified={offer.supplier.verified} size={44} />
+        <SupplierAvatar
+          gradient={offer.supplier.photoGradient}
+          initials={offer.supplier.initials}
+          imageUrl={offer.supplier.logoUrl}
+          verified={offer.supplier.verified}
+          size={44}
+        />
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <p className="truncate font-medium text-ink">{offer.supplier.companyName}</p>
+            {offer.supplier.isReal ? (
+              <Link href={`/leveranciers/${offer.supplier.id}`} target="_blank" className="flex min-w-0 items-center gap-1 truncate font-medium text-ink hover:text-violet hover:underline">
+                <span className="truncate">{offer.supplier.companyName}</span> <ExternalLink className="size-3 shrink-0" />
+              </Link>
+            ) : (
+              <p className="truncate font-medium text-ink">{offer.supplier.companyName}</p>
+            )}
             <OfferStatusBadge status={offer.status} />
           </div>
           <div className="mt-0.5 flex items-center gap-1 text-xs text-ink-faint">
-            <Star className="size-3 fill-gold text-gold" /> {offer.supplier.ratingAvg.toFixed(1)}
+            {offer.supplier.ratingCount > 0 ? (
+              <>
+                <Star className="size-3 fill-gold text-gold" /> {offer.supplier.ratingAvg.toFixed(1)}
+              </>
+            ) : (
+              <span>Nog geen reviews</span>
+            )}
             <span className="mx-1">·</span>
             {offer.matchScore}% match
           </div>

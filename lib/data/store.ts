@@ -1,7 +1,7 @@
 import "server-only";
 import { uid } from "@/lib/utils";
 import { PLATFORM_COMMISSION_RATE, SUPPLIER_RESPONSE_WINDOW_HOURS, calculateCommission } from "@/lib/config";
-import { SUPPLIERS, suppliersByCategory } from "@/lib/data/suppliers";
+import { SUPPLIERS, suppliersByCategory, getSupplierById } from "@/lib/data/suppliers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import {
   AiInterviewMessage,
@@ -24,6 +24,7 @@ import {
   SupplierCategory,
   SupplierLead,
   SupplierOrder,
+  SupplierProfile,
   UserAccount,
 } from "@/lib/types";
 
@@ -135,6 +136,8 @@ function rowToRequest(r: Row): ServiceRequest {
     status: r.status,
     sentAt: r.sent_at,
     deadlineAt: r.deadline_at,
+    targetSupplierId: r.target_supplier_id ?? null,
+    isDirect: r.is_direct ?? false,
   };
 }
 
@@ -205,13 +208,18 @@ function rowToNotification(r: Row): AppNotification {
 }
 
 function rowToSupplierAccount(r: Row): SupplierAccount {
+  const categories: SupplierCategory[] = r.categories && r.categories.length > 0 ? r.categories : r.category ? [r.category] : [];
   return {
     id: r.id,
     ownerId: r.owner_id,
     companyName: r.company_name,
     contactPerson: r.contact_person ?? "",
-    category: r.category,
+    category: categories[0] ?? r.category,
+    categories,
+    categoryOther: r.category_other ?? null,
     serviceAreas: r.service_areas ?? [],
+    baseLocation: r.base_location ?? (r.service_areas?.[0] ?? ""),
+    serviceRadiusKm: r.service_radius_km ?? 25,
     description: r.description ?? "",
     minPriceCents: r.min_price_cents ?? 0,
     avgPriceCents: r.avg_price_cents ?? 0,
@@ -223,6 +231,13 @@ function rowToSupplierAccount(r: Row): SupplierAccount {
     tags: r.tags ?? [],
     yearsActive: r.years_active ?? 0,
     portfolioHighlights: r.portfolio_highlights ?? [],
+    kvkNumber: r.kvk_number ?? null,
+    website: r.website ?? null,
+    socialFacebook: r.social_facebook ?? null,
+    socialInstagram: r.social_instagram ?? null,
+    socialTiktok: r.social_tiktok ?? null,
+    logoUrl: r.logo_url ?? null,
+    galleryUrls: r.gallery_urls ?? [],
     createdAt: r.created_at,
   };
 }
@@ -416,18 +431,96 @@ export async function getSupplierAccount(supplierId: string): Promise<SupplierAc
   return data ? rowToSupplierAccount(data) : null;
 }
 
-export async function createSupplierAccount(
-  ownerId: string,
-  patch: {
-    companyName: string;
-    contactPerson: string;
-    category: SupplierCategory;
-    serviceAreas: string[];
-    description: string;
-    minPriceCents: number;
-    avgPriceCents: number;
-  }
-): Promise<SupplierAccount> {
+/** Uploadt een logo/foto naar de "supplier-media"-opslagruimte en geeft de publieke URL terug (of null bij een fout). */
+export async function uploadSupplierFile(ownerId: string, file: File, folder: "logo" | "gallery"): Promise<string | null> {
+  if (!file || file.size === 0) return null;
+  const supabase = await sb();
+  const ext = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
+  const path = `${ownerId}/${folder}-${Date.now()}-${Math.round(Math.random() * 1_000_000)}.${ext}`;
+  const { error } = await supabase.storage.from("supplier-media").upload(path, file, {
+    upsert: true,
+    contentType: file.type || undefined,
+  });
+  if (error) return null;
+  const { data } = supabase.storage.from("supplier-media").getPublicUrl(path);
+  return data.publicUrl;
+}
+
+const DISPLAY_GRADIENTS: [string, string][] = [
+  ["#FFD8A8", "#FF5A46"],
+  ["#C7B8FF", "#6D5CF0"],
+  ["#FFE29A", "#B8892B"],
+  ["#B7E4C7", "#1C8A54"],
+  ["#FFC6C0", "#D1443B"],
+  ["#AFE0F5", "#2C7DA0"],
+];
+
+function gradientFor(id: string): [string, string] {
+  let hash = 0;
+  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
+  return DISPLAY_GRADIENTS[hash % DISPLAY_GRADIENTS.length];
+}
+
+/** Zet een écht leveranciersaccount om naar de "weergave-vorm" die overal (offertes, shortlist, gesprekken) wordt gebruikt om suppliers te tonen. */
+export function supplierAccountToProfileShape(account: SupplierAccount): SupplierProfile {
+  return {
+    id: account.id,
+    companyName: account.companyName,
+    contactPerson: account.contactPerson,
+    category: account.category,
+    serviceAreas: account.baseLocation ? [account.baseLocation] : account.serviceAreas,
+    description: account.description,
+    minPriceCents: account.minPriceCents,
+    avgPriceCents: account.avgPriceCents,
+    ratingAvg: account.ratingAvg,
+    ratingCount: account.ratingCount,
+    verified: account.verified,
+    responseRateSummary: account.ratingCount > 0 || account.avgResponseHours < 24
+      ? `Reageert meestal binnen ${account.avgResponseHours} uur`
+      : "Nog geen reactiegeschiedenis",
+    avgResponseHours: account.avgResponseHours,
+    acceptedOfferRate: account.acceptedOfferRate,
+    photoGradient: gradientFor(account.id),
+    initials: account.companyName.slice(0, 2).toUpperCase(),
+    tags: account.tags,
+    yearsActive: account.yearsActive,
+    portfolioHighlights: account.portfolioHighlights,
+    isReal: true,
+    logoUrl: account.logoUrl,
+  };
+}
+
+/**
+ * Zoekt een leverancier op id — eerst in de statische demo-catalogus,
+ * anders in de echte (ingelogde) leveranciersaccounts. Zo blijven alle
+ * plekken die een leverancier tonen (offertes, shortlist, afrekenen,
+ * gesprekken) werken ongeacht of het om een demo- of een écht account gaat.
+ */
+export async function resolveSupplierDisplay(id: string): Promise<SupplierProfile | null> {
+  const demo = getSupplierById(id);
+  if (demo) return demo;
+  const account = await getSupplierAccount(id);
+  return account ? supplierAccountToProfileShape(account) : null;
+}
+
+interface SupplierProfilePatch {
+  companyName: string;
+  contactPerson: string;
+  categories: SupplierCategory[];
+  categoryOther: string | null;
+  baseLocation: string;
+  serviceRadiusKm: number;
+  description: string;
+  minPriceCents: number;
+  avgPriceCents: number;
+  kvkNumber: string | null;
+  website: string | null;
+  socialFacebook: string | null;
+  socialInstagram: string | null;
+  socialTiktok: string | null;
+}
+
+export async function createSupplierAccount(ownerId: string, patch: SupplierProfilePatch): Promise<SupplierAccount> {
   const supabase = await sb();
   const { data, error } = await supabase
     .from("suppliers")
@@ -435,11 +528,20 @@ export async function createSupplierAccount(
       owner_id: ownerId,
       company_name: patch.companyName,
       contact_person: patch.contactPerson,
-      category: patch.category,
-      service_areas: patch.serviceAreas,
+      category: patch.categories[0],
+      categories: patch.categories,
+      category_other: patch.categoryOther,
+      service_areas: [patch.baseLocation],
+      base_location: patch.baseLocation,
+      service_radius_km: patch.serviceRadiusKm,
       description: patch.description,
       min_price_cents: patch.minPriceCents,
       avg_price_cents: patch.avgPriceCents,
+      kvk_number: patch.kvkNumber,
+      website: patch.website,
+      social_facebook: patch.socialFacebook,
+      social_instagram: patch.socialInstagram,
+      social_tiktok: patch.socialTiktok,
     })
     .select()
     .single();
@@ -451,25 +553,32 @@ export async function createSupplierAccount(
 
 export async function updateSupplierAccount(
   supplierId: string,
-  patch: Partial<{
-    companyName: string;
-    contactPerson: string;
-    category: SupplierCategory;
-    serviceAreas: string[];
-    description: string;
-    minPriceCents: number;
-    avgPriceCents: number;
-  }>
+  patch: Partial<SupplierProfilePatch> & { logoUrl?: string | null; galleryUrls?: string[] }
 ): Promise<SupplierAccount | null> {
   const supabase = await sb();
   const update: Row = {};
   if (patch.companyName !== undefined) update.company_name = patch.companyName;
   if (patch.contactPerson !== undefined) update.contact_person = patch.contactPerson;
-  if (patch.category !== undefined) update.category = patch.category;
-  if (patch.serviceAreas !== undefined) update.service_areas = patch.serviceAreas;
+  if (patch.categories !== undefined) {
+    update.categories = patch.categories;
+    update.category = patch.categories[0];
+  }
+  if (patch.categoryOther !== undefined) update.category_other = patch.categoryOther;
+  if (patch.baseLocation !== undefined) {
+    update.base_location = patch.baseLocation;
+    update.service_areas = [patch.baseLocation];
+  }
+  if (patch.serviceRadiusKm !== undefined) update.service_radius_km = patch.serviceRadiusKm;
   if (patch.description !== undefined) update.description = patch.description;
   if (patch.minPriceCents !== undefined) update.min_price_cents = patch.minPriceCents;
   if (patch.avgPriceCents !== undefined) update.avg_price_cents = patch.avgPriceCents;
+  if (patch.kvkNumber !== undefined) update.kvk_number = patch.kvkNumber;
+  if (patch.website !== undefined) update.website = patch.website;
+  if (patch.socialFacebook !== undefined) update.social_facebook = patch.socialFacebook;
+  if (patch.socialInstagram !== undefined) update.social_instagram = patch.socialInstagram;
+  if (patch.socialTiktok !== undefined) update.social_tiktok = patch.socialTiktok;
+  if (patch.logoUrl !== undefined) update.logo_url = patch.logoUrl;
+  if (patch.galleryUrls !== undefined) update.gallery_urls = patch.galleryUrls;
   const { data, error } = await supabase.from("suppliers").update(update).eq("id", supplierId).select().single();
   if (error || !data) return null;
   return rowToSupplierAccount(data);
@@ -478,7 +587,7 @@ export async function updateSupplierAccount(
 /** Real (DB-backed) suppliers die matchen op categorie, náást de statische demo-catalogus. */
 async function findRealMatchingSuppliers(categoryKey: SupplierCategory, opts: { locationLabel?: string | null; limit?: number }) {
   const supabase = await sb();
-  const { data } = await supabase.from("suppliers").select("*").eq("category", categoryKey).limit(opts.limit ?? 10);
+  const { data } = await supabase.from("suppliers").select("*").contains("categories", [categoryKey]).limit(opts.limit ?? 10);
   const pool = (data ?? []).map(rowToSupplierAccount);
   const scored = pool.map((sup) => {
     let score = 60;
@@ -573,6 +682,20 @@ export async function submitSupplierOffer(params: {
     .update({ status: "responded" })
     .eq("request_id", params.requestId)
     .eq("supplier_id", params.supplierId);
+
+  // Organisator een seintje geven — anders blijft een reactie van een
+  // écht (niet-gesimuleerd) leveranciersaccount onopgemerkt.
+  const [event, supplier] = await Promise.all([getEvent(params.eventId), getSupplierAccount(params.supplierId)]);
+  if (event) {
+    await pushNotification({
+      userId: event.ownerId,
+      eventId: event.id,
+      type: "supplier_responded",
+      title: "Nieuwe offerte ontvangen",
+      body: `${supplier?.companyName ?? "Een leverancier"} heeft gereageerd op je aanvraag.`,
+      href: `/events/${event.id}/offers/${params.categoryKey}`,
+    });
+  }
 
   return rowToOffer(data);
 }
@@ -769,6 +892,50 @@ export async function createAndSendRequest(params: {
   }
 
   return { request, offers };
+}
+
+/**
+ * Maatwerkaanvraag: de organisator stuurt een aanvraag rechtstreeks naar
+ * één specifieke (échte) leverancier, in plaats van de automatische
+ * matching over meerdere leveranciers. Er worden geen demo-offertes
+ * gesimuleerd — de leverancier ziet 'm gewoon als aanvraag in zijn eigen
+ * inbox (net als de door AI gematchte aanvragen) en dient er zelf op.
+ */
+export async function sendCustomSupplierRequest(params: {
+  eventId: string;
+  supplierId: string;
+  categoryKey: SupplierCategory;
+  desiredService: string;
+  specialRequests: string;
+  budgetCents: number | null;
+}): Promise<ServiceRequest | null> {
+  const supabase = await sb();
+  const sentAt = new Date();
+  const deadline = new Date(sentAt.getTime() + SUPPLIER_RESPONSE_WINDOW_HOURS * 60 * 60 * 1000);
+
+  const { data: requestRow, error } = await supabase
+    .from("requests")
+    .insert({
+      event_id: params.eventId,
+      category_key: params.categoryKey,
+      supplier_ids: [],
+      desired_service: params.desiredService,
+      special_requests: params.specialRequests,
+      budget_cents: params.budgetCents,
+      status: "awaiting_response",
+      sent_at: sentAt.toISOString(),
+      deadline_at: deadline.toISOString(),
+      target_supplier_id: params.supplierId,
+      is_direct: true,
+    })
+    .select()
+    .single();
+  if (error || !requestRow) return null;
+  const request = rowToRequest(requestRow);
+
+  await supabase.from("request_targets").insert({ request_id: request.id, supplier_id: params.supplierId, status: "pending" });
+
+  return request;
 }
 
 export async function getOffersForEvent(eventId: string, categoryKey?: SupplierCategory): Promise<OfferOption[]> {

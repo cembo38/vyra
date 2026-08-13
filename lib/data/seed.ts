@@ -98,6 +98,8 @@ function request(params: {
     status: params.status,
     sentAt: sentAt.toISOString(),
     deadlineAt: new Date(sentAt.getTime() + 48 * 60 * 60 * 1000).toISOString(),
+    targetSupplierId: null,
+    isDirect: false,
   };
 }
 

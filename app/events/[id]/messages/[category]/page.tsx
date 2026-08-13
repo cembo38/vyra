@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, Sparkles } from "lucide-react";
-import { getEvent, getMessages, getRequestsForEvent } from "@/lib/data/store";
-import { getSupplierById } from "@/lib/data/suppliers";
+import { getEvent, getMessages, getRequestsForEvent, resolveSupplierDisplay } from "@/lib/data/store";
 import { SupplierAvatar } from "@/components/ui/Avatar";
 import { MessageComposer } from "@/components/app/MessageComposer";
 import { SUPPLIER_CATEGORY_LABELS, SupplierCategory } from "@/lib/types";
@@ -19,8 +18,8 @@ export default async function MessageThreadPage(props: PageProps<"/events/[id]/m
 
   const requests = await getRequestsForEvent(id);
   const request = requests.find((r) => r.categoryKey === categoryKey);
-  const supplierId = request?.supplierIds[0];
-  const supplier = supplierId ? getSupplierById(supplierId) : null;
+  const supplierId = request?.targetSupplierId ?? request?.supplierIds[0];
+  const supplier = supplierId ? await resolveSupplierDisplay(supplierId) : null;
   const messages = await getMessages(id, categoryKey);
 
   return (
@@ -30,7 +29,7 @@ export default async function MessageThreadPage(props: PageProps<"/events/[id]/m
       </Link>
 
       <div className="mb-6 flex items-center gap-3">
-        {supplier && <SupplierAvatar gradient={supplier.photoGradient} initials={supplier.initials} verified={supplier.verified} />}
+        {supplier && <SupplierAvatar gradient={supplier.photoGradient} initials={supplier.initials} imageUrl={supplier.logoUrl} verified={supplier.verified} />}
         <div>
           <h1 className="font-display text-xl text-ink">{supplier?.companyName ?? label}</h1>
           <p className="text-sm text-ink-faint">{label}</p>

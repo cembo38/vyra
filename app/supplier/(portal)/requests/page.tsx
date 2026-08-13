@@ -48,7 +48,10 @@ export default async function SupplierRequestsPage(props: PageProps<"/supplier/r
             >
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
-                  <p className="text-xs font-medium uppercase tracking-wide text-ink-faint">{SUPPLIER_CATEGORY_LABELS[lead.request.categoryKey]}</p>
+                  <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-ink-faint">
+                    {SUPPLIER_CATEGORY_LABELS[lead.request.categoryKey]}
+                    {lead.request.isDirect && <Badge tone="coral">Maatwerk</Badge>}
+                  </p>
                   <p className="mt-0.5 font-display text-base text-ink">{lead.event.name}</p>
                   <p className="mt-0.5 text-xs text-ink-faint">{EVENT_TYPE_LABELS[lead.event.type]} {lead.event.date ? `· ${lead.event.date}` : ""} {lead.event.locationLabel ? `· ${lead.event.locationLabel}` : ""}</p>
                 </div>

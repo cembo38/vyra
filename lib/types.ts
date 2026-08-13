@@ -275,6 +275,9 @@ export interface SupplierProfile {
   tags: string[];
   yearsActive: number;
   portfolioHighlights: string[];
+  /** Alleen gezet voor échte (ingelogde) leveranciers: link naar hun openbare profielpagina. */
+  isReal?: boolean;
+  logoUrl?: string | null;
 }
 
 export interface SupplierAvailabilitySlot {
@@ -293,8 +296,17 @@ export interface SupplierAccount {
   ownerId: string;
   companyName: string;
   contactPerson: string;
+  /** Eerste/primaire categorie — afgeleid van `categories[0]`, voor compatibiliteit. */
   category: SupplierCategory;
+  /** Alle categorieën die dit bedrijf aanbiedt (meerdere mogelijk). */
+  categories: SupplierCategory[];
+  /** Vrije tekst als geen van de standaardcategorieën precies past. */
+  categoryOther: string | null;
   serviceAreas: string[];
+  /** Vestigingsplaats/postcode — middelpunt van het werkgebied. */
+  baseLocation: string;
+  /** Straal in kilometers rond `baseLocation` waarbinnen wordt geopereerd. */
+  serviceRadiusKm: number;
   description: string;
   minPriceCents: number;
   avgPriceCents: number;
@@ -306,6 +318,13 @@ export interface SupplierAccount {
   tags: string[];
   yearsActive: number;
   portfolioHighlights: string[];
+  kvkNumber: string | null;
+  website: string | null;
+  socialFacebook: string | null;
+  socialInstagram: string | null;
+  socialTiktok: string | null;
+  logoUrl: string | null;
+  galleryUrls: string[];
   createdAt: string;
 }
 
@@ -351,6 +370,9 @@ export interface ServiceRequest {
   status: RequestStatus;
   sentAt: string;
   deadlineAt: string; // sentAt + 48u
+  /** Gezet wanneer een organisator deze aanvraag rechtstreeks (maatwerk) naar één leverancier stuurde. */
+  targetSupplierId: string | null;
+  isDirect: boolean;
 }
 
 export type OfferStatus =

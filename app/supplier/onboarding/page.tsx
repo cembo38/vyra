@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { Logo } from "@/components/marketing/Logo";
-import { Field, Input, Select, Textarea } from "@/components/ui/Form";
+import { Field, Input, Textarea } from "@/components/ui/Form";
 import { getCurrentUser } from "@/lib/auth";
 import { getSupplierAccountByOwner } from "@/lib/data/store";
 import { createSupplierProfileAction } from "@/lib/actions/supplier-actions";
@@ -44,18 +44,31 @@ export default async function SupplierOnboardingPage(props: PageProps<"/supplier
               </Field>
             </div>
 
-            <Field label="Categorie" required>
-              <Select name="category" required defaultValue="">
-                <option value="" disabled>Kies je categorie</option>
+            <fieldset>
+              <legend className="mb-1.5 text-sm font-medium text-ink">Categorieën <span className="text-coral">*</span></legend>
+              <div className="grid max-h-48 grid-cols-2 gap-1.5 overflow-y-auto rounded-xl border border-line p-3">
                 {Object.entries(SUPPLIER_CATEGORY_LABELS).map(([key, label]) => (
-                  <option key={key} value={key}>{label}</option>
+                  <label key={key} className="flex items-center gap-2 text-sm text-ink-soft">
+                    <input type="checkbox" name="categories" value={key} className="size-4 rounded border-line text-coral accent-coral" />
+                    {label}
+                  </label>
                 ))}
-              </Select>
+              </div>
+              <p className="mt-1.5 text-xs text-ink-faint">Je kunt er meerdere kiezen als je bedrijf meer diensten aanbiedt.</p>
+            </fieldset>
+
+            <Field label="Andere categorie" hint="Optioneel — vul dit in als er geen categorie precies past">
+              <Input name="categoryOther" placeholder="Bijv. Ceremoniemeester" />
             </Field>
 
-            <Field label="Werkgebied" required hint="Steden of regio's, gescheiden door komma's">
-              <Input name="serviceAreas" required placeholder="Amsterdam, Utrecht, Haarlem" />
-            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Vestigingsplaats / postcode" required hint="Middelpunt van je werkgebied">
+                <Input name="baseLocation" required placeholder="Utrecht" />
+              </Field>
+              <Field label="Straal (km)" required hint="Tot hoever wil je rijden?">
+                <Input name="serviceRadiusKm" type="number" min={1} step={1} required defaultValue={25} />
+              </Field>
+            </div>
 
             <Field label="Beschrijving" required hint="Wat maakt jouw bedrijf bijzonder? Dit zien organisatoren bij een aanvraag.">
               <Textarea name="description" required rows={3} placeholder="Bijv. 'Culinaire catering met seizoensmenu's, gespecialiseerd in bruiloften en premium feesten.'" />

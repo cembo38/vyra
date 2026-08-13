@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { ReactNode } from "react";
 import { notFound } from "next/navigation";
-import { getEvent, getOffersForEvent, getRequirements } from "@/lib/data/store";
-import { getSupplierById } from "@/lib/data/suppliers";
+import { getEvent, getOffersForEvent, getRequirements, resolveSupplierDisplay } from "@/lib/data/store";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkButton } from "@/components/ui/Button";
@@ -34,7 +33,7 @@ export default async function ShortlistPage(props: PageProps<"/events/[id]/short
       <p className="mb-6 text-sm text-ink-faint">Overzicht van je keuzes per categorie voor {event.name}.</p>
 
       <Card className="divide-y divide-line-soft p-0">
-        {requirements.map((r) => {
+        {await Promise.all(requirements.map(async (r) => {
           const categoryOffers = offers.filter((o) => o.categoryKey === r.categoryKey);
           const accepted = categoryOffers.find((o) => o.status === "accepted");
           const shortlisted = categoryOffers.filter((o) => o.swipeDecision === "shortlisted" && o.status !== "accepted");
@@ -43,13 +42,13 @@ export default async function ShortlistPage(props: PageProps<"/events/[id]/short
           let rows: { icon: ReactNode; label: string; sub: string; href: string }[] = [];
 
           if (accepted) {
-            const s = getSupplierById(accepted.supplierId);
+            const s = await resolveSupplierDisplay(accepted.supplierId);
             rows.push({ icon: <CheckCircle2 className="size-5 text-success" />, label: s?.companyName ?? "Leverancier", sub: `Geselecteerd · ${formatCurrency(accepted.totalPriceCents)}`, href: `/events/${id}/offers/${r.categoryKey}` });
           } else if (shortlisted.length > 0) {
-            rows = shortlisted.map((o) => {
-              const s = getSupplierById(o.supplierId);
+            rows = await Promise.all(shortlisted.map(async (o) => {
+              const s = await resolveSupplierDisplay(o.supplierId);
               return { icon: <Heart className="size-5 text-coral" />, label: s?.companyName ?? "Leverancier", sub: `Op shortlist · ${formatCurrency(o.totalPriceCents)}`, href: `/events/${id}/offers/${r.categoryKey}` };
-            });
+            }));
           } else if (categoryOffers.length > 0) {
             rows.push({ icon: <Sparkles className="size-5 text-violet" />, label: r.label, sub: `${categoryOffers.length} offerte(s) nog te bekijken`, href: `/events/${id}/offers/${r.categoryKey}` });
           } else {
@@ -77,7 +76,7 @@ export default async function ShortlistPage(props: PageProps<"/events/[id]/short
               </div>
             </div>
           );
-        })}
+        }))}
       </Card>
     </div>
   );

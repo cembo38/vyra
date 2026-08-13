@@ -10,10 +10,10 @@ import {
   getOffer,
   markPaymentPaid,
   pushNotification,
+  resolveSupplierDisplay,
   updateRequirementStatus,
 } from "@/lib/data/store";
 import { SupplierCategory } from "@/lib/types";
-import { getSupplierById } from "@/lib/data/suppliers";
 import { formatCurrency } from "@/lib/config";
 
 export async function sendRequestAction(params: {
@@ -78,12 +78,13 @@ export async function confirmPaymentAction(paymentId: string) {
 
   const offer = await getOffer(payment.offerId);
   const event = await getEvent(payment.eventId);
+  const supplier = offer ? await resolveSupplierDisplay(offer.supplierId) : null;
   await pushNotification({
     userId: event!.ownerId,
     eventId: payment.eventId,
     type: "payment_confirmed",
     title: "Betaling bevestigd",
-    body: `Je betaling van ${formatCurrency(payment.totalCents)} is bevestigd${offer ? " voor " + (getSupplierById(offer.supplierId)?.companyName ?? "je leverancier") : ""}.`,
+    body: `Je betaling van ${formatCurrency(payment.totalCents)} is bevestigd${supplier ? " voor " + supplier.companyName : ""}.`,
     href: `/events/${payment.eventId}/budget`,
   });
 
