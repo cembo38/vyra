@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { Logo } from "@/components/marketing/Logo";
-import { LinkButton } from "@/components/ui/Button";
+import { HeaderAuthArea, HeaderAuthAreaFallback } from "@/components/marketing/HeaderAuthArea";
 
 export function MarketingHeader() {
   return (
@@ -12,14 +13,9 @@ export function MarketingHeader() {
           <Link href="/#evenementen" className="hover:text-ink">Voor elk evenement</Link>
           <Link href="/supplier" className="hover:text-ink">Voor leveranciers</Link>
         </nav>
-        <div className="flex items-center gap-3">
-          <Link href="/login" className="hidden text-sm font-medium text-ink-soft hover:text-ink sm:block">
-            Inloggen
-          </Link>
-          <LinkButton href="/events/new" size="sm" iconRight={<span aria-hidden>→</span>}>
-            Start mijn evenement
-          </LinkButton>
-        </div>
+        <Suspense fallback={<HeaderAuthAreaFallback />}>
+          <HeaderAuthArea />
+        </Suspense>
       </div>
     </header>
   );

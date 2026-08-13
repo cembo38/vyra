@@ -5,7 +5,7 @@ import { NotificationsBell } from "@/components/app/NotificationsBell";
 import { LinkButton } from "@/components/ui/Button";
 import { getCurrentUser } from "@/lib/auth";
 import { getNotifications, getSupplierAccountByOwner } from "@/lib/data/store";
-import { Plus, Store } from "lucide-react";
+import { Plus, Search, Store } from "lucide-react";
 
 export async function AppTopBar() {
   const user = await getCurrentUser();
@@ -19,6 +19,9 @@ export async function AppTopBar() {
           <Logo />
           <nav className="hidden items-center gap-6 text-sm font-medium text-ink-soft sm:flex">
             <Link href="/events" className="hover:text-ink">Mijn evenementen</Link>
+            <Link href="/leveranciers" className="inline-flex items-center gap-1.5 hover:text-ink">
+              <Search className="size-3.5" /> Leveranciers zoeken
+            </Link>
             <Link href={supplier ? "/supplier/dashboard" : "/supplier/onboarding"} className="inline-flex items-center gap-1.5 hover:text-ink">
               <Store className="size-3.5" /> {supplier ? "Leveranciersportaal" : "Ook leverancier worden?"}
             </Link>

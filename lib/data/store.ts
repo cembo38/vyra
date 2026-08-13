@@ -431,6 +431,40 @@ export async function getSupplierAccount(supplierId: string): Promise<SupplierAc
   return data ? rowToSupplierAccount(data) : null;
 }
 
+/**
+ * Openbare leverancierszoekfunctie (voor `/leveranciers`). Zoekt alleen in
+ * échte (ingelogde) accounts — de statische demo-catalogus is puur voor de
+ * AI-matching-simulatie en heeft geen eigen profielpagina's.
+ */
+export async function searchSupplierAccounts(filters: {
+  category?: SupplierCategory;
+  location?: string;
+  minPriceCents?: number;
+  maxPriceCents?: number;
+  query?: string;
+}): Promise<SupplierAccount[]> {
+  const supabase = await sb();
+  let dbQuery = supabase.from("suppliers").select("*");
+  if (filters.category) dbQuery = dbQuery.contains("categories", [filters.category]);
+  if (filters.location) dbQuery = dbQuery.ilike("base_location", `%${filters.location}%`);
+  if (filters.minPriceCents != null) dbQuery = dbQuery.gte("avg_price_cents", filters.minPriceCents);
+  if (filters.maxPriceCents != null) dbQuery = dbQuery.lte("avg_price_cents", filters.maxPriceCents);
+  const { data } = await dbQuery.order("rating_avg", { ascending: false }).limit(60);
+  let results = (data ?? []).map(rowToSupplierAccount);
+
+  if (filters.query) {
+    const q = filters.query.toLowerCase();
+    results = results.filter((s) =>
+      s.companyName.toLowerCase().includes(q) ||
+      s.description.toLowerCase().includes(q) ||
+      (s.categoryOther ?? "").toLowerCase().includes(q) ||
+      s.tags.some((t) => t.toLowerCase().includes(q))
+    );
+  }
+
+  return results;
+}
+
 /** Uploadt een logo/foto naar de "supplier-media"-opslagruimte en geeft de publieke URL terug (of null bij een fout). */
 export async function uploadSupplierFile(ownerId: string, file: File, folder: "logo" | "gallery"): Promise<string | null> {
   if (!file || file.size === 0) return null;
