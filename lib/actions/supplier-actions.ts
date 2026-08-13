@@ -6,6 +6,7 @@ import { parseSupplierOfferDescription } from "@/lib/ai/supplierOffer";
 import { getCurrentUser } from "@/lib/auth";
 import {
   createSupplierAccount,
+  getRequest,
   getSupplierAccountByOwner,
   sendCustomSupplierRequest,
   submitSupplierOffer,
@@ -21,7 +22,8 @@ function optionalTrim(value: FormDataEntryValue | null): string | null {
 
 export async function generateSupplierOfferPreviewAction(description: string) {
   if (!description.trim()) return null;
-  const { data } = await parseSupplierOfferDescription(description);
+  const user = await getCurrentUser();
+  const { data } = await parseSupplierOfferDescription(description, { userId: user?.id ?? null });
   return data;
 }
 
@@ -179,16 +181,25 @@ export async function submitSupplierOfferAction(formData: FormData) {
   if (!supplier) redirect("/supplier/onboarding");
 
   const requestId = String(formData.get("requestId") ?? "");
-  const eventId = String(formData.get("eventId") ?? "");
-  const categoryKey = String(formData.get("categoryKey") ?? "") as SupplierCategory;
   const description = String(formData.get("description") ?? "").trim();
   const priceEuros = Number(formData.get("totalPrice") ?? 0);
 
-  if (!requestId || !eventId || !categoryKey || priceEuros <= 0) {
+  if (!requestId || priceEuros <= 0) {
     redirect(`/supplier/requests/${requestId}?error=1`);
   }
 
-  const { data: parsed } = await parseSupplierOfferDescription(description);
+  // Belangrijk: eventId/categoryKey NOOIT overnemen uit de (verborgen)
+  // formuliervelden die de client meestuurt — die zijn met devtools/curl
+  // aan te passen. Haal ze in plaats daarvan server-side op uit de
+  // aanvraag zelf, zodat een offerte altijd bij de échte aanvraag hoort
+  // waar deze leverancier voor uitgenodigd is, nooit bij een event dat de
+  // leverancier zelf in het formulier heeft ingevuld.
+  const request = await getRequest(requestId);
+  if (!request) redirect(`/supplier/requests/${requestId}?error=1`);
+  const eventId = request!.eventId;
+  const categoryKey = request!.categoryKey as SupplierCategory;
+
+  const { data: parsed } = await parseSupplierOfferDescription(description, { userId: user!.id, eventId });
 
   await submitSupplierOffer({
     supplierId: supplier!.id,

@@ -12,6 +12,7 @@ export function EventSubNav({ eventId }: { eventId: string }) {
     { href: `${base}/plan`, label: "Plan" },
     { href: `${base}/requests`, label: "Aanvragen", match: (p: string) => p.startsWith(`${base}/requests`) || p.startsWith(`${base}/offers`) },
     { href: `${base}/shortlist`, label: "Shortlist" },
+    { href: `${base}/guests`, label: "Gasten" },
     { href: `${base}/budget`, label: "Budget" },
     { href: `${base}/timeline`, label: "Planning" },
     { href: `${base}/messages`, label: "Berichten" },

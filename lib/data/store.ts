@@ -1,17 +1,20 @@
 import "server-only";
 import { uid } from "@/lib/utils";
-import { PLATFORM_COMMISSION_RATE, SUPPLIER_RESPONSE_WINDOW_HOURS, calculateCommission } from "@/lib/config";
+import { DEFAULT_DEPOSIT_PERCENT, PLATFORM_COMMISSION_RATE, SUPPLIER_RESPONSE_WINDOW_HOURS, calculateCommission } from "@/lib/config";
 import { SUPPLIERS, suppliersByCategory, getSupplierById } from "@/lib/data/suppliers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   AiInterviewMessage,
   AppNotification,
   EventBudgetSummary,
   EventCore,
+  EventGuest,
   EventNote,
   EventReadiness,
   EventTask,
   EventTimelineItem,
+  GuestPublicInfo,
   Message,
   NextStep,
   OfferOption,
@@ -20,6 +23,7 @@ import {
   RequirementCategory,
   RequirementPriority,
   RiskFlag,
+  RsvpStatus,
   ServiceRequest,
   SUPPLIER_CATEGORY_LABELS,
   SupplierAccount,
@@ -198,6 +202,8 @@ function rowToPayment(r: Row): Payment {
     createdAt: r.created_at,
     paidAt: r.paid_at,
     provider: r.provider,
+    installment: r.installment ?? "full",
+    parentPaymentId: r.parent_payment_id ?? null,
   };
 }
 
@@ -246,6 +252,23 @@ function rowToSupplierAccount(r: Row): SupplierAccount {
 
 function rowToRequestTarget(r: Row): RequestTarget {
   return { id: r.id, requestId: r.request_id, supplierId: r.supplier_id, status: r.status, createdAt: r.created_at };
+}
+
+function rowToGuest(r: Row): EventGuest {
+  return {
+    id: r.id,
+    eventId: r.event_id,
+    name: r.name,
+    email: r.email ?? null,
+    phone: r.phone ?? null,
+    groupLabel: r.group_label ?? null,
+    plusOnes: r.plus_ones ?? 0,
+    dietaryNotes: r.dietary_notes ?? null,
+    rsvpStatus: r.rsvp_status ?? "pending",
+    invitedAt: r.invited_at ?? null,
+    respondedAt: r.responded_at ?? null,
+    createdAt: r.created_at,
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -1168,7 +1191,18 @@ export async function computeNextStep(eventId: string): Promise<NextStep | null>
     };
   }
 
-  const pendingPayment = payments.find((p) => p.status === "pending");
+  // Bij een offerte die in delen wordt betaald (aanbetaling + restbedrag)
+  // mag het restbedrag pas als "volgende stap" getoond worden nadat de
+  // aanbetaling betaald is — anders zou de organisator hier per ongeluk
+  // naar de restbetaling doorgestuurd kunnen worden vóór de aanbetaling.
+  const pendingPayment = payments
+    .filter((p) => p.status === "pending")
+    .filter((p) => {
+      if (p.installment !== "balance") return true;
+      const deposit = payments.find((s) => s.id === p.parentPaymentId);
+      return deposit ? deposit.status === "paid" : true;
+    })
+    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0];
   if (pendingPayment) {
     const req = allRequirements.find((r) => r.categoryKey === pendingPayment.categoryKey);
     return {
@@ -1245,28 +1279,94 @@ export async function computeNextStep(eventId: string): Promise<NextStep | null>
 /* PAYMENTS                                                             */
 /* ------------------------------------------------------------------ */
 
-export async function createPaymentForOffer(offerId: string): Promise<Payment | null> {
+/**
+ * Maakt de betaling(en) voor een geaccepteerde offerte aan.
+ *
+ * plan "full" (standaard): één betaalrij voor het volledige bedrag —
+ * ongewijzigd gedrag.
+ *
+ * plan "deposit": twee gekoppelde rijen — een aanbetaling van
+ * DEFAULT_DEPOSIT_PERCENT nu, en het restbedrag later (installment
+ * "balance", met parent_payment_id naar de aanbetaling). Bedragen worden
+ * verhoudingsgewijs gesplitst (leveranciersbedrag, platformfee en totaal
+ * apart), met het restbedrag als sluitpost zodat afronding nooit een
+ * paar centen laat "verdwijnen".
+ *
+ * Geeft de rij terug waarmee de organisator als eerste moet afrekenen
+ * (bij "deposit" dus de aanbetaling).
+ */
+export async function createPaymentForOffer(offerId: string, plan: "full" | "deposit" = "full"): Promise<Payment | null> {
   const supabase = await sb();
   const o = await getOffer(offerId);
   if (!o) return null;
   const commission = calculateCommission(o.totalPriceCents, PLATFORM_COMMISSION_RATE);
-  const { data, error } = await supabase
+
+  if (plan === "full") {
+    const { data, error } = await supabase
+      .from("payments")
+      .insert({
+        event_id: o.eventId,
+        offer_id: o.id,
+        category_key: o.categoryKey,
+        supplier_amount_cents: commission.supplierAmount,
+        platform_fee_cents: commission.platformFee,
+        total_cents: commission.total,
+        commission_rate: commission.rate,
+        status: "pending",
+        provider: "mock",
+        installment: "full",
+      })
+      .select()
+      .single();
+    if (error || !data) return null;
+    return rowToPayment(data);
+  }
+
+  const depositSupplier = Math.round(commission.supplierAmount * DEFAULT_DEPOSIT_PERCENT);
+  const depositFee = Math.round(commission.platformFee * DEFAULT_DEPOSIT_PERCENT);
+  const depositTotal = depositSupplier + depositFee;
+
+  const { data: depositRow, error: depositError } = await supabase
     .from("payments")
     .insert({
       event_id: o.eventId,
       offer_id: o.id,
       category_key: o.categoryKey,
-      supplier_amount_cents: commission.supplierAmount,
-      platform_fee_cents: commission.platformFee,
-      total_cents: commission.total,
+      supplier_amount_cents: depositSupplier,
+      platform_fee_cents: depositFee,
+      total_cents: depositTotal,
       commission_rate: commission.rate,
       status: "pending",
       provider: "mock",
+      installment: "deposit",
     })
     .select()
     .single();
-  if (error || !data) return null;
-  return rowToPayment(data);
+  if (depositError || !depositRow) return null;
+  const deposit = rowToPayment(depositRow);
+
+  const { error: balanceError } = await supabase.from("payments").insert({
+    event_id: o.eventId,
+    offer_id: o.id,
+    category_key: o.categoryKey,
+    supplier_amount_cents: commission.supplierAmount - depositSupplier,
+    platform_fee_cents: commission.platformFee - depositFee,
+    total_cents: commission.total - depositTotal,
+    commission_rate: commission.rate,
+    status: "pending",
+    provider: "mock",
+    installment: "balance",
+    parent_payment_id: deposit.id,
+  });
+  if (balanceError) {
+    // Aanbetaling staat er al — het restbedrag kon niet aangemaakt worden.
+    // Niet stilzwijgend doorgaan met een halve betaalstructuur: ruim de
+    // aanbetaling weer op en meld de mislukking, net als bij "full".
+    await supabase.from("payments").delete().eq("id", deposit.id);
+    return null;
+  }
+
+  return deposit;
 }
 
 export async function getPayment(paymentId: string): Promise<Payment | null> {
@@ -1275,13 +1375,42 @@ export async function getPayment(paymentId: string): Promise<Payment | null> {
   return data ? rowToPayment(data) : null;
 }
 
+export async function getPaymentsForOffer(offerId: string): Promise<Payment[]> {
+  const supabase = await sb();
+  const { data } = await supabase.from("payments").select("*").eq("offer_id", offerId).order("created_at", { ascending: true });
+  return (data ?? []).map(rowToPayment);
+}
+
+/**
+ * Zet een betaling op "paid". Bij een offerte die in delen wordt betaald
+ * (aanbetaling + restbedrag) wordt de bijbehorende vereiste pas op status
+ * "paid" gezet zodra ÁLLE betalingen voor die offerte betaald zijn — zolang
+ * alleen de aanbetaling binnen is, blijft de vereiste op "confirmed" staan
+ * (die status wordt hieronder al gezet zodra de offerte geaccepteerd is).
+ */
 export async function markPaymentPaid(paymentId: string): Promise<Payment | null> {
   const supabase = await sb();
+
+  // Een restbedrag mag nooit vóór zijn aanbetaling betaald worden — deze
+  // check staat hier server-side (niet alleen als UI-hint) zodat hij ook
+  // geldt als iemand rechtstreeks naar de checkout-URL van het restbedrag
+  // navigeert of de actie direct aanroept.
+  const existing = await getPayment(paymentId);
+  if (!existing) return null;
+  if (existing.installment === "balance" && existing.parentPaymentId) {
+    const deposit = await getPayment(existing.parentPaymentId);
+    if (deposit && deposit.status !== "paid") return null;
+  }
+
   const { data, error } = await supabase.from("payments").update({ status: "paid", paid_at: new Date().toISOString() }).eq("id", paymentId).select().single();
   if (error || !data) return null;
   const payment = rowToPayment(data);
   await acceptOffer(payment.offerId);
-  await updateRequirementStatus(payment.eventId, payment.categoryKey, "paid");
+  const siblings = await getPaymentsForOffer(payment.offerId);
+  const allPaid = siblings.length > 0 && siblings.every((p) => p.status === "paid");
+  if (allPaid) {
+    await updateRequirementStatus(payment.eventId, payment.categoryKey, "paid");
+  }
   return payment;
 }
 
@@ -1310,6 +1439,188 @@ export async function addMessage(msg: Omit<Message, "id" | "createdAt">): Promis
     .single();
   if (error || !data) throw new Error(error?.message ?? "Kon bericht niet opslaan");
   return rowToMessage(data);
+}
+
+/* ------------------------------------------------------------------ */
+/* GASTENLIJST & RSVP                                                   */
+/* ------------------------------------------------------------------ */
+
+export async function getGuestsForEvent(eventId: string): Promise<EventGuest[]> {
+  const supabase = await sb();
+  const { data } = await supabase.from("event_guests").select("*").eq("event_id", eventId).order("created_at", { ascending: true });
+  return (data ?? []).map(rowToGuest);
+}
+
+export async function addGuest(eventId: string, patch: { name: string; email?: string | null; phone?: string | null; groupLabel?: string | null }): Promise<EventGuest | null> {
+  const supabase = await sb();
+  const { data, error } = await supabase
+    .from("event_guests")
+    .insert({ event_id: eventId, name: patch.name, email: patch.email ?? null, phone: patch.phone ?? null, group_label: patch.groupLabel ?? null })
+    .select()
+    .single();
+  if (error || !data) return null;
+  return rowToGuest(data);
+}
+
+/** Snel meerdere gasten tegelijk toevoegen op basis van een lijstje namen (één per regel). */
+export async function addGuestsBulk(eventId: string, names: string[]): Promise<EventGuest[]> {
+  const cleaned = names.map((n) => n.trim()).filter(Boolean);
+  if (cleaned.length === 0) return [];
+  const supabase = await sb();
+  const rows = cleaned.map((name) => ({ event_id: eventId, name }));
+  const { data, error } = await supabase.from("event_guests").insert(rows).select();
+  if (error || !data) return [];
+  return data.map(rowToGuest);
+}
+
+export async function updateGuest(
+  guestId: string,
+  patch: Partial<{ name: string; email: string | null; phone: string | null; groupLabel: string | null; rsvpStatus: RsvpStatus; plusOnes: number; dietaryNotes: string | null }>
+): Promise<EventGuest | null> {
+  const supabase = await sb();
+  const update: Row = {};
+  if (patch.name !== undefined) update.name = patch.name;
+  if (patch.email !== undefined) update.email = patch.email;
+  if (patch.phone !== undefined) update.phone = patch.phone;
+  if (patch.groupLabel !== undefined) update.group_label = patch.groupLabel;
+  if (patch.rsvpStatus !== undefined) {
+    update.rsvp_status = patch.rsvpStatus;
+    update.responded_at = new Date().toISOString();
+  }
+  if (patch.plusOnes !== undefined) update.plus_ones = patch.plusOnes;
+  if (patch.dietaryNotes !== undefined) update.dietary_notes = patch.dietaryNotes;
+  const { data, error } = await supabase.from("event_guests").update(update).eq("id", guestId).select().single();
+  if (error || !data) return null;
+  return rowToGuest(data);
+}
+
+export async function deleteGuest(guestId: string): Promise<void> {
+  const supabase = await sb();
+  await supabase.from("event_guests").delete().eq("id", guestId);
+}
+
+export interface GuestSummary {
+  total: number; // inclusief plus-ones
+  invited: number;
+  yes: number;
+  no: number;
+  maybe: number;
+  pending: number;
+}
+
+export function summarizeGuests(guests: EventGuest[]): GuestSummary {
+  const yes = guests.filter((g) => g.rsvpStatus === "yes");
+  const no = guests.filter((g) => g.rsvpStatus === "no").length;
+  const maybe = guests.filter((g) => g.rsvpStatus === "maybe").length;
+  const pending = guests.filter((g) => g.rsvpStatus === "pending").length;
+  const total = yes.reduce((sum, g) => sum + 1 + g.plusOnes, 0);
+  return { total, invited: guests.length, yes: yes.length, no, maybe, pending };
+}
+
+/**
+ * Publieke RSVP-flow (zie migratie 0006): loopt via twee SECURITY DEFINER
+ * Postgres-functies zodat een gast zijn eigen RSVP kan geven zonder in te
+ * loggen en zonder dat de volledige gastenlijst van iedereen zichtbaar wordt.
+ */
+export async function getGuestPublic(guestId: string): Promise<GuestPublicInfo | null> {
+  const supabase = await sb();
+  const { data, error } = await supabase.rpc("get_guest_public", { p_guest_id: guestId }).maybeSingle();
+  if (error || !data) return null;
+  const r = data as Row;
+  return {
+    id: r.id,
+    name: r.name,
+    eventId: r.event_id,
+    eventName: r.event_name,
+    eventDate: r.event_date,
+    eventLocation: r.event_location,
+    rsvpStatus: r.rsvp_status,
+    plusOnes: r.plus_ones ?? 0,
+    dietaryNotes: r.dietary_notes ?? null,
+  };
+}
+
+export async function submitRsvpPublic(guestId: string, status: "yes" | "no" | "maybe", plusOnes: number, dietaryNotes: string): Promise<boolean> {
+  const supabase = await sb();
+  const { error } = await supabase.rpc("submit_rsvp", { p_guest_id: guestId, p_status: status, p_plus_ones: plusOnes, p_dietary_notes: dietaryNotes || null });
+  return !error;
+}
+
+/* ------------------------------------------------------------------ */
+/* AI-INTERACTIELOGBOEK (beveiligde omgeving, zie migratie 0007)       */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Best-effort logging van elke AI-aanroep (zie lib/ai/client.ts), zodat de
+ * platformbeheerder achteraf kan meelezen als er iets misgaat — inclusief
+ * interacties die als verdacht (mogelijke prompt injection) zijn gemarkeerd.
+ * Een fout bij het loggen zelf mag nooit de AI-flow van de gebruiker breken,
+ * dus wordt die hier stilzwijgend afgevangen (en naar de server-console
+ * gelogd) in plaats van doorgegooid.
+ */
+export async function logAiInteraction(entry: {
+  role: string;
+  userId: string | null;
+  eventId: string | null;
+  input: string;
+  output: string | null;
+  succeeded: boolean;
+  flagged: boolean;
+}): Promise<void> {
+  try {
+    const supabase = await sb();
+    await supabase.from("ai_interaction_logs").insert({
+      role: entry.role,
+      user_id: entry.userId,
+      event_id: entry.eventId,
+      input: entry.input,
+      output: entry.output,
+      succeeded: entry.succeeded,
+      flagged: entry.flagged,
+    });
+  } catch (err) {
+    console.error("[ai_interaction_logs] Kon AI-interactie niet loggen.", err);
+  }
+}
+
+export interface AiInteractionLog {
+  id: string;
+  role: string;
+  userId: string | null;
+  eventId: string | null;
+  input: string;
+  output: string | null;
+  succeeded: boolean;
+  flagged: boolean;
+  createdAt: string;
+}
+
+/**
+ * Voor het admin-dashboard: recente AI-interacties, meest recente eerst.
+ * Deze tabel heeft bewust géén select-policy voor gewone gebruikers (zie
+ * migratie 0007) — lezen kan dus alleen via de service-role client. Zonder
+ * SUPABASE_SERVICE_ROLE_KEY geeft dit een lege lijst terug mét
+ * `serviceRoleConfigured: false`, zodat de pagina dat kan onderscheiden van
+ * "er zijn nog geen AI-interacties geweest".
+ */
+export async function listAiInteractionLogs(limit = 200): Promise<{ logs: AiInteractionLog[]; serviceRoleConfigured: boolean }> {
+  const admin = createSupabaseAdminClient();
+  if (!admin) return { logs: [], serviceRoleConfigured: false };
+  const { data } = await admin.from("ai_interaction_logs").select("*").order("created_at", { ascending: false }).limit(limit);
+  return {
+    logs: (data ?? []).map((r: Row) => ({
+      id: r.id,
+      role: r.role,
+      userId: r.user_id,
+      eventId: r.event_id,
+      input: r.input,
+      output: r.output,
+      succeeded: r.succeeded,
+      flagged: r.flagged,
+      createdAt: r.created_at,
+    })),
+    serviceRoleConfigured: true,
+  };
 }
 
 /* ------------------------------------------------------------------ */
@@ -1442,39 +1753,40 @@ export function allSuppliers() {
 /* ------------------------------------------------------------------ */
 /* ADMIN AGGREGATES                                                     */
 /*                                                                       */
-/* Let op: deze queries lopen via de gewone (RLS-beperkte) client, dus   */
-/* laten in deze fase alleen data van de ingelogde gebruiker zelf zien.  */
-/* Een echt platform-breed admin-dashboard heeft een aparte, met een     */
-/* service-role sleutel beveiligde route nodig — bewust nog niet         */
-/* aangesloten (admin is een lichte stub, zie docs/ARCHITECTURE.md).     */
+/* Gebruikt de service-role client (lib/supabase/admin.ts) zodra         */
+/* SUPABASE_SERVICE_ROLE_KEY geconfigureerd is, zodat het admin-         */
+/* dashboard écht platformbreed is (alle gebruikers/events, niet alleen  */
+/* die van de ingelogde beheerder). Zonder die sleutel valt elke functie */
+/* hieronder terug op de gewone (RLS-beperkte) client, en zie je dus     */
+/* alleen je eigen data — de admin-pagina toont in dat geval een banner. */
 /* ------------------------------------------------------------------ */
 
 export async function listAllEvents(): Promise<EventCore[]> {
-  const supabase = await sb();
+  const supabase = createSupabaseAdminClient() ?? (await sb());
   const { data } = await supabase.from("events").select("*");
   return (data ?? []).map((r) => rowToEvent(r));
 }
 
 export async function listAllPayments(): Promise<Payment[]> {
-  const supabase = await sb();
+  const supabase = createSupabaseAdminClient() ?? (await sb());
   const { data } = await supabase.from("payments").select("*");
   return (data ?? []).map(rowToPayment);
 }
 
 export async function listAllRequests(): Promise<ServiceRequest[]> {
-  const supabase = await sb();
+  const supabase = createSupabaseAdminClient() ?? (await sb());
   const { data } = await supabase.from("requests").select("*");
   return (data ?? []).map(rowToRequest);
 }
 
 export async function listAllOffers(): Promise<OfferOption[]> {
-  const supabase = await sb();
+  const supabase = createSupabaseAdminClient() ?? (await sb());
   const { data } = await supabase.from("offers").select("*");
   return (data ?? []).map(rowToOffer);
 }
 
 export async function listAllUsers(): Promise<UserAccount[]> {
-  const supabase = await sb();
+  const supabase = createSupabaseAdminClient() ?? (await sb());
   const { data } = await supabase.from("profiles").select("*");
   return (data ?? []).map(rowToUser);
 }

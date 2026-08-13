@@ -51,7 +51,7 @@ export async function startInterviewAction(description: string) {
   const event = await createEvent(user.id, description);
   await addInterviewMessage({ eventId: event.id, role: "user", text: description });
 
-  const { data: extracted } = await extractEventFields(description);
+  const { data: extracted } = await extractEventFields(description, { userId: user.id, eventId: event.id });
   await applyExtractedFields(event.id, extracted);
 
   const updatedEvent = (await getEvent(event.id))!;
@@ -70,7 +70,8 @@ export async function startInterviewAction(description: string) {
 export async function continueInterviewAction(eventId: string, userMessage: string) {
   await addInterviewMessage({ eventId, role: "user", text: userMessage });
 
-  const { data: extracted } = await extractEventFields(userMessage);
+  const currentEvent = await getEvent(eventId);
+  const { data: extracted } = await extractEventFields(userMessage, { userId: currentEvent?.ownerId ?? null, eventId });
   await applyExtractedFields(eventId, extracted);
 
   const updatedEvent = (await getEvent(eventId))!;

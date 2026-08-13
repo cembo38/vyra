@@ -3,10 +3,10 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
-import { Heart, X, ArrowRight, Undo2, Star, ShieldCheck, ListChecks, Rows3, Columns3, CheckCircle2, Loader2, ExternalLink } from "lucide-react";
+import { Heart, X, ArrowRight, Undo2, Star, ShieldCheck, ListChecks, Rows3, Columns3, CheckCircle2, Loader2, ExternalLink, PiggyBank } from "lucide-react";
 import { SupplierAvatar } from "@/components/ui/Avatar";
 import { Badge, OfferStatusBadge } from "@/components/ui/Badge";
-import { formatCurrency } from "@/lib/config";
+import { formatCurrency, DEFAULT_DEPOSIT_PERCENT } from "@/lib/config";
 import { swipeOfferAction, acceptOfferAction } from "@/lib/actions/marketplace-actions";
 import { cn } from "@/lib/utils";
 import { OfferOption, SupplierProfile } from "@/lib/types";
@@ -284,11 +284,21 @@ function CompareTable({ offers }: { offers: OfferWithSupplier[] }) {
                     </button>
                     <button
                       disabled={pending}
-                      onClick={() => startTransition(() => acceptOfferAction(offer.id))}
-                      aria-label="Accepteren"
+                      onClick={() => startTransition(() => acceptOfferAction(offer.id, "full"))}
+                      aria-label="Accepteren — volledig betalen"
+                      title="Accepteren — volledig betalen"
                       className="icon-pop flex size-8 items-center justify-center rounded-full bg-clay text-white"
                     >
                       {pending ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
+                    </button>
+                    <button
+                      disabled={pending}
+                      onClick={() => startTransition(() => acceptOfferAction(offer.id, "deposit"))}
+                      aria-label={`Accepteren met aanbetaling (${Math.round(DEFAULT_DEPOSIT_PERCENT * 100)}%)`}
+                      title={`Accepteren met aanbetaling (${Math.round(DEFAULT_DEPOSIT_PERCENT * 100)}%), rest later`}
+                      className="icon-pop flex size-8 items-center justify-center rounded-full bg-paper-dim text-ink"
+                    >
+                      <PiggyBank className="size-3.5" />
                     </button>
                   </div>
                 ) : (
@@ -394,8 +404,16 @@ function OfferListCard({ offer, compact }: { offer: OfferWithSupplier; compact?:
               </button>
               <button
                 disabled={pending}
-                onClick={() => startTransition(() => acceptOfferAction(offer.id))}
-                className="chip-hover ml-auto inline-flex items-center gap-1.5 rounded-full bg-clay px-3.5 py-1.5 text-xs font-medium text-white hover:bg-clay-dark"
+                onClick={() => startTransition(() => acceptOfferAction(offer.id, "deposit"))}
+                title={`Aanbetaling van ${Math.round(DEFAULT_DEPOSIT_PERCENT * 100)}% nu, rest later`}
+                className="chip-hover ml-auto inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium text-ink-soft hover:border-clay/50 hover:text-ink"
+              >
+                <PiggyBank className="size-3.5" /> {Math.round(DEFAULT_DEPOSIT_PERCENT * 100)}% aanbetalen
+              </button>
+              <button
+                disabled={pending}
+                onClick={() => startTransition(() => acceptOfferAction(offer.id, "full"))}
+                className="chip-hover inline-flex items-center gap-1.5 rounded-full bg-clay px-3.5 py-1.5 text-xs font-medium text-white hover:bg-clay-dark"
               >
                 {pending ? <Loader2 className="size-3.5 animate-spin" /> : "Accepteren →"}
               </button>

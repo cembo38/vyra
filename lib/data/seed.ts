@@ -290,7 +290,7 @@ function buildWeddingEvent(ownerId: string): EventBundle {
   requests.push(request({ eventId, categoryKey: "cleaning", supplierIds: ["sup_clean_01"], desiredService: "Eindschoonmaak locatie", specialRequests: "Oplevering vóór 10:00 de volgende ochtend", budgetCents: 35_000, status: "awaiting_response", sentHoursAgo: 20 }));
 
   const payments: Payment[] = [
-    { id: uid("pay"), eventId, offerId: venueOfferAccepted.id, categoryKey: "venue", supplierAmountCents: 520_000, platformFeeCents: Math.round(520_000 * 0.095), totalCents: 520_000 + Math.round(520_000 * 0.095), commissionRate: 0.095, status: "paid", createdAt: new Date(now.getTime() - 400 * 60 * 60 * 1000).toISOString(), paidAt: new Date(now.getTime() - 399 * 60 * 60 * 1000).toISOString(), provider: "mock" },
+    { id: uid("pay"), eventId, offerId: venueOfferAccepted.id, categoryKey: "venue", supplierAmountCents: 520_000, platformFeeCents: Math.round(520_000 * 0.095), totalCents: 520_000 + Math.round(520_000 * 0.095), commissionRate: 0.095, status: "paid", createdAt: new Date(now.getTime() - 400 * 60 * 60 * 1000).toISOString(), paidAt: new Date(now.getTime() - 399 * 60 * 60 * 1000).toISOString(), provider: "mock", installment: "full", parentPaymentId: null },
   ];
 
   const timeline: EventTimelineItem[] = [

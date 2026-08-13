@@ -54,7 +54,7 @@ function mockParse(description: string): StructuredSupplierOffer {
   };
 }
 
-export async function parseSupplierOfferDescription(description: string) {
+export async function parseSupplierOfferDescription(description: string, context?: { userId?: string | null; eventId?: string | null }) {
   return callStructuredAI<StructuredSupplierOffer>({
     role: "supplier_response_assistant",
     system: SUPPLIER_RESPONSE_ASSISTANT_PROMPT,
@@ -62,5 +62,6 @@ export async function parseSupplierOfferDescription(description: string) {
     schema: SCHEMA,
     schemaName: "supplier_offer",
     mockFallback: () => mockParse(description),
+    context,
   });
 }

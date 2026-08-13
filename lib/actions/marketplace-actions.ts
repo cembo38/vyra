@@ -63,10 +63,10 @@ export async function swipeOfferAction(offerId: string, decision: "shortlisted" 
   return offer;
 }
 
-export async function acceptOfferAction(offerId: string) {
+export async function acceptOfferAction(offerId: string, plan: "full" | "deposit" = "full") {
   const offer = await getOffer(offerId);
   if (!offer) return;
-  const payment = await createPaymentForOffer(offerId);
+  const payment = await createPaymentForOffer(offerId, plan);
   if (!payment) return;
   revalidatePath(`/events/${offer.eventId}`, "layout");
   redirect(`/events/${offer.eventId}/checkout/${payment.id}`);
@@ -79,14 +79,23 @@ export async function confirmPaymentAction(paymentId: string) {
   const offer = await getOffer(payment.offerId);
   const event = await getEvent(payment.eventId);
   const supplier = offer ? await resolveSupplierDisplay(offer.supplierId) : null;
-  await pushNotification({
-    userId: event!.ownerId,
-    eventId: payment.eventId,
-    type: "payment_confirmed",
-    title: "Betaling bevestigd",
-    body: `Je betaling van ${formatCurrency(payment.totalCents)} is bevestigd${supplier ? " voor " + supplier.companyName : ""}.`,
-    href: `/events/${payment.eventId}/budget`,
-  });
+  // De betaling zelf is al veiliggesteld door markPaymentPaid() hierboven —
+  // als het event onverwacht niet (meer) op te halen is, mag dat de actie
+  // niet laten crashen (de gebruiker zou anders een foutmelding zien
+  // terwijl er al wél is afgeschreven). We slaan dan alleen de notificatie
+  // over en gaan gewoon door naar het scherm van het evenement.
+  if (event) {
+    const label =
+      payment.installment === "deposit" ? "Aanbetaling bevestigd" : payment.installment === "balance" ? "Restbedrag bevestigd" : "Betaling bevestigd";
+    await pushNotification({
+      userId: event.ownerId,
+      eventId: payment.eventId,
+      type: "payment_confirmed",
+      title: label,
+      body: `Je ${payment.installment === "deposit" ? "aanbetaling" : payment.installment === "balance" ? "restbedrag" : "betaling"} van ${formatCurrency(payment.totalCents)} is bevestigd${supplier ? " voor " + supplier.companyName : ""}.`,
+      href: `/events/${payment.eventId}/budget`,
+    });
+  }
 
   revalidatePath(`/events/${payment.eventId}`, "layout");
   redirect(`/events/${payment.eventId}?paid=1`);

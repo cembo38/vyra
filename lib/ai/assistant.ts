@@ -95,6 +95,7 @@ export async function askEventManager(question: string, ctx: EventManagerContext
     role: "event_manager",
     system: EVENT_MANAGER_PROMPT,
     user: `Contextdata van het evenement (JSON): ${serializeContext(ctx)}\n\nVraag van de organisator: "${question}"`,
+    context: { userId: ctx.event.ownerId, eventId: ctx.event.id },
   });
   if (aiAnswer) return { answer: aiAnswer, usedAI: true };
   return { answer: mockEventManagerAnswer(question, ctx), usedAI: false };
@@ -108,6 +109,7 @@ export async function getBudgetAdvice(ctx: EventManagerContext): Promise<{ answe
     role: "budget_assistant",
     system: BUDGET_ASSISTANT_PROMPT,
     user: `Budget: ${serializeContext(ctx)}`,
+    context: { userId: ctx.event.ownerId, eventId: ctx.event.id },
   });
   if (aiAnswer) return { answer: aiAnswer, usedAI: true };
   return {
@@ -121,6 +123,7 @@ export async function detectChangeImpact(changeText: string, event: EventCore): 
     role: "change_detection",
     system: CHANGE_DETECTION_PROMPT,
     user: `Evenement: ${EVENT_TYPE_LABELS[event.type]}, ${event.guestCountAdults ?? "?"} gasten, budget ${event.budget?.totalCents ? formatCurrency(event.budget.totalCents) : "onbekend"}.\nNieuwe informatie van de gebruiker: "${changeText}"`,
+    context: { userId: event.ownerId, eventId: event.id },
   });
   return aiAnswer;
 }

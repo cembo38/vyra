@@ -12,6 +12,13 @@ export const PLATFORM_COMMISSION_RATE = 0.095; // 9,5% platformcommissie
 
 export const SUPPLIER_RESPONSE_WINDOW_HOURS = 48;
 
+/**
+ * Standaardpercentage voor een aanbetaling wanneer een organisator kiest om
+ * een offerte in delen te betalen (aanbetaling nu, restbedrag later) in
+ * plaats van in één keer. Zie createPaymentForOffer() in lib/data/store.ts.
+ */
+export const DEFAULT_DEPOSIT_PERCENT = 0.3; // 30% aanbetaling, 70% restbedrag
+
 export const DEFAULT_CURRENCY = "EUR";
 export const DEFAULT_LOCALE = "nl-NL";
 export const DEFAULT_COUNTRY = "NL";
@@ -23,8 +30,11 @@ export const SUPPLIERS_PER_REQUEST = { min: 3, max: 5 };
  * Of er een echte AI-provider is geconfigureerd. Als dit false is, valt de
  * hele AI-laag terug op deterministische mock-logica zodat de app zonder
  * API-key volledig te demonstreren blijft. Zie lib/ai/client.ts.
+ *
+ * Vyra gebruikt Claude (Anthropic) als AI-provider — zet ANTHROPIC_API_KEY
+ * in .env.local (zie .env.example) om echte AI-aanroepen te activeren.
  */
-export const AI_ENABLED = Boolean(process.env.OPENAI_API_KEY);
+export const AI_ENABLED = Boolean(process.env.ANTHROPIC_API_KEY);
 
 export const PAYMENTS_ENABLED = Boolean(process.env.STRIPE_SECRET_KEY);
 

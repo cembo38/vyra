@@ -10,6 +10,26 @@ interface ChatMessage {
   text: string;
 }
 
+/**
+ * Next.js implementeert redirect() door een speciale fout te gooien
+ * ("NEXT_REDIRECT"), die de framework-laag onderschept om te navigeren.
+ * Als een server action (bv. bij een verlopen sessie, of na afronden van
+ * het plan) intern redirect() aanroept, en wij die aanroep hier client-
+ * side in een generieke try/catch afvangen, zouden we die navigatie per
+ * ongeluk kunnen inslikken en in plaats daarvan onterecht een "AI
+ * reageert niet"-foutmelding tonen. Deze check zorgt dat we zo'n fout
+ * altijd doorgooien, zodat Next.js de navigatie gewoon kan afhandelen.
+ */
+function isNextRedirectError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "digest" in error &&
+    typeof (error as { digest?: unknown }).digest === "string" &&
+    (error as { digest: string }).digest.startsWith("NEXT_REDIRECT")
+  );
+}
+
 const STARTERS = [
   "Ik wil in juni een luxe bruiloft organiseren voor ongeveer 120 mensen in Amsterdam.",
   "Ik wil thuis een groot verjaardagsfeest geven voor mijn 40e verjaardag.",
@@ -50,7 +70,8 @@ export function NewEventInterview() {
           setDone(res.done);
         }
         scrollDown();
-      } catch {
+      } catch (err) {
+        if (isNextRedirectError(err)) throw err;
         setError("Onze AI reageert nu niet. Probeer het nog eens — je antwoorden blijven bewaard.");
       }
     });
@@ -61,7 +82,8 @@ export function NewEventInterview() {
     startTransition(async () => {
       try {
         await generatePlanAction(eventId);
-      } catch {
+      } catch (err) {
+        if (isNextRedirectError(err)) throw err;
         setError("Het genereren van je plan lukte niet. Probeer het nog eens.");
       }
     });

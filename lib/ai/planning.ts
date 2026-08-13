@@ -55,6 +55,7 @@ export async function generateRequirementPlan(event: EventCore) {
     })}\nToegestane categorie-sleutels: ${ALL_SUPPLIER_CATEGORIES.join(", ")}`,
     schema: REQUIREMENTS_SCHEMA,
     schemaName: "requirement_plan",
+    context: { userId: event.ownerId, eventId: event.id },
     mockFallback: () => ({
       categories: buildDefaultRequirements(event).map((r) => ({
         categoryKey: r.categoryKey,
@@ -142,6 +143,7 @@ export async function generateTimeline(event: EventCore, categories: Requirement
     )}`,
     schema: TIMELINE_SCHEMA,
     schemaName: "timeline_plan",
+    context: { userId: event.ownerId, eventId: event.id },
     mockFallback: () => ({ items: mockTimeline(event, categories) }),
   });
 
@@ -231,6 +233,7 @@ export async function detectRisks(event: EventCore, categories: RequirementCateg
     })}\nGeselecteerde categorieën: ${JSON.stringify(categories.filter((c) => c.selected).map((c) => ({ label: c.label, status: c.status, priority: c.priority })))}`,
     schema,
     schemaName: "risk_flags",
+    context: { userId: event.ownerId, eventId: event.id },
     mockFallback: () => ({ risks: detectRisksMock(event, categories).map((r) => ({ severity: r.severity, message: r.message })) }),
   });
 

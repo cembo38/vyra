@@ -119,7 +119,7 @@ function mockExtractEventFields(description: string): ExtractedEventFields {
   };
 }
 
-export async function extractEventFields(description: string) {
+export async function extractEventFields(description: string, context?: { userId?: string | null; eventId?: string | null }) {
   return callStructuredAI<ExtractedEventFields>({
     role: "event_understanding",
     system: EVENT_ANALYST_PROMPT,
@@ -127,6 +127,7 @@ export async function extractEventFields(description: string) {
     schema: EXTRACT_SCHEMA,
     schemaName: "extracted_event_fields",
     mockFallback: () => mockExtractEventFields(description),
+    context,
   });
 }
 
@@ -210,5 +211,6 @@ export async function generateNextQuestion(event: EventCore, history: AiIntervie
     schema: QUESTION_SCHEMA,
     schemaName: "next_question",
     mockFallback: () => mockNextQuestion(event, history),
+    context: { userId: event.ownerId, eventId: event.id },
   });
 }

@@ -204,6 +204,36 @@ export interface RiskFlag {
   createdAt: string;
 }
 
+export type RsvpStatus = "pending" | "yes" | "no" | "maybe";
+
+export interface EventGuest {
+  id: string;
+  eventId: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  groupLabel: string | null;
+  plusOnes: number;
+  dietaryNotes: string | null;
+  rsvpStatus: RsvpStatus;
+  invitedAt: string | null;
+  respondedAt: string | null;
+  createdAt: string;
+}
+
+/** Wat een gast op de publieke RSVP-pagina (zonder inloggen) mag zien — bewust smaller dan `EventGuest`. */
+export interface GuestPublicInfo {
+  id: string;
+  name: string;
+  eventId: string;
+  eventName: string;
+  eventDate: string | null;
+  eventLocation: string | null;
+  rsvpStatus: RsvpStatus;
+  plusOnes: number;
+  dietaryNotes: string | null;
+}
+
 /* ------------------------------------------------------------------ */
 /* SUPPLIER DATA                                                       */
 /* ------------------------------------------------------------------ */
@@ -431,6 +461,9 @@ export interface Message {
 
 export type PaymentStatus = "pending" | "paid" | "failed" | "refunded";
 
+/** "full" = in één keer, "deposit"/"balance" = aanbetaling + restbedrag als twee gekoppelde rijen. */
+export type PaymentInstallment = "full" | "deposit" | "balance";
+
 export interface Payment {
   id: string;
   eventId: string;
@@ -444,6 +477,9 @@ export interface Payment {
   createdAt: string;
   paidAt: string | null;
   provider: "stripe" | "mock";
+  installment: PaymentInstallment;
+  /** Bij een "balance"-betaling: het id van de bijbehorende "deposit"-betaling. Anders null. */
+  parentPaymentId: string | null;
 }
 
 export interface AppNotification {
