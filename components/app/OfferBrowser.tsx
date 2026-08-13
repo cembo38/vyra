@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
-import { Heart, X, ArrowRight, Undo2, Star, ShieldCheck, ListChecks, Rows3, CheckCircle2, Loader2, ExternalLink } from "lucide-react";
+import { Heart, X, ArrowRight, Undo2, Star, ShieldCheck, ListChecks, Rows3, Columns3, CheckCircle2, Loader2, ExternalLink } from "lucide-react";
 import { SupplierAvatar } from "@/components/ui/Avatar";
 import { Badge, OfferStatusBadge } from "@/components/ui/Badge";
 import { formatCurrency } from "@/lib/config";
@@ -16,7 +16,7 @@ export interface OfferWithSupplier extends OfferOption {
 }
 
 export function OfferBrowser({ offers, categoryLabel }: { offers: OfferWithSupplier[]; categoryLabel: string }) {
-  const [view, setView] = useState<"swipe" | "list">("swipe");
+  const [view, setView] = useState<"swipe" | "list" | "compare">("swipe");
   const undecided = useMemo(() => offers.filter((o) => o.swipeDecision === "none" && o.status !== "accepted"), [offers]);
   const decided = useMemo(() => offers.filter((o) => o.swipeDecision !== "none" || o.status === "accepted"), [offers]);
 
@@ -45,10 +45,18 @@ export function OfferBrowser({ offers, categoryLabel }: { offers: OfferWithSuppl
           >
             <ListChecks className="size-3.5" /> Lijst
           </button>
+          <button
+            onClick={() => setView("compare")}
+            className={cn("chip-hover flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium", view === "compare" ? "bg-ink text-paper" : "text-ink-soft")}
+          >
+            <Columns3 className="size-3.5" /> Vergelijken
+          </button>
         </div>
       </div>
 
-      {view === "swipe" ? <SwipeStack offers={undecided} /> : <OfferList offers={offers} />}
+      {view === "swipe" && <SwipeStack offers={undecided} />}
+      {view === "list" && <OfferList offers={offers} />}
+      {view === "compare" && <CompareTable offers={offers} />}
 
       {decided.length > 0 && view === "swipe" && (
         <div className="mt-10">
@@ -208,6 +216,90 @@ function SwipeCard({ offer, stackIndex, interactive, onDecide }: { offer: OfferW
         <p className="mt-3 text-xs text-ink-faint">{offer.matchRationale}</p>
       </div>
     </motion.div>
+  );
+}
+
+function CompareTable({ offers }: { offers: OfferWithSupplier[] }) {
+  const [pending, startTransition] = useTransition();
+  const sorted = useMemo(() => [...offers].sort((a, b) => b.matchScore - a.matchScore), [offers]);
+
+  return (
+    <div className="overflow-x-auto rounded-2xl border border-line [box-shadow:var(--shadow-card)]">
+      <table className="w-full min-w-[820px] border-collapse text-sm">
+        <thead>
+          <tr className="border-b border-line-soft bg-paper-dim text-left text-xs font-medium uppercase tracking-wide text-ink-faint">
+            <th className="px-4 py-3">Leverancier</th>
+            <th className="px-4 py-3">Prijs</th>
+            <th className="px-4 py-3">Match</th>
+            <th className="px-4 py-3">Beoordeling</th>
+            <th className="px-4 py-3">Inbegrepen</th>
+            <th className="px-4 py-3">Reactietijd</th>
+            <th className="px-4 py-3">Status</th>
+            <th className="px-4 py-3"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((offer) => (
+            <tr key={offer.id} className="border-b border-line-soft transition-colors last:border-0 hover:bg-paper-dim/60">
+              <td className="px-4 py-3">
+                <div className="flex items-center gap-2.5">
+                  <SupplierAvatar gradient={offer.supplier.photoGradient} initials={offer.supplier.initials} imageUrl={offer.supplier.logoUrl} verified={offer.supplier.verified} size={32} />
+                  {offer.supplier.isReal ? (
+                    <Link href={`/leveranciers/${offer.supplier.id}`} target="_blank" className="flex items-center gap-1 font-medium text-ink hover:text-sage hover:underline">
+                      {offer.supplier.companyName} <ExternalLink className="size-3 shrink-0" />
+                    </Link>
+                  ) : (
+                    <span className="font-medium text-ink">{offer.supplier.companyName}</span>
+                  )}
+                </div>
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap font-display text-base text-ink">{formatCurrency(offer.totalPriceCents)}</td>
+              <td className="px-4 py-3"><Badge tone="sage">{offer.matchScore}%</Badge></td>
+              <td className="px-4 py-3 whitespace-nowrap text-ink-soft">
+                {offer.supplier.ratingCount > 0 ? (
+                  <span className="flex items-center gap-1"><Star className="size-3.5 fill-ochre text-ochre" /> {offer.supplier.ratingAvg.toFixed(1)}</span>
+                ) : (
+                  "Nog geen reviews"
+                )}
+              </td>
+              <td className="px-4 py-3">
+                <div className="flex max-w-[220px] flex-wrap gap-1">
+                  {offer.includes.slice(0, 3).map((inc) => (
+                    <Badge key={inc} tone="neutral">{inc}</Badge>
+                  ))}
+                </div>
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap text-ink-soft">± {offer.supplier.avgResponseHours} uur</td>
+              <td className="px-4 py-3"><OfferStatusBadge status={offer.status} /></td>
+              <td className="px-4 py-3">
+                {offer.status !== "accepted" ? (
+                  <div className="flex items-center justify-end gap-1.5">
+                    <button
+                      disabled={pending}
+                      onClick={() => startTransition(async () => { await swipeOfferAction(offer.id, "shortlisted"); })}
+                      aria-label="Shortlist"
+                      className="icon-pop flex size-8 items-center justify-center rounded-full bg-paper-dim text-ink"
+                    >
+                      <Heart className="size-3.5" />
+                    </button>
+                    <button
+                      disabled={pending}
+                      onClick={() => startTransition(() => acceptOfferAction(offer.id))}
+                      aria-label="Accepteren"
+                      className="icon-pop flex size-8 items-center justify-center rounded-full bg-clay text-white"
+                    >
+                      {pending ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
+                    </button>
+                  </div>
+                ) : (
+                  <span className="flex items-center justify-end gap-1 text-xs font-medium text-success"><CheckCircle2 className="size-3.5" /> Geaccepteerd</span>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

@@ -486,3 +486,17 @@ export interface EventBudgetSummary {
   remainingCents: number;
   percentOverBudget: number; // 0 als binnen budget
 }
+
+/**
+ * De belangrijkste eerstvolgende actie voor de organisator, berekend uit de
+ * huidige staat van het evenement (zie `computeNextStep` in lib/data/store.ts).
+ * Doel: nooit laten zoeken langs tabbladen — altijd één duidelijke stap tonen.
+ */
+export interface NextStep {
+  title: string;
+  description: string;
+  href: string;
+  ctaLabel: string;
+  icon: "sparkles" | "send" | "wallet" | "clock" | "inbox" | "check-circle";
+  tone: "action" | "warning" | "success";
+}

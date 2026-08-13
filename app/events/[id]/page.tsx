@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
+  computeNextStep,
   computeReadiness,
   getBudgetSummary,
   getEvent,
@@ -13,6 +14,7 @@ import { Card } from "@/components/ui/Card";
 import { PriorityBadge, RequirementStatusBadge, AiTag } from "@/components/ui/Badge";
 import { AssistantWidget } from "@/components/app/AssistantWidget";
 import { AddInfoWidget } from "@/components/app/AddInfoWidget";
+import { NextStepCard } from "@/components/app/NextStepCard";
 import { LinkButton } from "@/components/ui/Button";
 import { formatCurrency } from "@/lib/config";
 import { formatDateNL } from "@/lib/utils";
@@ -30,12 +32,13 @@ export default async function EventDashboardPage(props: PageProps<"/events/[id]"
   const event = await getEvent(id);
   if (!event) notFound();
 
-  const [readiness, budget, allRequirements, risks, tasks] = await Promise.all([
+  const [readiness, budget, allRequirements, risks, tasks, nextStep] = await Promise.all([
     computeReadiness(id),
     getBudgetSummary(id),
     getRequirements(id),
     getRisks(id),
     getTasks(id),
+    computeNextStep(id),
   ]);
   const requirements = allRequirements.filter((r) => r.selected);
 
@@ -58,6 +61,8 @@ export default async function EventDashboardPage(props: PageProps<"/events/[id]"
   return (
     <div className="grid gap-6 lg:grid-cols-3">
       <div className="space-y-6 lg:col-span-2">
+        {nextStep && <NextStepCard step={nextStep} />}
+
         {risks.length > 0 && (
           <div className="space-y-2.5">
             {risks.map((r) => (

@@ -13,6 +13,7 @@ import {
   EventTask,
   EventTimelineItem,
   Message,
+  NextStep,
   OfferOption,
   Payment,
   RequestTarget,
@@ -20,6 +21,7 @@ import {
   RequirementPriority,
   RiskFlag,
   ServiceRequest,
+  SUPPLIER_CATEGORY_LABELS,
   SupplierAccount,
   SupplierCategory,
   SupplierLead,
@@ -1116,6 +1118,129 @@ export async function computeReadiness(eventId: string): Promise<EventReadiness>
   return { score, missingEssentials, categoryStatus };
 }
 
+/**
+ * Berekent de ÉÉN belangrijkste eerstvolgende actie voor de organisator,
+ * in prioriteitsvolgorde: essentiële categorie niet gekozen → aanvraag nog
+ * niet verstuurd → betaling nog niet afgerond → leverancier reageert niet op
+ * tijd → offertes wachten op een keuze → een urgente taak → (als alles
+ * geregeld is) een positieve afsluiting. Dit voedt de "Wat nu?"-kaart
+ * bovenaan het event-dashboard, zodat de organisator nooit zelf hoeft uit te
+ * zoeken langs welk tabblad de volgende stap zit.
+ */
+export async function computeNextStep(eventId: string): Promise<NextStep | null> {
+  const event = await getEvent(eventId);
+  if (!event) return null;
+  const base = `/events/${eventId}`;
+
+  const [allRequirements, requests, payments, tasks] = await Promise.all([
+    getRequirements(eventId),
+    getRequestsForEvent(eventId),
+    getPaymentsForEvent(eventId),
+    getTasks(eventId),
+  ]);
+  if (allRequirements.length === 0) return null;
+
+  const unselectedEssential = allRequirements.filter((r) => r.priority === "essential" && !r.selected);
+  if (unselectedEssential.length > 0) {
+    const n = unselectedEssential.length;
+    return {
+      title: "Kies je essentiële categorieën",
+      description: `Je hebt nog ${n} essentieel onderdeel${n > 1 ? "en" : ""} niet geselecteerd in je plan — zonder deze mist er iets belangrijks.`,
+      href: `${base}/plan`,
+      ctaLabel: "Naar je plan",
+      icon: "sparkles",
+      tone: "warning",
+    };
+  }
+
+  const selectedNotRequested = allRequirements
+    .filter((r) => r.selected && r.status === "selected")
+    .sort((a, b) => (a.priority === "essential" ? -1 : 1) - (b.priority === "essential" ? -1 : 1));
+  if (selectedNotRequested.length > 0) {
+    const n = selectedNotRequested.length;
+    return {
+      title: "Verstuur je aanvragen",
+      description: `Je hebt ${n} categorie${n > 1 ? "ën" : ""} gekozen die nog geen aanvraag naar leveranciers heeft gehad. Verstuur ze om offertes te ontvangen.`,
+      href: `${base}/requests`,
+      ctaLabel: "Aanvragen versturen",
+      icon: "send",
+      tone: "action",
+    };
+  }
+
+  const pendingPayment = payments.find((p) => p.status === "pending");
+  if (pendingPayment) {
+    const req = allRequirements.find((r) => r.categoryKey === pendingPayment.categoryKey);
+    return {
+      title: "Rond je betaling af",
+      description: `Je hebt een leverancier voor ${req?.label ?? SUPPLIER_CATEGORY_LABELS[pendingPayment.categoryKey]} geaccepteerd — de betaling wacht nog op bevestiging.`,
+      href: `${base}/checkout/${pendingPayment.id}`,
+      ctaLabel: "Naar betaling",
+      icon: "wallet",
+      tone: "warning",
+    };
+  }
+
+  const now = new Date();
+  const overdueRequest = requests.find((r) => (r.status === "sent" || r.status === "awaiting_response") && new Date(r.deadlineAt) < now);
+  if (overdueRequest) {
+    return {
+      title: "Een leverancier laat op zich wachten",
+      description: `De reactietermijn van 48 uur voor ${SUPPLIER_CATEGORY_LABELS[overdueRequest.categoryKey]} is verstreken. Bekijk je aanvraag of vraag een extra leverancier aan.`,
+      href: `${base}/requests`,
+      ctaLabel: "Bekijk aanvragen",
+      icon: "clock",
+      tone: "warning",
+    };
+  }
+
+  const decisionNeeded = allRequirements.find((r) => r.status === "offers_received" || r.status === "shortlisted");
+  if (decisionNeeded) {
+    return {
+      title: "Tijd om te kiezen",
+      description: `Je hebt offertes ontvangen voor ${decisionNeeded.label}. Bekijk ze en kies je favoriet.`,
+      href: `${base}/offers/${decisionNeeded.categoryKey}`,
+      ctaLabel: "Bekijk offertes",
+      icon: "inbox",
+      tone: "action",
+    };
+  }
+
+  const urgentTask = tasks.find((t) => !t.done && t.urgency === "urgent");
+  if (urgentTask) {
+    return {
+      title: urgentTask.title,
+      description: "Deze taak staat als urgent gemarkeerd en is nog niet afgerond.",
+      href: base,
+      ctaLabel: "Bekijk taken",
+      icon: "clock",
+      tone: "warning",
+    };
+  }
+
+  const selected = allRequirements.filter((r) => r.selected);
+  const allDone = selected.length > 0 && selected.every((r) => ["confirmed", "paid", "completed"].includes(r.status));
+  if (allDone) {
+    return {
+      title: "Je zit helemaal op schema",
+      description: "Alle geselecteerde onderdelen zijn geregeld. Werp een blik op je planning voor de laatste puntjes op de i.",
+      href: `${base}/timeline`,
+      ctaLabel: "Bekijk planning",
+      icon: "check-circle",
+      tone: "success",
+    };
+  }
+
+  return {
+    title: "Werk je plan verder af",
+    description: "Er staan nog aanbevolen of optionele onderdelen open die je kunt toevoegen of afronden.",
+    href: `${base}/plan`,
+    ctaLabel: "Naar je plan",
+    icon: "sparkles",
+    tone: "action",
+  };
+}
+
 /* ------------------------------------------------------------------ */
 /* PAYMENTS                                                             */
 /* ------------------------------------------------------------------ */
@@ -1192,9 +1317,105 @@ export async function addMessage(msg: Omit<Message, "id" | "createdAt">): Promis
 /* ------------------------------------------------------------------ */
 
 export async function getNotifications(userId: string): Promise<AppNotification[]> {
+  await ensureAutoNotifications(userId);
   const supabase = await sb();
   const { data } = await supabase.from("notifications").select("*").eq("user_id", userId).order("created_at", { ascending: false });
   return (data ?? []).map(rowToNotification);
+}
+
+/**
+ * "Automatische herinneringen" zonder achtergrond-cronjob: bij elke keer dat
+ * iemands meldingen worden opgehaald (dus bij vrijwel elke paginaload via de
+ * topbar) controleren we live op verlopen reactietermijnen, naderende
+ * planningsdeadlines en budgetoverschrijding, en maken daar zo nodig een
+ * melding van. `dedupe_key` (migratie 0005) zorgt dat dezelfde situatie niet
+ * telkens opnieuw een melding oplevert. Dit voelt voor de organisator
+ * proactief aan, maar is nadrukkelijk in-app: er is nog geen e-mail/push-
+ * infrastructuur die iemand bereikt die niet inlogt.
+ */
+async function ensureAutoNotifications(userId: string): Promise<void> {
+  const events = await listEventsForUser(userId);
+  const activeEvents = events.filter((e) => e.stage !== "completed");
+  const now = new Date();
+
+  for (const event of activeEvents) {
+    const [requests, budget, timeline] = await Promise.all([
+      getRequestsForEvent(event.id),
+      getBudgetSummary(event.id),
+      getTimeline(event.id),
+    ]);
+
+    for (const req of requests) {
+      if ((req.status === "sent" || req.status === "awaiting_response") && new Date(req.deadlineAt) < now) {
+        await pushNotificationOnce(
+          userId,
+          event.id,
+          {
+            type: "deadline_approaching",
+            title: "Nog geen reactie van leverancier",
+            body: `De reactietermijn van 48 uur voor ${SUPPLIER_CATEGORY_LABELS[req.categoryKey]} bij "${event.name}" is verstreken.`,
+            href: `/events/${event.id}/requests`,
+          },
+          `req-overdue-${req.id}`
+        );
+      }
+    }
+
+    if (budget.totalCents > 0 && budget.percentOverBudget > 0) {
+      await pushNotificationOnce(
+        userId,
+        event.id,
+        {
+          type: "budget_exceeded",
+          title: "Budget dreigt overschreden te worden",
+          body: `Je verwachte kosten voor "${event.name}" liggen ${budget.percentOverBudget}% boven je budget.`,
+          href: `/events/${event.id}/budget`,
+        },
+        `budget-exceeded-${event.id}`
+      );
+    }
+
+    const soon = new Date(now);
+    soon.setDate(soon.getDate() + 7);
+    for (const item of timeline) {
+      if (!item.done && item.dueDate) {
+        const due = new Date(item.dueDate);
+        if (due >= now && due <= soon) {
+          await pushNotificationOnce(
+            userId,
+            event.id,
+            {
+              type: "event_deadline",
+              title: "Planningsdeadline komt eraan",
+              body: `"${item.title}" voor "${event.name}" staat binnenkort gepland (${item.leadTimeLabel}).`,
+              href: `/events/${event.id}/timeline`,
+            },
+            `timeline-${item.id}`
+          );
+        }
+      }
+    }
+  }
+}
+
+async function pushNotificationOnce(
+  userId: string,
+  eventId: string,
+  n: { type: AppNotification["type"]; title: string; body: string; href: string },
+  dedupeKey: string
+): Promise<void> {
+  const supabase = await sb();
+  const { data: existing } = await supabase.from("notifications").select("id").eq("user_id", userId).eq("dedupe_key", dedupeKey).maybeSingle();
+  if (existing) return;
+  await supabase.from("notifications").insert({
+    user_id: userId,
+    event_id: eventId,
+    type: n.type,
+    title: n.title,
+    body: n.body,
+    href: n.href,
+    dedupe_key: dedupeKey,
+  });
 }
 
 export async function pushNotification(n: Omit<AppNotification, "id" | "createdAt" | "read">): Promise<AppNotification | null> {
