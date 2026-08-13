@@ -25,7 +25,7 @@ export function EventTypesGrid() {
           {ORDER.map((key) => (
             <span
               key={key}
-              className="rounded-full border border-line bg-white px-4 py-2 text-sm text-ink-soft transition-colors hover:border-clay/50 hover:text-ink"
+              className="chip-hover rounded-full border border-line bg-white px-4 py-2 text-sm text-ink-soft hover:border-clay/50 hover:text-ink"
             >
               {EVENT_TYPE_LABELS[key]}
             </span>

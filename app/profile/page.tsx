@@ -67,7 +67,7 @@ export default async function ProfilePage(props: PageProps<"/profile">) {
                 </Select>
               </Field>
             </div>
-            <button type="submit" className="rounded-xl bg-ink px-5 py-2.5 text-sm font-medium text-paper transition-colors hover:bg-ink/90">
+            <button type="submit" className="lift-hover rounded-xl bg-ink px-5 py-2.5 text-sm font-medium text-paper hover:bg-ink/90">
               Wijzigingen opslaan
             </button>
           </form>
@@ -79,7 +79,7 @@ export default async function ProfilePage(props: PageProps<"/profile">) {
           <p className="mt-1 text-xs text-ink-faint">Vyra rekent {(PLATFORM_COMMISSION_RATE * 100).toFixed(1)}% platformkosten aan leveranciers over succesvolle boekingen — jouw account als organisator is altijd gratis.</p>
           <div className="mt-4 flex gap-3">
             <form action={logoutAction}>
-              <button type="submit" className="rounded-xl border border-line px-4 py-2 text-sm font-medium text-ink-soft transition-colors hover:bg-paper-dim">
+              <button type="submit" className="lift-hover rounded-xl border border-line px-4 py-2 text-sm font-medium text-ink-soft hover:bg-paper-dim">
                 Uitloggen
               </button>
             </form>

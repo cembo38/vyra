@@ -105,7 +105,7 @@ export function NewEventInterview() {
             <button
               key={s}
               onClick={() => send(s)}
-              className="rounded-full border border-line bg-white px-3.5 py-1.5 text-left text-xs text-ink-soft transition-colors hover:border-clay/50 hover:text-ink"
+              className="chip-hover rounded-full border border-line bg-white px-3.5 py-1.5 text-left text-xs text-ink-soft hover:border-clay/50 hover:text-ink"
             >
               {s}
             </button>
@@ -123,7 +123,7 @@ export function NewEventInterview() {
         <button
           onClick={goToPlan}
           disabled={pending}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-clay px-6 py-3.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-clay-dark disabled:opacity-60"
+          className="lift-hover inline-flex w-full items-center justify-center gap-2 rounded-xl bg-clay px-6 py-3.5 text-sm font-medium text-white shadow-sm hover:bg-clay-dark disabled:opacity-60 disabled:pointer-events-none"
         >
           {pending ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
           Bekijk mijn AI-eventplan
@@ -153,7 +153,7 @@ export function NewEventInterview() {
             type="submit"
             disabled={pending || !input.trim()}
             aria-label="Versturen"
-            className="flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-paper transition-opacity disabled:opacity-30"
+            className="icon-pop flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-paper disabled:opacity-30 disabled:pointer-events-none"
           >
             <ArrowUp className="size-4.5" />
           </button>

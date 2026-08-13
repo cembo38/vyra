@@ -52,7 +52,7 @@ export default async function OnboardingPage() {
                 </Select>
               </Field>
             </div>
-            <button type="submit" className="w-full rounded-xl bg-ink py-2.5 text-sm font-medium text-paper transition-colors hover:bg-ink/90">
+            <button type="submit" className="lift-hover w-full rounded-xl bg-ink py-2.5 text-sm font-medium text-paper hover:bg-ink/90">
               Ga naar mijn evenementen
             </button>
           </form>

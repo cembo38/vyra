@@ -38,9 +38,9 @@ export function NotificationsBell({ userId, notifications }: { userId: string; n
         onClick={() => setOpen((v) => !v)}
         aria-label="Notificaties"
         aria-expanded={open}
-        className="relative flex size-9 items-center justify-center rounded-full text-ink-soft transition-colors hover:bg-paper-dim hover:text-ink"
+        className="bell-btn relative flex size-9 items-center justify-center rounded-full text-ink-soft transition-colors duration-[var(--duration-swift)] hover:bg-paper-dim hover:text-ink"
       >
-        <Bell className="size-5" />
+        <Bell className="bell-icon size-5" />
         {unread > 0 && (
           <span className="absolute right-1.5 top-1.5 flex size-2 items-center justify-center rounded-full bg-clay" />
         )}

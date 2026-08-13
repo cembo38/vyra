@@ -93,7 +93,7 @@ export default async function SignupPage(props: PageProps<"/signup">) {
               </span>
             </label>
 
-            <button type="submit" className="w-full rounded-xl bg-clay py-2.5 text-sm font-medium text-white transition-colors hover:bg-clay-dark">
+            <button type="submit" className="lift-hover w-full rounded-xl bg-clay py-2.5 text-sm font-medium text-white hover:bg-clay-dark">
               Account aanmaken
             </button>
           </form>

@@ -14,7 +14,7 @@ export function AddInfoWidget({ eventId }: { eventId: string }) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3.5 py-1.5 text-xs font-medium text-ink-soft transition-colors hover:border-clay/50 hover:text-ink"
+        className="chip-hover inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3.5 py-1.5 text-xs font-medium text-ink-soft hover:border-clay/50 hover:text-ink"
       >
         <Plus className="size-3.5" /> Informatie toevoegen
       </button>
@@ -47,7 +47,7 @@ export function AddInfoWidget({ eventId }: { eventId: string }) {
                 setImpact(res?.impact ?? "Toegevoegd aan je evenement.");
               })
             }
-            className="mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-xs font-medium text-paper disabled:opacity-40"
+            className="chip-hover mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-xs font-medium text-paper disabled:opacity-40 disabled:pointer-events-none"
           >
             {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
             Toevoegen

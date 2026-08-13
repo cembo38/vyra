@@ -40,7 +40,7 @@ export function AssistantWidget({ eventId }: { eventId: string }) {
             <button
               key={s}
               onClick={() => ask(s)}
-              className="rounded-full border border-line bg-paper px-3 py-1.5 text-xs text-ink-soft transition-colors hover:border-sage/50 hover:text-ink"
+              className="chip-hover rounded-full border border-line bg-paper px-3 py-1.5 text-xs text-ink-soft hover:border-sage/50 hover:text-ink"
             >
               {s}
             </button>
@@ -80,7 +80,7 @@ export function AssistantWidget({ eventId }: { eventId: string }) {
           type="submit"
           disabled={pending || !input.trim()}
           aria-label="Versturen"
-          className="flex size-8 shrink-0 items-center justify-center rounded-full bg-ink text-paper disabled:opacity-30"
+          className="icon-pop flex size-8 shrink-0 items-center justify-center rounded-full bg-ink text-paper disabled:opacity-30 disabled:pointer-events-none"
         >
           <ArrowUp className="size-4" />
         </button>

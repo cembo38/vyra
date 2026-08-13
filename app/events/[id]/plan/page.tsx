@@ -89,7 +89,7 @@ export default async function PlanPage(props: PageProps<"/events/[id]/plan">) {
       <div className="flex flex-col items-center gap-3 border-t border-line-soft pt-8 text-center">
         <p className="text-sm text-ink-soft">Klaar? We sturen automatisch aanvragen naar de best passende leveranciers voor je geselecteerde categorieën.</p>
         <form action={confirmRequirementsAction.bind(null, id)}>
-          <button type="submit" className="inline-flex items-center gap-2 rounded-xl bg-clay px-7 py-3.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-clay-dark">
+          <button type="submit" className="lift-hover inline-flex items-center gap-2 rounded-xl bg-clay px-7 py-3.5 text-sm font-medium text-white shadow-sm hover:bg-clay-dark">
             Bevestig selectie ({selectedCount}) en ga verder
           </button>
         </form>

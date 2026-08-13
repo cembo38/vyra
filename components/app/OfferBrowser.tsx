@@ -35,13 +35,13 @@ export function OfferBrowser({ offers, categoryLabel }: { offers: OfferWithSuppl
         <div className="flex items-center gap-1 rounded-full border border-line bg-white p-1">
           <button
             onClick={() => setView("swipe")}
-            className={cn("flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors", view === "swipe" ? "bg-ink text-paper" : "text-ink-soft")}
+            className={cn("chip-hover flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium", view === "swipe" ? "bg-ink text-paper" : "text-ink-soft")}
           >
             <Rows3 className="size-3.5" /> Swipe
           </button>
           <button
             onClick={() => setView("list")}
-            className={cn("flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors", view === "list" ? "bg-ink text-paper" : "text-ink-soft")}
+            className={cn("chip-hover flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium", view === "list" ? "bg-ink text-paper" : "text-ink-soft")}
           >
             <ListChecks className="size-3.5" /> Lijst
           </button>
@@ -127,7 +127,7 @@ function SwipeStack({ offers }: { offers: OfferWithSupplier[] }) {
           onClick={() => decide("rejected")}
           disabled={pending}
           aria-label="Niet interessant"
-          className="flex size-14 items-center justify-center rounded-full border border-line bg-white text-danger shadow-sm transition-transform hover:scale-105 active:scale-95"
+          className="icon-pop flex size-14 items-center justify-center rounded-full border border-line bg-white text-danger shadow-sm"
         >
           <X className="size-6" />
         </button>
@@ -135,14 +135,14 @@ function SwipeStack({ offers }: { offers: OfferWithSupplier[] }) {
           onClick={undo}
           disabled={history.length === 0}
           aria-label="Ongedaan maken"
-          className="flex size-11 items-center justify-center rounded-full border border-line bg-white text-ink-faint shadow-sm transition-transform hover:scale-105 active:scale-95 disabled:opacity-30"
+          className="icon-pop flex size-11 items-center justify-center rounded-full border border-line bg-white text-ink-faint shadow-sm disabled:opacity-30 disabled:pointer-events-none"
         >
           <Undo2 className="size-4.5" />
         </button>
         <button
           onClick={skip}
           aria-label="Volgende"
-          className="flex size-11 items-center justify-center rounded-full border border-line bg-white text-ink-faint shadow-sm transition-transform hover:scale-105 active:scale-95"
+          className="icon-pop flex size-11 items-center justify-center rounded-full border border-line bg-white text-ink-faint shadow-sm"
         >
           <ArrowRight className="size-4.5" />
         </button>
@@ -150,7 +150,7 @@ function SwipeStack({ offers }: { offers: OfferWithSupplier[] }) {
           onClick={() => decide("shortlisted")}
           disabled={pending}
           aria-label="Toevoegen aan shortlist"
-          className="flex size-14 items-center justify-center rounded-full border border-line bg-white text-clay shadow-sm transition-transform hover:scale-105 active:scale-95"
+          className="icon-pop flex size-14 items-center justify-center rounded-full border border-line bg-white text-clay shadow-sm"
         >
           <Heart className="size-6" />
         </button>
@@ -289,21 +289,21 @@ function OfferListCard({ offer, compact }: { offer: OfferWithSupplier; compact?:
               <button
                 disabled={pending}
                 onClick={() => startTransition(async () => { await swipeOfferAction(offer.id, "shortlisted"); })}
-                className="inline-flex items-center gap-1.5 rounded-full bg-paper-dim px-3 py-1.5 text-xs font-medium text-ink transition-colors hover:bg-line"
+                className="chip-hover inline-flex items-center gap-1.5 rounded-full bg-paper-dim px-3 py-1.5 text-xs font-medium text-ink hover:bg-line"
               >
                 <Heart className="size-3.5" /> Shortlist
               </button>
               <button
                 disabled={pending}
                 onClick={() => startTransition(async () => { await swipeOfferAction(offer.id, "rejected"); })}
-                className="inline-flex items-center gap-1.5 rounded-full bg-paper-dim px-3 py-1.5 text-xs font-medium text-ink-soft transition-colors hover:bg-line"
+                className="chip-hover inline-flex items-center gap-1.5 rounded-full bg-paper-dim px-3 py-1.5 text-xs font-medium text-ink-soft hover:bg-line"
               >
                 <X className="size-3.5" /> Afwijzen
               </button>
               <button
                 disabled={pending}
                 onClick={() => startTransition(() => acceptOfferAction(offer.id))}
-                className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-clay px-3.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-clay-dark"
+                className="chip-hover ml-auto inline-flex items-center gap-1.5 rounded-full bg-clay px-3.5 py-1.5 text-xs font-medium text-white hover:bg-clay-dark"
               >
                 {pending ? <Loader2 className="size-3.5 animate-spin" /> : "Accepteren →"}
               </button>

@@ -65,7 +65,7 @@ export function RequestCategoryCard({
       ) : !expanded ? (
         <button
           onClick={() => setExpanded(true)}
-          className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-xs font-medium text-paper transition-colors hover:bg-ink/90"
+          className="chip-hover mt-4 inline-flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-xs font-medium text-paper hover:bg-ink/90"
         >
           <Send className="size-3.5" /> Bekijk aanbieders & verstuur aanvraag
         </button>
@@ -101,7 +101,7 @@ export function RequestCategoryCard({
                 setSent(res?.offerCount ?? 0);
               })
             }
-            className="inline-flex items-center gap-1.5 rounded-full bg-clay px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-clay-dark disabled:opacity-50"
+            className="chip-hover inline-flex items-center gap-1.5 rounded-full bg-clay px-4 py-2 text-xs font-medium text-white hover:bg-clay-dark disabled:opacity-50 disabled:pointer-events-none"
           >
             {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
             Stuur aanvraag

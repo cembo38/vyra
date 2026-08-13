@@ -14,7 +14,7 @@ export function CardHover({ className, ...props }: HTMLAttributes<HTMLDivElement
   return (
     <div
       className={cn(
-        "rounded-2xl border border-line bg-white p-6 transition-all duration-200 hover:-translate-y-0.5 [box-shadow:var(--shadow-card)] hover:[box-shadow:var(--shadow-card-hover)]",
+        "card-hover rounded-2xl border border-line bg-white p-6 hover:border-clay/40 [box-shadow:var(--shadow-card)]",
         className
       )}
       {...props}

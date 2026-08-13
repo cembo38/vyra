@@ -22,11 +22,11 @@ export function RequirementToggle({ eventId, categoryId, selected }: { eventId: 
         });
       }}
       className={cn(
-        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors",
+        "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-all duration-[var(--duration-swift)] ease-[var(--ease-swift)] hover:scale-105 active:scale-95",
         optimisticSelected ? "bg-clay" : "bg-line"
       )}
     >
-      <span className={cn("inline-block size-4.5 transform rounded-full bg-white shadow transition-transform", optimisticSelected ? "translate-x-6" : "translate-x-1")} />
+      <span className={cn("inline-block size-4.5 transform rounded-full bg-white shadow transition-transform duration-[var(--duration-swift)] ease-[var(--ease-swift)]", optimisticSelected ? "translate-x-6" : "translate-x-1")} />
     </button>
   );
 }

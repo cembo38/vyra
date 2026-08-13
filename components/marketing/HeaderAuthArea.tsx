@@ -29,7 +29,7 @@ export async function HeaderAuthArea() {
         <LinkButton href="/events" size="sm" iconRight={<span aria-hidden>→</span>}>
           Mijn evenementen
         </LinkButton>
-        <Link href="/profile" aria-label="Profiel">
+        <Link href="/profile" aria-label="Profiel" className="icon-pop inline-block rounded-full">
           <UserAvatar firstName={user.firstName || "?"} lastName={user.lastName} color={user.avatarColor} size={32} />
         </Link>
       </div>
@@ -39,7 +39,7 @@ export async function HeaderAuthArea() {
   return (
     <div className="flex items-center gap-3">
       <SearchSuppliersButton />
-      <Link href="/login" className="hidden text-sm font-medium text-ink-soft hover:text-ink sm:block">
+      <Link href="/login" className="nav-link hidden text-sm font-medium text-ink-soft hover:text-ink sm:block">
         Inloggen
       </Link>
       <LinkButton href="/events/new" size="sm" iconRight={<span aria-hidden>→</span>}>
@@ -54,7 +54,7 @@ export function HeaderAuthAreaFallback() {
   return (
     <div className="flex items-center gap-3">
       <SearchSuppliersButton />
-      <Link href="/login" className="hidden text-sm font-medium text-ink-soft hover:text-ink sm:block">
+      <Link href="/login" className="nav-link hidden text-sm font-medium text-ink-soft hover:text-ink sm:block">
         Inloggen
       </Link>
       <LinkButton href="/events/new" size="sm" iconRight={<span aria-hidden>→</span>}>

@@ -60,7 +60,7 @@ export default async function SupplierDirectoryPage(props: PageProps<"/leveranci
               <Input name="maxPrice" type="number" min={0} step={1} defaultValue={maxPriceEuros ?? ""} />
             </Field>
             <div className="sm:col-span-2 lg:col-span-5 flex items-center gap-3">
-              <button type="submit" className="inline-flex items-center gap-1.5 rounded-xl bg-clay px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-clay-dark">
+              <button type="submit" className="lift-hover inline-flex items-center gap-1.5 rounded-xl bg-clay px-5 py-2.5 text-sm font-medium text-white hover:bg-clay-dark">
                 <Search className="size-4" /> Zoeken
               </button>
               {hasFilters && (
@@ -85,7 +85,7 @@ export default async function SupplierDirectoryPage(props: PageProps<"/leveranci
               <Link
                 key={s.id}
                 href={`/leveranciers/${s.id}`}
-                className="block rounded-2xl border border-line bg-white p-5 transition-all hover:-translate-y-0.5 hover:border-clay/50 [box-shadow:var(--shadow-card)]"
+                className="card-hover block rounded-2xl border border-line bg-white p-5 hover:border-clay/50 [box-shadow:var(--shadow-card)]"
               >
                 <div className="flex items-start gap-3">
                   <SupplierAvatar

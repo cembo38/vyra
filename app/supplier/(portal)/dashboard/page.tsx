@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { ReactNode } from "react";
+import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -118,7 +119,7 @@ export default async function SupplierDashboardPage() {
 
 function Kpi({ icon, label, value, sub, href }: { icon: ReactNode; label: string; value: string; sub?: string; href?: string }) {
   const content = (
-    <Card className="p-4">
+    <Card className={cn("p-4", href && "card-hover hover:border-clay/40")}>
       <div className="flex items-center gap-1.5 text-ink-faint">
         {icon}
         <span className="text-xs font-medium uppercase tracking-wide">{label}</span>

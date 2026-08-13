@@ -44,7 +44,7 @@ export default async function SupplierRequestsPage(props: PageProps<"/supplier/r
             <Link
               key={lead.target.id}
               href={`/supplier/requests/${lead.request.id}`}
-              className="block rounded-xl border border-line bg-white px-4 py-3.5 text-sm transition-colors hover:border-sage [box-shadow:var(--shadow-card)]"
+              className="card-hover block rounded-xl border border-line bg-white px-4 py-3.5 text-sm transition-colors hover:border-sage [box-shadow:var(--shadow-card)]"
             >
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>

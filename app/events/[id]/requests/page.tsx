@@ -104,7 +104,7 @@ export default async function RequestsPage(props: PageProps<"/events/[id]/reques
                 <Link
                   key={r.id}
                   href={`/events/${id}/offers/${r.categoryKey}`}
-                  className="flex items-center justify-between rounded-2xl border border-line bg-white px-5 py-4 transition-colors hover:border-clay/50"
+                  className="card-hover flex items-center justify-between rounded-2xl border border-line bg-white px-5 py-4 hover:border-clay/50"
                 >
                   <div>
                     <p className="font-medium text-ink">{r.label}</p>

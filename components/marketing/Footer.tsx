@@ -16,22 +16,22 @@ export function Footer() {
             <div>
               <p className="font-medium text-ink">Organisatoren</p>
               <div className="mt-3 flex flex-col gap-2 text-ink-faint">
-                <Link href="/events/new" className="hover:text-ink">Start een evenement</Link>
-                <Link href="/#hoe-het-werkt" className="hover:text-ink">Hoe het werkt</Link>
+                <Link href="/events/new" className="nav-link hover:text-ink">Start een evenement</Link>
+                <Link href="/#hoe-het-werkt" className="nav-link hover:text-ink">Hoe het werkt</Link>
               </div>
             </div>
             <div>
               <p className="font-medium text-ink">Leveranciers</p>
               <div className="mt-3 flex flex-col gap-2 text-ink-faint">
-                <Link href="/supplier" className="hover:text-ink">Word aanbieder</Link>
-                <Link href="/supplier" className="hover:text-ink">Leveranciersdashboard</Link>
+                <Link href="/supplier" className="nav-link hover:text-ink">Word aanbieder</Link>
+                <Link href="/supplier" className="nav-link hover:text-ink">Leveranciersdashboard</Link>
               </div>
             </div>
             <div>
               <p className="font-medium text-ink">Platform</p>
               <div className="mt-3 flex flex-col gap-2 text-ink-faint">
-                <Link href="/privacy" className="hover:text-ink">Privacyverklaring</Link>
-                <Link href="/voorwaarden" className="hover:text-ink">Algemene voorwaarden</Link>
+                <Link href="/privacy" className="nav-link hover:text-ink">Privacyverklaring</Link>
+                <Link href="/voorwaarden" className="nav-link hover:text-ink">Algemene voorwaarden</Link>
               </div>
             </div>
           </div>

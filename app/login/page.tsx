@@ -28,7 +28,7 @@ export default async function LoginPage(props: PageProps<"/login">) {
             <Field label="Wachtwoord" required>
               <PasswordInput name="password" required placeholder="••••••••" autoComplete="current-password" />
             </Field>
-            <button type="submit" className="w-full rounded-xl bg-ink py-2.5 text-sm font-medium text-paper transition-colors hover:bg-ink/90">
+            <button type="submit" className="lift-hover w-full rounded-xl bg-ink py-2.5 text-sm font-medium text-paper hover:bg-ink/90">
               Inloggen
             </button>
           </form>

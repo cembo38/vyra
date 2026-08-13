@@ -97,8 +97,10 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
         {supplier.galleryUrls.length > 0 && (
           <div className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {supplier.galleryUrls.map((url) => (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img key={url} src={url} alt={supplier.companyName} className="aspect-square w-full rounded-xl border border-line object-cover" />
+              <div key={url} className="img-zoom-wrap aspect-square rounded-xl border border-line">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={url} alt={supplier.companyName} className="img-zoom h-full w-full rounded-xl object-cover" />
+              </div>
             ))}
           </div>
         )}
@@ -157,7 +159,7 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
             <Field label="Budget-indicatie (€)" hint="Optioneel">
               <Input name="budget" type="number" min={0} step={1} />
             </Field>
-            <button type="submit" className="w-full rounded-xl bg-clay py-2.5 text-sm font-medium text-white transition-colors hover:bg-clay-dark">
+            <button type="submit" className="lift-hover w-full rounded-xl bg-clay py-2.5 text-sm font-medium text-white hover:bg-clay-dark">
               Maatwerkaanvraag versturen
             </button>
           </form>

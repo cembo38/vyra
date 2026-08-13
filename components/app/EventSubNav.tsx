@@ -27,8 +27,8 @@ export function EventSubNav({ eventId }: { eventId: string }) {
               key={tab.href}
               href={tab.href}
               className={cn(
-                "relative shrink-0 px-3.5 py-3.5 text-sm font-medium transition-colors",
-                active ? "text-ink" : "text-ink-faint hover:text-ink-soft"
+                "relative shrink-0 px-3.5 py-3.5 text-sm font-medium transition-colors duration-[var(--duration-swift)]",
+                active ? "text-ink" : "nav-tab-hover text-ink-faint hover:text-ink-soft"
               )}
             >
               {tab.label}

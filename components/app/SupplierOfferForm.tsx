@@ -42,7 +42,7 @@ export function SupplierOfferForm({ requestId, eventId, categoryKey }: { request
             if (res?.totalPriceCents) setPrice(String(res.totalPriceCents / 100));
           })
         }
-        className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-xs font-medium text-paper disabled:opacity-40"
+        className="chip-hover mt-3 inline-flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-xs font-medium text-paper disabled:opacity-40 disabled:pointer-events-none"
       >
         {generating ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
         Genereer offerte-voorstel
@@ -90,7 +90,7 @@ export function SupplierOfferForm({ requestId, eventId, categoryKey }: { request
         <button
           type="submit"
           disabled={submitting || !price}
-          className="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-clay py-2.5 text-sm font-medium text-white transition-colors hover:bg-clay-dark disabled:opacity-40"
+          className="lift-hover mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-clay py-2.5 text-sm font-medium text-white hover:bg-clay-dark disabled:opacity-40 disabled:pointer-events-none"
         >
           {submitting ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           Verstuur offerte naar organisator

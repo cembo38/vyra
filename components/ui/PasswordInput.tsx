@@ -33,9 +33,13 @@ export function PasswordInput({
         type="button"
         onClick={() => setVisible((v) => !v)}
         aria-label={visible ? "Verberg wachtwoord" : "Toon wachtwoord"}
-        className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-faint transition-colors hover:text-ink"
+        className="group absolute right-3 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink"
       >
-        {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+        {visible ? (
+          <EyeOff className="size-4 transition-transform duration-[var(--duration-swift)] ease-[var(--ease-swift)] group-hover:scale-110 group-active:scale-90" />
+        ) : (
+          <Eye className="size-4 transition-transform duration-[var(--duration-swift)] ease-[var(--ease-swift)] group-hover:scale-110 group-active:scale-90" />
+        )}
       </button>
     </div>
   );

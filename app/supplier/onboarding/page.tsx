@@ -83,7 +83,7 @@ export default async function SupplierOnboardingPage(props: PageProps<"/supplier
               </Field>
             </div>
 
-            <button type="submit" className="w-full rounded-xl bg-clay py-2.5 text-sm font-medium text-white transition-colors hover:bg-clay-dark">
+            <button type="submit" className="lift-hover w-full rounded-xl bg-clay py-2.5 text-sm font-medium text-white hover:bg-clay-dark">
               Profiel opslaan en naar dashboard
             </button>
           </form>

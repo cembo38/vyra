@@ -18,11 +18,11 @@ export async function AppTopBar() {
         <div className="flex items-center gap-8">
           <Logo />
           <nav className="hidden items-center gap-6 text-sm font-medium text-ink-soft sm:flex">
-            <Link href="/events" className="hover:text-ink">Mijn evenementen</Link>
-            <Link href="/leveranciers" className="inline-flex items-center gap-1.5 hover:text-ink">
+            <Link href="/events" className="nav-link hover:text-ink">Mijn evenementen</Link>
+            <Link href="/leveranciers" className="nav-link inline-flex items-center gap-1.5 hover:text-ink">
               <Search className="size-3.5" /> Leveranciers zoeken
             </Link>
-            <Link href={supplier ? "/supplier/dashboard" : "/supplier/onboarding"} className="inline-flex items-center gap-1.5 hover:text-ink">
+            <Link href={supplier ? "/supplier/dashboard" : "/supplier/onboarding"} className="nav-link inline-flex items-center gap-1.5 hover:text-ink">
               <Store className="size-3.5" /> {supplier ? "Leveranciersportaal" : "Ook leverancier worden?"}
             </Link>
           </nav>
@@ -32,7 +32,7 @@ export async function AppTopBar() {
             Nieuw evenement
           </LinkButton>
           <NotificationsBell userId={user.id} notifications={notifications} />
-          <Link href="/profile" aria-label="Profiel">
+          <Link href="/profile" aria-label="Profiel" className="icon-pop inline-block rounded-full">
             <UserAvatar firstName={user.firstName || "?"} lastName={user.lastName} color={user.avatarColor} />
           </Link>
         </div>

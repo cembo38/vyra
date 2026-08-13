@@ -102,6 +102,131 @@
   }
 }
 
+/**
+ * ── VYRA MOTION ─────────────────────────────────────────────────────
+ * Zelfde principe als de kleurtokens hierboven: alle hover/klik-gevoel
+ * van de site loopt via deze paar variabelen en klassen. Wil je alles
+ * sneller/langzamer of speelser/rustiger maken? Pas alleen --duration-swift
+ * en --ease-swift aan — dat werkt overal automatisch door.
+ *
+ *  - .lift-hover    → knoppen: lichte lift + schaduw bij hover, "indruk" bij klik
+ *  - .card-hover     → kaarten/tegels: lift + zachtere schaduw bij hover (randkleur blijft een losse Tailwind-klasse)
+ *  - .chip-hover     → kleine pills/chips: lichte lift bij hover
+ *  - .icon-pop       → icoon-knoppen: vergroting + "indruk" bij klik
+ *  - .img-zoom-wrap / .img-zoom → afbeelding zoomt subtiel in bij hover van de kaart
+ *  - .nav-link       → navigatielinks: onderstreping schuift in bij hover
+ *  - .nav-tab-hover  → subnav-tabs: lichte onderstreping-preview bij hover (inactieve tab)
+ * ─────────────────────────────────────────────────────────────────── */
+:root {
+  --ease-swift: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-swift: 180ms;
+}
+
+.lift-hover {
+  transition: transform var(--duration-swift) var(--ease-swift), box-shadow var(--duration-swift) var(--ease-swift),
+    background-color var(--duration-swift) var(--ease-swift), border-color var(--duration-swift) var(--ease-swift);
+}
+.lift-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card-hover);
+}
+.lift-hover:active {
+  transform: translateY(0) scale(0.97);
+}
+
+.card-hover {
+  transition: transform var(--duration-swift) var(--ease-swift), box-shadow var(--duration-swift) var(--ease-swift);
+}
+.card-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-card-hover);
+}
+/* Losse randkleur-hover blijft per plek een eigen Tailwind-klasse (bijv. hover:border-clay/50),
+   zodat .card-hover niet botst met een al bestaande kleurkeuze. */
+
+.chip-hover {
+  transition: transform var(--duration-swift) var(--ease-swift), color var(--duration-swift) var(--ease-swift),
+    border-color var(--duration-swift) var(--ease-swift), background-color var(--duration-swift) var(--ease-swift);
+}
+.chip-hover:hover {
+  transform: translateY(-1px);
+}
+.chip-hover:active {
+  transform: translateY(0) scale(0.96);
+}
+
+.icon-pop {
+  transition: transform var(--duration-swift) var(--ease-swift), background-color var(--duration-swift) var(--ease-swift),
+    color var(--duration-swift) var(--ease-swift);
+}
+.icon-pop:hover {
+  transform: scale(1.08);
+}
+.icon-pop:active {
+  transform: scale(0.92);
+}
+
+.img-zoom-wrap {
+  overflow: hidden;
+}
+.img-zoom {
+  transition: transform calc(var(--duration-swift) * 2.4) var(--ease-swift);
+}
+.img-zoom-wrap:hover .img-zoom {
+  transform: scale(1.06);
+}
+
+.nav-link {
+  position: relative;
+  transition: color var(--duration-swift) var(--ease-swift);
+}
+.nav-link::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  height: 2px;
+  width: 0;
+  border-radius: 999px;
+  background: var(--color-clay);
+  transition: width var(--duration-swift) var(--ease-swift);
+}
+.nav-link:hover::after {
+  width: 100%;
+}
+
+.nav-tab-hover {
+  transition: color var(--duration-swift) var(--ease-swift);
+}
+.nav-tab-hover::after {
+  content: "";
+  position: absolute;
+  left: 0.875rem;
+  right: 0.875rem;
+  bottom: -1px;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--color-clay);
+  opacity: 0;
+  transform: scaleX(0.6);
+  transition: opacity var(--duration-swift) var(--ease-swift), transform var(--duration-swift) var(--ease-swift);
+}
+.nav-tab-hover:hover::after {
+  opacity: 0.35;
+  transform: scaleX(1);
+}
+
+@keyframes ring {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(13deg); }
+  40% { transform: rotate(-11deg); }
+  60% { transform: rotate(7deg); }
+  80% { transform: rotate(-4deg); }
+}
+.bell-btn:hover .bell-icon {
+  animation: ring 0.55s var(--ease-swift);
+}
+
 * {
   border-color: var(--color-line);
 }
