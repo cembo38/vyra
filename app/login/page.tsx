@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Logo } from "@/components/marketing/Logo";
 import { Field, Input } from "@/components/ui/Form";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { AuthErrorBanner } from "@/components/app/AuthErrorBanner";
 import { loginAction } from "@/lib/actions/auth-actions";
 
@@ -25,7 +26,7 @@ export default async function LoginPage(props: PageProps<"/login">) {
               <Input type="email" name="email" required placeholder="jij@voorbeeld.nl" />
             </Field>
             <Field label="Wachtwoord" required>
-              <Input type="password" name="password" required placeholder="••••••••" />
+              <PasswordInput name="password" required placeholder="••••••••" autoComplete="current-password" />
             </Field>
             <button type="submit" className="w-full rounded-full bg-ink py-2.5 text-sm font-medium text-paper transition-colors hover:bg-ink/90">
               Inloggen

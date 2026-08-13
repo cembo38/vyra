@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Logo } from "@/components/marketing/Logo";
 import { Field, Input } from "@/components/ui/Form";
+import { PasswordInput } from "@/components/ui/PasswordInput";
 import { AuthErrorBanner } from "@/components/app/AuthErrorBanner";
 import { signupAction } from "@/lib/actions/auth-actions";
 
@@ -40,7 +41,7 @@ export default async function SignupPage(props: PageProps<"/signup">) {
               <Input type="email" name="email" required placeholder="jij@voorbeeld.nl" />
             </Field>
             <Field label="Wachtwoord" required hint="Minimaal 8 tekens">
-              <Input type="password" name="password" required minLength={8} placeholder="••••••••" />
+              <PasswordInput name="password" required minLength={8} placeholder="••••••••" autoComplete="new-password" />
             </Field>
 
             <fieldset>
