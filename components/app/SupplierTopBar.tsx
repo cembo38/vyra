@@ -17,13 +17,14 @@ export function SupplierTopBar({ user, supplier }: { user: UserAccount; supplier
             <Link href="/supplier/dashboard" className="hover:text-ink">Dashboard</Link>
             <Link href="/supplier/requests" className="hover:text-ink">Aanvragen</Link>
             <Link href="/supplier/orders" className="hover:text-ink">Orders</Link>
+            <Link href="/supplier/calendar" className="hover:text-ink">Kalender</Link>
             <Link href="/events" className="inline-flex items-center gap-1.5 hover:text-ink">
               <CalendarHeart className="size-3.5" /> Mijn evenementen
             </Link>
           </nav>
         </div>
         <div className="flex items-center gap-3">
-          <span className="hidden text-sm text-ink-faint sm:inline">{supplier.companyName}</span>
+          <Link href="/supplier/profile" className="hidden text-sm text-ink-faint hover:text-ink sm:inline">{supplier.companyName}</Link>
           <UserAvatar firstName={user.firstName || "?"} lastName={user.lastName} color={user.avatarColor} />
           <form action={logoutAction}>
             <button type="submit" aria-label="Uitloggen" className="rounded-full p-2 text-ink-faint transition-colors hover:bg-paper-dim hover:text-ink">

@@ -449,6 +449,32 @@ export async function createSupplierAccount(
   return rowToSupplierAccount(data);
 }
 
+export async function updateSupplierAccount(
+  supplierId: string,
+  patch: Partial<{
+    companyName: string;
+    contactPerson: string;
+    category: SupplierCategory;
+    serviceAreas: string[];
+    description: string;
+    minPriceCents: number;
+    avgPriceCents: number;
+  }>
+): Promise<SupplierAccount | null> {
+  const supabase = await sb();
+  const update: Row = {};
+  if (patch.companyName !== undefined) update.company_name = patch.companyName;
+  if (patch.contactPerson !== undefined) update.contact_person = patch.contactPerson;
+  if (patch.category !== undefined) update.category = patch.category;
+  if (patch.serviceAreas !== undefined) update.service_areas = patch.serviceAreas;
+  if (patch.description !== undefined) update.description = patch.description;
+  if (patch.minPriceCents !== undefined) update.min_price_cents = patch.minPriceCents;
+  if (patch.avgPriceCents !== undefined) update.avg_price_cents = patch.avgPriceCents;
+  const { data, error } = await supabase.from("suppliers").update(update).eq("id", supplierId).select().single();
+  if (error || !data) return null;
+  return rowToSupplierAccount(data);
+}
+
 /** Real (DB-backed) suppliers die matchen op categorie, náást de statische demo-catalogus. */
 async function findRealMatchingSuppliers(categoryKey: SupplierCategory, opts: { locationLabel?: string | null; limit?: number }) {
   const supabase = await sb();

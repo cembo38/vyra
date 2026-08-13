@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { parseSupplierOfferDescription } from "@/lib/ai/supplierOffer";
 import { getCurrentUser } from "@/lib/auth";
-import { createSupplierAccount, getSupplierAccountByOwner, submitSupplierOffer } from "@/lib/data/store";
+import { createSupplierAccount, getSupplierAccountByOwner, submitSupplierOffer, updateSupplierAccount } from "@/lib/data/store";
 import { SupplierCategory } from "@/lib/types";
 
 export async function generateSupplierOfferPreviewAction(description: string) {
@@ -47,6 +47,42 @@ export async function createSupplierProfileAction(formData: FormData) {
 
   revalidatePath("/", "layout");
   redirect("/supplier/dashboard");
+}
+
+export async function updateSupplierProfileAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const supplier = await getSupplierAccountByOwner(user!.id);
+  if (!supplier) redirect("/supplier/onboarding");
+
+  const companyName = String(formData.get("companyName") ?? "").trim();
+  const contactPerson = String(formData.get("contactPerson") ?? "").trim();
+  const category = String(formData.get("category") ?? "") as SupplierCategory;
+  const serviceAreas = String(formData.get("serviceAreas") ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const description = String(formData.get("description") ?? "").trim();
+  const minPriceEuros = Number(formData.get("minPrice") ?? 0);
+  const avgPriceEuros = Number(formData.get("avgPrice") ?? 0);
+
+  if (!companyName || !contactPerson || !category || serviceAreas.length === 0 || !description) {
+    redirect("/supplier/profile?error=1");
+  }
+
+  await updateSupplierAccount(supplier!.id, {
+    companyName,
+    contactPerson,
+    category,
+    serviceAreas,
+    description,
+    minPriceCents: Math.round(minPriceEuros * 100),
+    avgPriceCents: Math.round(avgPriceEuros * 100),
+  });
+
+  revalidatePath("/supplier", "layout");
+  redirect("/supplier/profile?saved=1");
 }
 
 export async function submitSupplierOfferAction(formData: FormData) {
