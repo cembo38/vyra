@@ -41,7 +41,7 @@ export default async function MessageThreadPage(props: PageProps<"/events/[id]/m
         {messages.map((m) => (
           <div key={m.id}>
             {m.sender === "ai_summary" ? (
-              <div className="flex items-start gap-2 rounded-2xl bg-violet-50 px-4 py-3 text-sm text-violet-dark">
+              <div className="flex items-start gap-2 rounded-2xl bg-sage-50 px-4 py-3 text-sm text-sage-dark">
                 <Sparkles className="mt-0.5 size-4 shrink-0" />
                 <div>
                   <p className="mb-0.5 text-xs font-medium uppercase tracking-wide">AI-samenvatting</p>

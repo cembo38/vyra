@@ -1,10 +1,10 @@
 import { cn } from "@/lib/utils";
 
-export function ProgressBar({ value, className, tone = "ink" }: { value: number; className?: string; tone?: "ink" | "coral" | "violet" | "success" | "warning" | "danger" }) {
+export function ProgressBar({ value, className, tone = "ink" }: { value: number; className?: string; tone?: "ink" | "clay" | "sage" | "success" | "warning" | "danger" }) {
   const toneClass: Record<string, string> = {
     ink: "bg-ink",
-    coral: "bg-coral",
-    violet: "bg-violet",
+    clay: "bg-clay",
+    sage: "bg-sage",
     success: "bg-success",
     warning: "bg-warning",
     danger: "bg-danger",
@@ -24,7 +24,7 @@ export function ReadinessRing({ value, size = 64 }: { value: number; size?: numb
   const radius = (size - 8) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (Math.max(0, Math.min(100, value)) / 100) * circumference;
-  const color = value >= 75 ? "var(--color-success)" : value >= 45 ? "var(--color-gold)" : "var(--color-coral)";
+  const color = value >= 75 ? "var(--color-success)" : value >= 45 ? "var(--color-ochre)" : "var(--color-clay)";
   return (
     <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">

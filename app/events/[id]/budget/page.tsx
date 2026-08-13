@@ -45,17 +45,17 @@ export default async function BudgetPage(props: PageProps<"/events/[id]/budget">
         <div className="grid gap-6 sm:grid-cols-4">
           <Stat label="Totaal budget" value={formatCurrency(budget.totalCents)} icon={<Wallet className="size-4" />} />
           <Stat label="Gecommitteerd" value={formatCurrency(budget.committedCents)} tone="text-success" />
-          <Stat label="Verwacht" value={formatCurrency(budget.pendingCents)} tone="text-gold" />
+          <Stat label="Verwacht" value={formatCurrency(budget.pendingCents)} tone="text-ochre" />
           <Stat label="Resterend" value={formatCurrency(budget.remainingCents)} tone={budget.remainingCents < 0 ? "text-danger" : "text-ink"} />
         </div>
 
         <div className="relative mt-6 h-3 w-full overflow-hidden rounded-full bg-paper-dim">
           <div className="absolute inset-y-0 left-0 bg-success" style={{ width: `${committedPct}%` }} />
-          <div className="absolute inset-y-0 bg-gold" style={{ left: `${committedPct}%`, width: `${pendingPct}%` }} />
+          <div className="absolute inset-y-0 bg-ochre" style={{ left: `${committedPct}%`, width: `${pendingPct}%` }} />
         </div>
         <div className="mt-2 flex gap-4 text-xs text-ink-faint">
           <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-success" /> Gecommitteerd</span>
-          <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-gold" /> Verwacht</span>
+          <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-ochre" /> Verwacht</span>
         </div>
 
         {budget.percentOverBudget > 0 && (
@@ -65,7 +65,7 @@ export default async function BudgetPage(props: PageProps<"/events/[id]/budget">
           </div>
         )}
 
-        <div className="mt-5 flex items-start gap-2.5 rounded-xl bg-violet-50 px-4 py-3 text-sm text-violet-dark">
+        <div className="mt-5 flex items-start gap-2.5 rounded-xl bg-sage-50 px-4 py-3 text-sm text-sage-dark">
           <Sparkles className="mt-0.5 size-4 shrink-0" />
           <p>{advice.answer}</p>
         </div>

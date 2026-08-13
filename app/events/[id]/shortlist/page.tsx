@@ -47,12 +47,12 @@ export default async function ShortlistPage(props: PageProps<"/events/[id]/short
           } else if (shortlisted.length > 0) {
             rows = await Promise.all(shortlisted.map(async (o) => {
               const s = await resolveSupplierDisplay(o.supplierId);
-              return { icon: <Heart className="size-5 text-coral" />, label: s?.companyName ?? "Leverancier", sub: `Op shortlist · ${formatCurrency(o.totalPriceCents)}`, href: `/events/${id}/offers/${r.categoryKey}` };
+              return { icon: <Heart className="size-5 text-clay" />, label: s?.companyName ?? "Leverancier", sub: `Op shortlist · ${formatCurrency(o.totalPriceCents)}`, href: `/events/${id}/offers/${r.categoryKey}` };
             }));
           } else if (categoryOffers.length > 0) {
-            rows.push({ icon: <Sparkles className="size-5 text-violet" />, label: r.label, sub: `${categoryOffers.length} offerte(s) nog te bekijken`, href: `/events/${id}/offers/${r.categoryKey}` });
+            rows.push({ icon: <Sparkles className="size-5 text-sage" />, label: r.label, sub: `${categoryOffers.length} offerte(s) nog te bekijken`, href: `/events/${id}/offers/${r.categoryKey}` });
           } else {
-            rows.push({ icon: <Hourglass className="size-5 text-gold" />, label: r.label, sub: "Wachten op reactie van leveranciers", href: `/events/${id}/requests` });
+            rows.push({ icon: <Hourglass className="size-5 text-ochre" />, label: r.label, sub: "Wachten op reactie van leveranciers", href: `/events/${id}/requests` });
           }
 
           return (

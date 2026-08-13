@@ -92,7 +92,7 @@ function SwipeStack({ offers }: { offers: OfferWithSupplier[] }) {
       <div className="rounded-2xl border border-dashed border-line px-6 py-14 text-center text-ink-faint">
         {history.length > 0 ? "Je hebt alle offertes bekeken. Scroll naar 'Beslist' hieronder, of bekijk je shortlist." : "Geen offertes om te bekijken."}
         {history.length > 0 && (
-          <button onClick={undo} className="mx-auto mt-4 flex items-center gap-1.5 text-sm font-medium text-coral">
+          <button onClick={undo} className="mx-auto mt-4 flex items-center gap-1.5 text-sm font-medium text-clay">
             <Undo2 className="size-4" /> Vorige terugzetten
           </button>
         )}
@@ -150,7 +150,7 @@ function SwipeStack({ offers }: { offers: OfferWithSupplier[] }) {
           onClick={() => decide("shortlisted")}
           disabled={pending}
           aria-label="Toevoegen aan shortlist"
-          className="flex size-14 items-center justify-center rounded-full border border-line bg-white text-coral shadow-sm transition-transform hover:scale-105 active:scale-95"
+          className="flex size-14 items-center justify-center rounded-full border border-line bg-white text-clay shadow-sm transition-transform hover:scale-105 active:scale-95"
         >
           <Heart className="size-6" />
         </button>
@@ -189,12 +189,12 @@ function SwipeCard({ offer, stackIndex, interactive, onDecide }: { offer: OfferW
             <div className="mt-1 flex items-center gap-1.5 text-sm text-ink-faint">
               {offer.supplier.ratingCount > 0 ? (
                 <>
-                  <Star className="size-3.5 fill-gold text-gold" /> {offer.supplier.ratingAvg.toFixed(1)} ({offer.supplier.ratingCount})
+                  <Star className="size-3.5 fill-ochre text-ochre" /> {offer.supplier.ratingAvg.toFixed(1)} ({offer.supplier.ratingCount})
                 </>
               ) : (
                 <span>Nog geen reviews</span>
               )}
-              {offer.supplier.verified && <ShieldCheck className="ml-1 size-3.5 text-violet" />}
+              {offer.supplier.verified && <ShieldCheck className="ml-1 size-3.5 text-sage" />}
             </div>
           </div>
           <p className="font-display text-xl text-ink">{formatCurrency(offer.totalPriceCents)}</p>
@@ -238,7 +238,7 @@ function OfferListCard({ offer, compact }: { offer: OfferWithSupplier; compact?:
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
             {offer.supplier.isReal ? (
-              <Link href={`/leveranciers/${offer.supplier.id}`} target="_blank" className="flex min-w-0 items-center gap-1 truncate font-medium text-ink hover:text-violet hover:underline">
+              <Link href={`/leveranciers/${offer.supplier.id}`} target="_blank" className="flex min-w-0 items-center gap-1 truncate font-medium text-ink hover:text-sage hover:underline">
                 <span className="truncate">{offer.supplier.companyName}</span> <ExternalLink className="size-3 shrink-0" />
               </Link>
             ) : (
@@ -249,7 +249,7 @@ function OfferListCard({ offer, compact }: { offer: OfferWithSupplier; compact?:
           <div className="mt-0.5 flex items-center gap-1 text-xs text-ink-faint">
             {offer.supplier.ratingCount > 0 ? (
               <>
-                <Star className="size-3 fill-gold text-gold" /> {offer.supplier.ratingAvg.toFixed(1)}
+                <Star className="size-3 fill-ochre text-ochre" /> {offer.supplier.ratingAvg.toFixed(1)}
               </>
             ) : (
               <span>Nog geen reviews</span>
@@ -303,7 +303,7 @@ function OfferListCard({ offer, compact }: { offer: OfferWithSupplier; compact?:
               <button
                 disabled={pending}
                 onClick={() => startTransition(() => acceptOfferAction(offer.id))}
-                className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-coral px-3.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-coral-dark"
+                className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-clay px-3.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-clay-dark"
               >
                 {pending ? <Loader2 className="size-3.5 animate-spin" /> : "Accepteren →"}
               </button>

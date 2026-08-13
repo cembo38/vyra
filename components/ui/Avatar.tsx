@@ -39,7 +39,7 @@ export function SupplierAvatar({
       )}
       {verified && (
         <div className="absolute -bottom-1 -right-1 rounded-full bg-white p-0.5 shadow">
-          <CheckCircle2 className="size-4 text-violet fill-violet text-white" />
+          <CheckCircle2 className="size-4 text-sage fill-sage text-white" />
         </div>
       )}
     </div>

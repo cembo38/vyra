@@ -7,16 +7,16 @@ type Size = "sm" | "md" | "lg";
 
 const variantClasses: Record<Variant, string> = {
   primary: "bg-ink text-paper hover:bg-ink/90 shadow-sm",
-  secondary: "bg-coral text-white hover:bg-coral-dark shadow-sm",
+  secondary: "bg-clay text-white hover:bg-clay-dark shadow-sm",
   outline: "border border-line bg-white text-ink hover:border-ink/40 hover:bg-paper-dim",
   ghost: "text-ink-soft hover:text-ink hover:bg-paper-dim",
   danger: "bg-danger text-white hover:opacity-90",
 };
 
 const sizeClasses: Record<Size, string> = {
-  sm: "text-sm px-3.5 py-1.5 rounded-full gap-1.5",
-  md: "text-sm px-5 py-2.5 rounded-full gap-2",
-  lg: "text-base px-7 py-3.5 rounded-full gap-2.5",
+  sm: "text-sm px-3.5 py-1.5 rounded-xl gap-1.5",
+  md: "text-sm px-5 py-2.5 rounded-xl gap-2",
+  lg: "text-base px-7 py-3.5 rounded-xl gap-2.5",
 };
 
 interface CommonProps {

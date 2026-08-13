@@ -25,7 +25,7 @@ export function AssistantWidget({ eventId }: { eventId: string }) {
   return (
     <div className="rounded-2xl border border-line bg-white p-5 [box-shadow:var(--shadow-card)]">
       <div className="flex items-center gap-2.5">
-        <div className="flex size-9 items-center justify-center rounded-full bg-violet-50 text-violet">
+        <div className="flex size-9 items-center justify-center rounded-full bg-sage-50 text-sage">
           <Sparkles className="size-4.5" />
         </div>
         <div>
@@ -40,7 +40,7 @@ export function AssistantWidget({ eventId }: { eventId: string }) {
             <button
               key={s}
               onClick={() => ask(s)}
-              className="rounded-full border border-line bg-paper px-3 py-1.5 text-xs text-ink-soft transition-colors hover:border-violet/50 hover:text-ink"
+              className="rounded-full border border-line bg-paper px-3 py-1.5 text-xs text-ink-soft transition-colors hover:border-sage/50 hover:text-ink"
             >
               {s}
             </button>

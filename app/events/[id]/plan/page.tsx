@@ -25,7 +25,7 @@ export default async function PlanPage(props: PageProps<"/events/[id]/plan">) {
   if (requirements.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-line px-6 py-16 text-center">
-        <Sparkles className="mx-auto size-8 text-violet" />
+        <Sparkles className="mx-auto size-8 text-sage" />
         <h2 className="mt-4 font-display text-xl text-ink">Nog geen plan gegenereerd</h2>
         <p className="mx-auto mt-2 max-w-sm text-sm text-ink-soft">Rond eerst het AI-interview af om een plan te laten genereren.</p>
         <LinkButton href="/events/new" className="mt-5">Naar het interview</LinkButton>
@@ -75,7 +75,7 @@ export default async function PlanPage(props: PageProps<"/events/[id]/plan">) {
                     </div>
                     <RequirementToggle eventId={id} categoryId={r.id} selected={r.selected} />
                   </div>
-                  <div className="mt-3 flex items-start gap-1.5 rounded-xl bg-violet-50 px-3 py-2 text-xs text-violet-dark">
+                  <div className="mt-3 flex items-start gap-1.5 rounded-xl bg-sage-50 px-3 py-2 text-xs text-sage-dark">
                     <Sparkles className="mt-0.5 size-3.5 shrink-0" />
                     <p>{r.aiRationale}</p>
                   </div>
@@ -89,7 +89,7 @@ export default async function PlanPage(props: PageProps<"/events/[id]/plan">) {
       <div className="flex flex-col items-center gap-3 border-t border-line-soft pt-8 text-center">
         <p className="text-sm text-ink-soft">Klaar? We sturen automatisch aanvragen naar de best passende leveranciers voor je geselecteerde categorieën.</p>
         <form action={confirmRequirementsAction.bind(null, id)}>
-          <button type="submit" className="inline-flex items-center gap-2 rounded-full bg-coral px-7 py-3.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-coral-dark">
+          <button type="submit" className="inline-flex items-center gap-2 rounded-xl bg-clay px-7 py-3.5 text-sm font-medium text-white shadow-sm transition-colors hover:bg-clay-dark">
             Bevestig selectie ({selectedCount}) en ga verder
           </button>
         </form>

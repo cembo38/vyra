@@ -62,7 +62,7 @@ export default async function SupplierDashboardPage() {
         <Card>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-display text-lg text-ink">Nieuwe aanvragen</h2>
-            <Link href="/supplier/requests" className="text-sm font-medium text-coral hover:underline">Alles bekijken</Link>
+            <Link href="/supplier/requests" className="text-sm font-medium text-clay hover:underline">Alles bekijken</Link>
           </div>
           {openLeads.length === 0 ? (
             <EmptyState icon={<Inbox className="size-6" />} title="Geen openstaande aanvragen" description="Zodra een organisator een aanvraag stuurt die bij jouw profiel past, verschijnt die hier." />
@@ -72,7 +72,7 @@ export default async function SupplierDashboardPage() {
                 <Link
                   key={lead.target.id}
                   href={`/supplier/requests/${lead.request.id}`}
-                  className="block rounded-xl border border-line-soft px-3.5 py-2.5 text-sm transition-colors hover:border-violet"
+                  className="block rounded-xl border border-line-soft px-3.5 py-2.5 text-sm transition-colors hover:border-sage"
                 >
                   <div className="flex items-center justify-between gap-3">
                     <div>
@@ -90,7 +90,7 @@ export default async function SupplierDashboardPage() {
         <Card>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-display text-lg text-ink">Aankomende boekingen</h2>
-            <Link href="/supplier/orders" className="text-sm font-medium text-coral hover:underline">Alles bekijken</Link>
+            <Link href="/supplier/orders" className="text-sm font-medium text-clay hover:underline">Alles bekijken</Link>
           </div>
           {upcomingOrders.length === 0 ? (
             <EmptyState icon={<Clock className="size-6" />} title="Nog geen boekingen" description="Zodra een organisator jouw offerte accepteert, verschijnt de boeking hier." />
@@ -104,7 +104,7 @@ export default async function SupplierDashboardPage() {
                   </div>
                   <div className="text-right">
                     <p className="font-medium text-ink">{formatCurrency(offer.totalPriceCents)}</p>
-                    <Badge tone={payment?.status === "paid" ? "success" : "gold"}>{payment?.status === "paid" ? "Uitbetaald" : "In behandeling"}</Badge>
+                    <Badge tone={payment?.status === "paid" ? "success" : "ochre"}>{payment?.status === "paid" ? "Uitbetaald" : "In behandeling"}</Badge>
                   </div>
                 </div>
               ))}

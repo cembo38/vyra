@@ -60,7 +60,7 @@ export default async function SupplierDirectoryPage(props: PageProps<"/leveranci
               <Input name="maxPrice" type="number" min={0} step={1} defaultValue={maxPriceEuros ?? ""} />
             </Field>
             <div className="sm:col-span-2 lg:col-span-5 flex items-center gap-3">
-              <button type="submit" className="inline-flex items-center gap-1.5 rounded-full bg-coral px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-coral-dark">
+              <button type="submit" className="inline-flex items-center gap-1.5 rounded-xl bg-clay px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-clay-dark">
                 <Search className="size-4" /> Zoeken
               </button>
               {hasFilters && (
@@ -85,11 +85,11 @@ export default async function SupplierDirectoryPage(props: PageProps<"/leveranci
               <Link
                 key={s.id}
                 href={`/leveranciers/${s.id}`}
-                className="block rounded-2xl border border-line bg-white p-5 transition-all hover:-translate-y-0.5 hover:border-coral/50 [box-shadow:var(--shadow-card)]"
+                className="block rounded-2xl border border-line bg-white p-5 transition-all hover:-translate-y-0.5 hover:border-clay/50 [box-shadow:var(--shadow-card)]"
               >
                 <div className="flex items-start gap-3">
                   <SupplierAvatar
-                    gradient={["#C7B8FF", "#6D5CF0"]}
+                    gradient={["#E8C9A8", "#B5674A"]}
                     initials={s.companyName.slice(0, 2).toUpperCase()}
                     imageUrl={s.logoUrl}
                     verified={s.verified}
@@ -100,19 +100,19 @@ export default async function SupplierDirectoryPage(props: PageProps<"/leveranci
                     <div className="mt-0.5 flex items-center gap-1 text-xs text-ink-faint">
                       {s.ratingCount > 0 ? (
                         <>
-                          <Star className="size-3 fill-gold text-gold" /> {s.ratingAvg.toFixed(1)} ({s.ratingCount})
+                          <Star className="size-3 fill-ochre text-ochre" /> {s.ratingAvg.toFixed(1)} ({s.ratingCount})
                         </>
                       ) : (
                         <span>Nog geen reviews</span>
                       )}
-                      {s.verified && <ShieldCheck className="ml-1 size-3 text-violet" />}
+                      {s.verified && <ShieldCheck className="ml-1 size-3 text-sage" />}
                     </div>
                   </div>
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   {s.categories.slice(0, 3).map((c) => (
-                    <Badge key={c} tone="violet">{SUPPLIER_CATEGORY_LABELS[c]}</Badge>
+                    <Badge key={c} tone="sage">{SUPPLIER_CATEGORY_LABELS[c]}</Badge>
                   ))}
                 </div>
 

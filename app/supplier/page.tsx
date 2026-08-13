@@ -27,7 +27,7 @@ export default function SupplierLandingPage() {
       <MarketingHeader />
       <main>
         <section className="mx-auto max-w-5xl px-6 pb-14 pt-16 text-center">
-          <span className="text-sm font-medium uppercase tracking-wide text-coral">Voor leveranciers</span>
+          <span className="text-sm font-medium uppercase tracking-wide text-clay">Voor leveranciers</span>
           <h1 className="mt-3 font-display text-4xl tracking-tight text-ink sm:text-5xl">Ontvang aanvragen die al bij je passen</h1>
           <p className="mx-auto mt-4 max-w-xl text-ink-soft">
             Geen koude acquisitie meer. Vyra stuurt je alleen aanvragen die matchen met je categorie, locatie en beschikbaarheid — jij reageert binnen 48 uur met een offerte.
@@ -85,11 +85,11 @@ export default function SupplierLandingPage() {
         <section className="mx-auto max-w-3xl px-6 pb-20">
           <Card className="bg-ink text-paper">
             <div className="flex items-center gap-3">
-              <Sparkles className="size-5 text-coral" />
+              <Sparkles className="size-5 text-clay" />
               <p className="font-display text-xl">Klaar om aanvragen te ontvangen?</p>
             </div>
             <p className="mt-2 text-sm text-white/70">Registreer je bedrijf met categorie, werkgebied en portfolio — je eerste aanvraag kan al deze week binnenkomen.</p>
-            <Link href="/signup?intent=supplier" className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-coral">
+            <Link href="/signup?intent=supplier" className="mt-4 inline-flex items-center gap-1.5 text-sm font-medium text-clay">
               <CheckCircle2 className="size-4" /> Start je registratie
             </Link>
           </Card>
@@ -103,7 +103,7 @@ export default function SupplierLandingPage() {
 function Stat({ icon, title, description }: { icon: ReactNode; title: string; description: string }) {
   return (
     <div className="rounded-2xl bg-white p-5 [box-shadow:var(--shadow-card)]">
-      <div className="flex size-9 items-center justify-center rounded-lg bg-violet-50 text-violet">{icon}</div>
+      <div className="flex size-9 items-center justify-center rounded-lg bg-sage-50 text-sage">{icon}</div>
       <p className="mt-3 font-medium text-ink">{title}</p>
       <p className="mt-1 text-sm text-ink-soft">{description}</p>
     </div>

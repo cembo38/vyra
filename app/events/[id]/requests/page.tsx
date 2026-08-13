@@ -104,13 +104,13 @@ export default async function RequestsPage(props: PageProps<"/events/[id]/reques
                 <Link
                   key={r.id}
                   href={`/events/${id}/offers/${r.categoryKey}`}
-                  className="flex items-center justify-between rounded-2xl border border-line bg-white px-5 py-4 transition-colors hover:border-coral/50"
+                  className="flex items-center justify-between rounded-2xl border border-line bg-white px-5 py-4 transition-colors hover:border-clay/50"
                 >
                   <div>
                     <p className="font-medium text-ink">{r.label}</p>
                     <p className="text-sm text-ink-faint">{categoryOffers.length} offerte{categoryOffers.length !== 1 ? "s" : ""} ontvangen</p>
                   </div>
-                  <div className="flex items-center gap-2 text-sm font-medium text-coral">
+                  <div className="flex items-center gap-2 text-sm font-medium text-clay">
                     Bekijken <ArrowRight className="size-4" />
                   </div>
                 </Link>

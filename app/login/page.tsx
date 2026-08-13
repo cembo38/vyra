@@ -28,13 +28,13 @@ export default async function LoginPage(props: PageProps<"/login">) {
             <Field label="Wachtwoord" required>
               <PasswordInput name="password" required placeholder="••••••••" autoComplete="current-password" />
             </Field>
-            <button type="submit" className="w-full rounded-full bg-ink py-2.5 text-sm font-medium text-paper transition-colors hover:bg-ink/90">
+            <button type="submit" className="w-full rounded-xl bg-ink py-2.5 text-sm font-medium text-paper transition-colors hover:bg-ink/90">
               Inloggen
             </button>
           </form>
 
           <p className="mt-6 text-center text-sm text-ink-faint">
-            Nog geen account? <Link href="/signup" className="font-medium text-coral hover:underline">Registreer je</Link>
+            Nog geen account? <Link href="/signup" className="font-medium text-clay hover:underline">Registreer je</Link>
           </p>
         </div>
       </div>

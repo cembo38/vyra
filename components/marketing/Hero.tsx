@@ -5,18 +5,18 @@ import { Sparkles, MoveRight, Star } from "lucide-react";
 export function Hero() {
   return (
     <section className="relative overflow-hidden">
-      <div className="pointer-events-none absolute -top-24 left-1/2 h-[560px] w-[900px] -translate-x-1/2 rounded-full bg-gradient-to-b from-coral-50 via-violet-50/60 to-transparent blur-3xl" />
+      <div className="pointer-events-none absolute -top-24 left-1/2 h-[560px] w-[900px] -translate-x-1/2 rounded-full bg-gradient-to-b from-clay-50 via-sage-50/60 to-transparent blur-3xl" />
 
       <div className="relative mx-auto grid max-w-6xl gap-14 px-6 pb-16 pt-16 md:grid-cols-[1.05fr_0.95fr] md:items-center md:pb-24 md:pt-24">
         <div className="animate-rise">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-line bg-white px-3.5 py-1.5 text-xs font-medium text-ink-soft shadow-sm">
-            <Sparkles className="size-3.5 text-violet" />
+            <Sparkles className="size-3.5 text-sage" />
             Nieuw: AI plant je hele evenement mee
           </div>
           <h1 className="font-display text-[2.6rem] leading-[1.08] tracking-tight text-ink sm:text-6xl">
             Celebrate.
             <br />
-            <span className="italic text-coral">Simplified.</span>
+            <span className="italic text-clay">Simplified.</span>
           </h1>
           <p className="mt-6 max-w-lg text-lg leading-relaxed text-ink-soft">
             Vertel ons wat je wilt organiseren en onze AI ontdekt welke mensen, diensten en producten je nodig hebt —
@@ -33,7 +33,7 @@ export function Hero() {
           <div className="mt-10 flex items-center gap-6 text-sm text-ink-faint">
             <div className="flex items-center gap-1.5">
               <div className="flex -space-x-2">
-                {["#FF5A46", "#6D5CF0", "#1C8A54", "#B8892B"].map((c) => (
+                {["#B5674A", "#6B7A5E", "#9C5540", "#B08A3E"].map((c) => (
                   <div key={c} className="size-7 rounded-full border-2 border-paper" style={{ backgroundColor: c }} />
                 ))}
               </div>
@@ -41,7 +41,7 @@ export function Hero() {
             </div>
             <div className="hidden items-center gap-1 sm:flex">
               {[...Array(5)].map((_, i) => (
-                <Star key={i} className="size-3.5 fill-gold text-gold" />
+                <Star key={i} className="size-3.5 fill-ochre text-ochre" />
               ))}
               <span className="ml-1">4,8 / 5</span>
             </div>
@@ -51,7 +51,7 @@ export function Hero() {
         <div className="relative animate-rise [animation-delay:150ms]">
           <div className="rounded-[28px] border border-line bg-white p-5 [box-shadow:var(--shadow-pop)] sm:p-6">
             <div className="mb-4 flex items-center gap-2 border-b border-line-soft pb-4">
-              <div className="flex size-8 items-center justify-center rounded-full bg-violet-50 text-violet">
+              <div className="flex size-8 items-center justify-center rounded-full bg-sage-50 text-sage">
                 <Sparkles className="size-4" />
               </div>
               <div>

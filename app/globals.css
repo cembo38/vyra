@@ -1,35 +1,57 @@
 @import "tailwindcss";
 
+/**
+ * ── VYRA DESIGN TOKENS ──────────────────────────────────────────────
+ * Dit is de ENIGE plek waar je hoeft te zijn om de uitstraling van de
+ * hele site aan te passen — elk component gebruikt uitsluitend deze
+ * tokens (via Tailwind-klassen als `bg-clay`, `text-ink-soft`, nooit
+ * losse hex-codes), dus een wijziging hier werkt overal automatisch door.
+ *
+ * Huidige richting: "Japandi" — rustig, warm en gedempt (linnen/houtskool
+ * basis) met twee natuurlijke accentkleuren (klei-terracotta en
+ * salie-groen) in plaats van felle merkkleuren.
+ *
+ * Structuur:
+ *  - paper / paper-dim   → achtergronden (licht → iets donkerder)
+ *  - ink / ink-soft / ink-faint → tekst (donker → licht, voor hiërarchie)
+ *  - line / line-soft    → randen
+ *  - clay                → primaire actiekleur (knoppen, links, focus)
+ *  - sage                → secundaire accentkleur (bevestigd/positief-accent)
+ *  - ochre                → tertiaire accentkleur (aandacht/aanbevolen)
+ *  - success/warning/danger → functionele statuskleuren (niet de merkkleuren)
+ * Wil je alleen de accentkleur wijzigen? Pas dan alleen --color-clay(-dark/-50)
+ * aan. Wil je de hele sfeer donkerder/lichter maken? Pas paper/ink aan.
+ * ─────────────────────────────────────────────────────────────────── */
 :root {
-  --color-paper: #fbf9f6;
-  --color-paper-dim: #f3efe9;
-  --color-ink: #17131f;
-  --color-ink-soft: #4a4456;
-  --color-ink-faint: #8a8394;
-  --color-line: #e8e2d9;
-  --color-line-soft: #f0ebe3;
+  --color-paper: #f7f4ee;
+  --color-paper-dim: #eee8dd;
+  --color-ink: #2b2823;
+  --color-ink-soft: #5c5748;
+  --color-ink-faint: #948c79;
+  --color-line: #e4ddce;
+  --color-line-soft: #efe9dc;
 
-  --color-coral: #ff5a46;
-  --color-coral-dark: #e64730;
-  --color-coral-50: #fff1ee;
+  --color-clay: #b5674a;
+  --color-clay-dark: #9c5540;
+  --color-clay-50: #f5e9e3;
 
-  --color-gold: #b8892b;
-  --color-gold-50: #fbf3e2;
+  --color-ochre: #b08a3e;
+  --color-ochre-50: #f5eedd;
 
-  --color-violet: #6d5cf0;
-  --color-violet-dark: #5847d6;
-  --color-violet-50: #f1eefe;
+  --color-sage: #6b7a5e;
+  --color-sage-dark: #56634a;
+  --color-sage-50: #eaeee4;
 
-  --color-success: #1c8a54;
-  --color-success-50: #e9f7ef;
-  --color-warning: #b7791f;
-  --color-warning-50: #fdf3e0;
-  --color-danger: #d1443b;
-  --color-danger-50: #fdecea;
+  --color-success: #5c7a56;
+  --color-success-50: #e9efe4;
+  --color-warning: #b08a3e;
+  --color-warning-50: #f5eedd;
+  --color-danger: #a85c4f;
+  --color-danger-50: #f5e7e2;
 
-  --shadow-card: 0 1px 2px rgba(23, 19, 31, 0.04), 0 8px 24px -12px rgba(23, 19, 31, 0.12);
-  --shadow-card-hover: 0 2px 4px rgba(23, 19, 31, 0.06), 0 16px 40px -16px rgba(23, 19, 31, 0.18);
-  --shadow-pop: 0 20px 60px -20px rgba(23, 19, 31, 0.35);
+  --shadow-card: 0 1px 2px rgba(43, 40, 35, 0.03), 0 6px 20px -12px rgba(43, 40, 35, 0.10);
+  --shadow-card-hover: 0 2px 4px rgba(43, 40, 35, 0.05), 0 14px 32px -16px rgba(43, 40, 35, 0.14);
+  --shadow-pop: 0 16px 48px -18px rgba(43, 40, 35, 0.22);
 }
 
 @theme inline {
@@ -41,16 +63,16 @@
   --color-line: var(--color-line);
   --color-line-soft: var(--color-line-soft);
 
-  --color-coral: var(--color-coral);
-  --color-coral-dark: var(--color-coral-dark);
-  --color-coral-50: var(--color-coral-50);
+  --color-clay: var(--color-clay);
+  --color-clay-dark: var(--color-clay-dark);
+  --color-clay-50: var(--color-clay-50);
 
-  --color-gold: var(--color-gold);
-  --color-gold-50: var(--color-gold-50);
+  --color-ochre: var(--color-ochre);
+  --color-ochre-50: var(--color-ochre-50);
 
-  --color-violet: var(--color-violet);
-  --color-violet-dark: var(--color-violet-dark);
-  --color-violet-50: var(--color-violet-50);
+  --color-sage: var(--color-sage);
+  --color-sage-dark: var(--color-sage-dark);
+  --color-sage-50: var(--color-sage-50);
 
   --color-success: var(--color-success);
   --color-success-50: var(--color-success-50);
@@ -95,7 +117,7 @@ body {
 }
 
 ::selection {
-  background: var(--color-coral);
+  background: var(--color-clay);
   color: white;
 }
 
@@ -110,7 +132,7 @@ input:focus-visible,
 textarea:focus-visible,
 select:focus-visible,
 [tabindex]:focus-visible {
-  outline: 2px solid var(--color-violet);
+  outline: 2px solid var(--color-sage);
   outline-offset: 2px;
   border-radius: 4px;
 }

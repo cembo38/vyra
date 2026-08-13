@@ -28,7 +28,7 @@ export function HowItWorks() {
     <section id="hoe-het-werkt" className="border-t border-line-soft bg-paper-dim/60 py-20 sm:py-28">
       <div className="mx-auto max-w-6xl px-6">
         <div className="mx-auto max-w-xl text-center">
-          <span className="text-sm font-medium uppercase tracking-wide text-coral">Hoe het werkt</span>
+          <span className="text-sm font-medium uppercase tracking-wide text-clay">Hoe het werkt</span>
           <h2 className="mt-3 font-display text-3xl tracking-tight text-ink sm:text-4xl">
             Van idee tot compleet geregeld evenement
           </h2>
@@ -41,7 +41,7 @@ export function HowItWorks() {
           {steps.map((step, i) => (
             <div key={step.title} className="relative rounded-2xl border border-line bg-white p-6 [box-shadow:var(--shadow-card)]">
               <span className="font-display text-4xl text-line">{String(i + 1).padStart(2, "0")}</span>
-              <div className="mt-4 flex size-10 items-center justify-center rounded-xl bg-violet-50 text-violet">
+              <div className="mt-4 flex size-10 items-center justify-center rounded-xl bg-sage-50 text-sage">
                 <step.icon className="size-5" />
               </div>
               <h3 className="mt-4 font-display text-lg text-ink">{step.title}</h3>

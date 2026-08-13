@@ -45,14 +45,14 @@ export default async function SignupPage(props: PageProps<"/signup">) {
             </Field>
 
             <fieldset>
-              <legend className="mb-1.5 text-sm font-medium text-ink">Wat wil je op Vyra doen? <span className="text-coral">*</span></legend>
+              <legend className="mb-1.5 text-sm font-medium text-ink">Wat wil je op Vyra doen? <span className="text-clay">*</span></legend>
               <div className="space-y-2 rounded-xl border border-line p-3">
                 <label className="flex items-start gap-2.5 text-sm text-ink-soft">
                   <input
                     type="checkbox"
                     name="asOrganizer"
                     defaultChecked={defaultOrganizer}
-                    className="mt-0.5 size-4 rounded border-line text-coral accent-coral"
+                    className="mt-0.5 size-4 rounded border-line text-clay accent-clay"
                   />
                   <span>
                     <span className="font-medium text-ink">Evenementen organiseren</span> — plan je eigen bruiloft, feest of event met AI-hulp
@@ -63,7 +63,7 @@ export default async function SignupPage(props: PageProps<"/signup">) {
                     type="checkbox"
                     name="asSupplier"
                     defaultChecked={defaultSupplier}
-                    className="mt-0.5 size-4 rounded border-line text-coral accent-coral"
+                    className="mt-0.5 size-4 rounded border-line text-clay accent-clay"
                   />
                   <span>
                     <span className="font-medium text-ink">Als leverancier aanvragen ontvangen</span> — bied je diensten aan en ontvang aanvragen van organisatoren
@@ -78,28 +78,28 @@ export default async function SignupPage(props: PageProps<"/signup">) {
                 type="checkbox"
                 name="consent"
                 required
-                className="mt-0.5 size-4 rounded border-line text-coral accent-coral"
+                className="mt-0.5 size-4 rounded border-line text-clay accent-clay"
               />
               <span>
                 Ik ga akkoord met de{" "}
-                <Link href="/voorwaarden" className="font-medium text-coral hover:underline" target="_blank">
+                <Link href="/voorwaarden" className="font-medium text-clay hover:underline" target="_blank">
                   algemene voorwaarden
                 </Link>{" "}
                 en de{" "}
-                <Link href="/privacy" className="font-medium text-coral hover:underline" target="_blank">
+                <Link href="/privacy" className="font-medium text-clay hover:underline" target="_blank">
                   privacyverklaring
                 </Link>
                 .
               </span>
             </label>
 
-            <button type="submit" className="w-full rounded-full bg-coral py-2.5 text-sm font-medium text-white transition-colors hover:bg-coral-dark">
+            <button type="submit" className="w-full rounded-xl bg-clay py-2.5 text-sm font-medium text-white transition-colors hover:bg-clay-dark">
               Account aanmaken
             </button>
           </form>
 
           <p className="mt-6 text-center text-sm text-ink-faint">
-            Heb je al een account? <Link href="/login" className="font-medium text-coral hover:underline">Log in</Link>
+            Heb je al een account? <Link href="/login" className="font-medium text-clay hover:underline">Log in</Link>
           </p>
         </div>
       </div>

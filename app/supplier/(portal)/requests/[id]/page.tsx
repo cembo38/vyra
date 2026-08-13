@@ -35,7 +35,7 @@ export default async function SupplierRequestDetailPage(props: PageProps<"/suppl
         <div>
           <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-ink-faint">
             {SUPPLIER_CATEGORY_LABELS[lead.request.categoryKey]}
-            {lead.request.isDirect && <Badge tone="coral">Maatwerkaanvraag</Badge>}
+            {lead.request.isDirect && <Badge tone="clay">Maatwerkaanvraag</Badge>}
           </p>
           <h1 className="mt-1 font-display text-2xl text-ink">{lead.event.name}</h1>
           <p className="mt-1 text-sm text-ink-soft">{EVENT_TYPE_LABELS[lead.event.type]}</p>

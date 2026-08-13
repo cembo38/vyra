@@ -32,7 +32,7 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
       <Link
         href={`/leveranciers/${supplier.id}`}
         target="_blank"
-        className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-violet hover:underline"
+        className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-sage hover:underline"
       >
         Bekijk je openbare profiel <ExternalLink className="size-3.5" />
       </Link>
@@ -88,7 +88,7 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
             <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-ink-faint">Diensten & werkgebied</h2>
             <div className="space-y-4">
               <fieldset>
-                <legend className="mb-1.5 text-sm font-medium text-ink">Categorieën <span className="text-coral">*</span></legend>
+                <legend className="mb-1.5 text-sm font-medium text-ink">Categorieën <span className="text-clay">*</span></legend>
                 <div className="grid max-h-48 grid-cols-2 gap-1.5 overflow-y-auto rounded-xl border border-line p-3">
                   {Object.entries(SUPPLIER_CATEGORY_LABELS).map(([key, label]) => (
                     <label key={key} className="flex items-center gap-2 text-sm text-ink-soft">
@@ -97,7 +97,7 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
                         name="categories"
                         value={key}
                         defaultChecked={(supplier.categories as string[]).includes(key)}
-                        className="size-4 rounded border-line text-coral accent-coral"
+                        className="size-4 rounded border-line text-clay accent-clay"
                       />
                       {label}
                     </label>
@@ -186,7 +186,7 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
             </div>
           </div>
 
-          <button type="submit" className="w-full rounded-full bg-coral py-2.5 text-sm font-medium text-white transition-colors hover:bg-coral-dark">
+          <button type="submit" className="w-full rounded-xl bg-clay py-2.5 text-sm font-medium text-white transition-colors hover:bg-clay-dark">
             Wijzigingen opslaan
           </button>
         </form>

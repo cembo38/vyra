@@ -81,7 +81,7 @@ export function RequestCategoryCard({
                 <div className="flex items-center gap-3 text-xs text-ink-faint">
                   <span>★ {m.ratingAvg.toFixed(1)}</span>
                   <span>≈ {formatCurrency(m.avgPriceCents)}</span>
-                  <span className="rounded-full bg-violet-50 px-2 py-0.5 font-medium text-violet-dark">{m.matchScore}% match</span>
+                  <span className="rounded-full bg-sage-50 px-2 py-0.5 font-medium text-sage-dark">{m.matchScore}% match</span>
                 </div>
               </div>
             ))}
@@ -91,7 +91,7 @@ export function RequestCategoryCard({
             onChange={(e) => setSpecialRequests(e.target.value)}
             placeholder="Speciale wensen? Bijv. 'vegetarische opties' of 'graag ook zaterdag beschikbaar'"
             rows={2}
-            className="w-full resize-none rounded-xl border border-line px-3 py-2 text-sm outline-none focus:border-violet"
+            className="w-full resize-none rounded-xl border border-line px-3 py-2 text-sm outline-none focus:border-sage"
           />
           <button
             disabled={pending}
@@ -101,7 +101,7 @@ export function RequestCategoryCard({
                 setSent(res?.offerCount ?? 0);
               })
             }
-            className="inline-flex items-center gap-1.5 rounded-full bg-coral px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-coral-dark disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-full bg-clay px-4 py-2 text-xs font-medium text-white transition-colors hover:bg-clay-dark disabled:opacity-50"
           >
             {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
             Stuur aanvraag

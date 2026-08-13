@@ -47,7 +47,7 @@ export default async function EventDashboardPage(props: PageProps<"/events/[id]"
   if (requirements.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-line px-6 py-16 text-center">
-        <Sparkles className="mx-auto size-8 text-violet" />
+        <Sparkles className="mx-auto size-8 text-sage" />
         <h2 className="mt-4 font-display text-xl text-ink">Je eventplan is nog niet gegenereerd</h2>
         <p className="mx-auto mt-2 max-w-sm text-sm text-ink-soft">Ga verder met het AI-interview om een compleet plan voor dit evenement te krijgen.</p>
         <LinkButton href={`/events/${id}/plan`} className="mt-5">Bekijk mijn eventplan</LinkButton>
@@ -91,7 +91,7 @@ export default async function EventDashboardPage(props: PageProps<"/events/[id]"
                 <p className="text-xs text-ink-faint">Bevestigd</p>
               </div>
               <div>
-                <p className="font-display text-2xl text-gold">{pendingDecisionCount}</p>
+                <p className="font-display text-2xl text-ochre">{pendingDecisionCount}</p>
                 <p className="text-xs text-ink-faint">Wacht op keuze</p>
               </div>
             </div>
@@ -101,7 +101,7 @@ export default async function EventDashboardPage(props: PageProps<"/events/[id]"
         <Card>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-display text-lg text-ink">Categorieën</h2>
-            <Link href={`/events/${id}/plan`} className="text-sm font-medium text-coral hover:underline">
+            <Link href={`/events/${id}/plan`} className="text-sm font-medium text-clay hover:underline">
               Volledig plan bekijken
             </Link>
           </div>
@@ -142,7 +142,7 @@ export default async function EventDashboardPage(props: PageProps<"/events/[id]"
                   >
                     {t.done ? <CheckCircle2 className="size-5 shrink-0 text-success" /> : <Circle className="size-5 shrink-0 text-ink-faint" />}
                     <span className={t.done ? "flex-1 text-sm text-ink-faint line-through" : "flex-1 text-sm text-ink"}>{t.title}</span>
-                    {!t.done && t.urgency === "urgent" && <span className="text-xs font-medium text-coral">Urgent</span>}
+                    {!t.done && t.urgency === "urgent" && <span className="text-xs font-medium text-clay">Urgent</span>}
                     {t.source === "ai_recommendation" && <AiTag className="hidden sm:inline-flex" />}
                   </button>
                 </form>
@@ -158,7 +158,7 @@ export default async function EventDashboardPage(props: PageProps<"/events/[id]"
               {event.notes.map((n) => (
                 <div key={n.id} className="rounded-xl bg-paper-dim px-4 py-3">
                   <p className="text-sm text-ink">{n.text}</p>
-                  {n.impactSummary && <p className="mt-1.5 text-xs text-violet-dark">✦ {n.impactSummary}</p>}
+                  {n.impactSummary && <p className="mt-1.5 text-xs text-sage-dark">✦ {n.impactSummary}</p>}
                 </div>
               ))}
             </div>
@@ -182,7 +182,7 @@ export default async function EventDashboardPage(props: PageProps<"/events/[id]"
           {budget.percentOverBudget > 0 && (
             <p className="mt-3 rounded-xl bg-danger-50 px-3 py-2 text-xs text-danger">Je zit momenteel {budget.percentOverBudget}% boven je oorspronkelijke budget.</p>
           )}
-          <Link href={`/events/${id}/budget`} className="mt-4 block text-sm font-medium text-coral hover:underline">Volledig budget bekijken →</Link>
+          <Link href={`/events/${id}/budget`} className="mt-4 block text-sm font-medium text-clay hover:underline">Volledig budget bekijken →</Link>
         </Card>
 
         <Card>

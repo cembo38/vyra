@@ -105,8 +105,8 @@ export default async function SupplierCalendarPage(props: PageProps<"/supplier/c
       </div>
 
       <div className="mt-6 flex items-center gap-4 text-xs text-ink-faint">
-        <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-violet" /> Boeking</span>
-        <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-gold" /> Aanvraagdeadline</span>
+        <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-sage" /> Boeking</span>
+        <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-ochre" /> Aanvraagdeadline</span>
       </div>
 
       <Card className="mt-3 p-0">
@@ -124,12 +124,12 @@ export default async function SupplierCalendarPage(props: PageProps<"/supplier/c
               <p className={`text-xs ${d.inMonth ? "text-ink" : "text-ink-faint"}`}>{d.day}</p>
               <div className="mt-1 space-y-0.5">
                 {d.bookings.slice(0, 2).map((b, i) => (
-                  <p key={`b-${i}`} className="truncate rounded bg-violet-50 px-1 py-0.5 text-[10px] font-medium text-violet-dark" title={b.label}>
+                  <p key={`b-${i}`} className="truncate rounded bg-sage-50 px-1 py-0.5 text-[10px] font-medium text-sage-dark" title={b.label}>
                     {b.label}
                   </p>
                 ))}
                 {d.deadlines.slice(0, 2).map((dl, i) => (
-                  <p key={`d-${i}`} className="truncate rounded bg-gold-50 px-1 py-0.5 text-[10px] font-medium text-gold" title={dl.label}>
+                  <p key={`d-${i}`} className="truncate rounded bg-ochre-50 px-1 py-0.5 text-[10px] font-medium text-ochre" title={dl.label}>
                     {dl.label}
                   </p>
                 ))}
@@ -149,13 +149,13 @@ export default async function SupplierCalendarPage(props: PageProps<"/supplier/c
               <span className="text-sm font-medium text-ink">{d.key}</span>
               <div className="flex flex-wrap items-center gap-2">
                 {d.bookings.map((b, i) => (
-                  <Badge key={`b-${i}`} tone="violet" icon={<PartyPopper className="size-3" />}>
+                  <Badge key={`b-${i}`} tone="sage" icon={<PartyPopper className="size-3" />}>
                     {b.label} · {formatCurrency(b.amount)}
                   </Badge>
                 ))}
                 {d.deadlines.map((dl, i) => (
                   <Link key={`d-${i}`} href={`/supplier/requests/${dl.requestId}`}>
-                    <Badge tone="gold" icon={<Clock className="size-3" />}>Deadline: {dl.label}</Badge>
+                    <Badge tone="ochre" icon={<Clock className="size-3" />}>Deadline: {dl.label}</Badge>
                   </Link>
                 ))}
               </div>

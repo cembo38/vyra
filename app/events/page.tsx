@@ -90,7 +90,7 @@ export default async function MyEventsPage() {
           })}
 
           <Link href="/events/new">
-            <div className="flex h-full min-h-[260px] flex-col items-center justify-center rounded-2xl border border-dashed border-line text-center text-ink-faint transition-colors hover:border-coral/50 hover:text-coral">
+            <div className="flex h-full min-h-[260px] flex-col items-center justify-center rounded-2xl border border-dashed border-line text-center text-ink-faint transition-colors hover:border-clay/50 hover:text-clay">
               <Sparkles className="size-6" />
               <p className="mt-3 text-sm font-medium">Nieuw evenement starten</p>
             </div>

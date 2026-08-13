@@ -6,14 +6,14 @@ import { SupplierProfile } from "@/lib/types";
  * database-schema). Prijzen in centen.
  */
 const GRADIENTS: [string, string][] = [
-  ["#FFD8A8", "#FF5A46"],
-  ["#C7B8FF", "#6D5CF0"],
-  ["#FFE29A", "#B8892B"],
-  ["#B7E4C7", "#1C8A54"],
-  ["#FFC6C0", "#D1443B"],
-  ["#AFE0F5", "#2C7DA0"],
-  ["#F5D0FE", "#A21CAF"],
-  ["#FDE68A", "#C2760C"],
+  ["#E8C9A8", "#B5674A"],
+  ["#C9D4BC", "#6B7A5E"],
+  ["#EAD9A8", "#B08A3E"],
+  ["#C9CCC0", "#5C5748"],
+  ["#E3C4B8", "#9C5540"],
+  ["#BFCBC2", "#56634A"],
+  ["#DCC9DB", "#8A6E82"],
+  ["#D9CBB4", "#7A6A4F"],
 ];
 
 let gradientCursor = 0;

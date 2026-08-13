@@ -23,7 +23,7 @@ export function RequirementToggle({ eventId, categoryId, selected }: { eventId: 
       }}
       className={cn(
         "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors",
-        optimisticSelected ? "bg-coral" : "bg-line"
+        optimisticSelected ? "bg-clay" : "bg-line"
       )}
     >
       <span className={cn("inline-block size-4.5 transform rounded-full bg-white shadow transition-transform", optimisticSelected ? "translate-x-6" : "translate-x-1")} />

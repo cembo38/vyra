@@ -12,7 +12,7 @@ export function SupplierTopBar({ user, supplier }: { user: UserAccount; supplier
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
         <div className="flex items-center gap-8">
           <Logo />
-          <Badge tone="violet">Leveranciersportaal</Badge>
+          <Badge tone="sage">Leveranciersportaal</Badge>
           <nav className="hidden items-center gap-6 text-sm font-medium text-ink-soft sm:flex">
             <Link href="/supplier/dashboard" className="hover:text-ink">Dashboard</Link>
             <Link href="/supplier/requests" className="hover:text-ink">Aanvragen</Link>

@@ -42,7 +42,7 @@ export function NotificationsBell({ userId, notifications }: { userId: string; n
       >
         <Bell className="size-5" />
         {unread > 0 && (
-          <span className="absolute right-1.5 top-1.5 flex size-2 items-center justify-center rounded-full bg-coral" />
+          <span className="absolute right-1.5 top-1.5 flex size-2 items-center justify-center rounded-full bg-clay" />
         )}
       </button>
       {open && (
@@ -61,11 +61,11 @@ export function NotificationsBell({ userId, notifications }: { userId: string; n
                   setOpen(false);
                   if (!n.read) startTransition(() => markNotificationReadAction(userId, n.id));
                 }}
-                className={cn("block rounded-xl px-2.5 py-2.5 text-sm transition-colors hover:bg-paper-dim", !n.read && "bg-violet-50/50")}
+                className={cn("block rounded-xl px-2.5 py-2.5 text-sm transition-colors hover:bg-paper-dim", !n.read && "bg-sage-50/50")}
               >
                 <div className="flex items-start justify-between gap-2">
                   <p className="font-medium text-ink">{n.title}</p>
-                  {!n.read && <span className="mt-1 size-1.5 shrink-0 rounded-full bg-coral" />}
+                  {!n.read && <span className="mt-1 size-1.5 shrink-0 rounded-full bg-clay" />}
                 </div>
                 <p className="mt-0.5 line-clamp-2 text-xs text-ink-soft">{n.body}</p>
                 <p className="mt-1 text-[11px] text-ink-faint">{timeAgo(n.createdAt)}</p>

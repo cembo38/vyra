@@ -77,7 +77,7 @@ function OrderTable({ orders }: { orders: Awaited<ReturnType<typeof getSupplierO
           </div>
           <div className="text-right">
             <p className="font-medium text-ink">{formatCurrency(payment?.supplierAmountCents ?? offer.totalPriceCents)}</p>
-            <Badge tone={payment?.status === "paid" ? "success" : "gold"}>
+            <Badge tone={payment?.status === "paid" ? "success" : "ochre"}>
               {payment?.status === "paid" ? "Uitbetaald" : payment ? "Wacht op uitbetaling" : "Betaling nog niet gestart"}
             </Badge>
           </div>

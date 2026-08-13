@@ -44,13 +44,13 @@ export default async function SupplierRequestsPage(props: PageProps<"/supplier/r
             <Link
               key={lead.target.id}
               href={`/supplier/requests/${lead.request.id}`}
-              className="block rounded-xl border border-line bg-white px-4 py-3.5 text-sm transition-colors hover:border-violet [box-shadow:var(--shadow-card)]"
+              className="block rounded-xl border border-line bg-white px-4 py-3.5 text-sm transition-colors hover:border-sage [box-shadow:var(--shadow-card)]"
             >
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-ink-faint">
                     {SUPPLIER_CATEGORY_LABELS[lead.request.categoryKey]}
-                    {lead.request.isDirect && <Badge tone="coral">Maatwerk</Badge>}
+                    {lead.request.isDirect && <Badge tone="clay">Maatwerk</Badge>}
                   </p>
                   <p className="mt-0.5 font-display text-base text-ink">{lead.event.name}</p>
                   <p className="mt-0.5 text-xs text-ink-faint">{EVENT_TYPE_LABELS[lead.event.type]} {lead.event.date ? `· ${lead.event.date}` : ""} {lead.event.locationLabel ? `· ${lead.event.locationLabel}` : ""}</p>

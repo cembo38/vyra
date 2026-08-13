@@ -32,7 +32,7 @@ export function EventSubNav({ eventId }: { eventId: string }) {
               )}
             >
               {tab.label}
-              {active && <span className="absolute inset-x-3.5 -bottom-px h-0.5 rounded-full bg-coral" />}
+              {active && <span className="absolute inset-x-3.5 -bottom-px h-0.5 rounded-full bg-clay" />}
             </Link>
           );
         })}

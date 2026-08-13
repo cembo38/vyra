@@ -19,7 +19,7 @@ export default function TermsPage() {
     <>
       <MarketingHeader />
       <main className="mx-auto max-w-3xl px-6 py-16">
-        <span className="text-sm font-medium uppercase tracking-wide text-coral">Juridisch</span>
+        <span className="text-sm font-medium uppercase tracking-wide text-clay">Juridisch</span>
         <h1 className="mt-2 font-display text-3xl tracking-tight text-ink sm:text-4xl">Algemene voorwaarden</h1>
         <p className="mt-3 text-sm text-ink-faint">Laatst bijgewerkt: 12 augustus 2026</p>
 

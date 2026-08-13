@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
 
 const fieldBase =
-  "w-full rounded-xl border border-line bg-white px-4 py-2.5 text-[15px] text-ink placeholder:text-ink-faint outline-none transition-colors focus:border-violet";
+  "w-full rounded-xl border border-line bg-white px-4 py-2.5 text-[15px] text-ink placeholder:text-ink-faint outline-none transition-colors focus:border-sage";
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={cn(fieldBase, className)} {...props} />;
@@ -25,7 +25,7 @@ export function Field({ label, hint, children, required }: { label: string; hint
     <label className="block">
       <span className="mb-1.5 block text-sm font-medium text-ink">
         {label}
-        {required && <span className="text-coral"> *</span>}
+        {required && <span className="text-clay"> *</span>}
       </span>
       {children}
       {hint && <span className="mt-1.5 block text-xs text-ink-faint">{hint}</span>}

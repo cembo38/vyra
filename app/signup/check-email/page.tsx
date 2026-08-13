@@ -12,7 +12,7 @@ export default async function CheckEmailPage(props: PageProps<"/signup/check-ema
       <div className="w-full max-w-sm text-center">
         <div className="mb-8 flex justify-center"><Logo /></div>
         <div className="rounded-2xl border border-line bg-white p-8 [box-shadow:var(--shadow-card)]">
-          <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-violet-50 text-violet">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-sage-50 text-sage">
             <MailCheck className="size-6" />
           </div>
           <h1 className="mt-4 font-display text-xl text-ink">Bijna klaar</h1>

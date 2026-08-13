@@ -48,7 +48,7 @@ export function EventCountdown({ dateIso, className }: { dateIso: string | null;
   const days = Math.round((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
   if (days < 0) return <span className={cn("text-sm text-ink-faint", className)}>Evenement was {Math.abs(days)} dagen geleden</span>;
-  if (days === 0) return <span className={cn("text-sm font-semibold text-coral", className)}>Het is vandaag! 🎉</span>;
+  if (days === 0) return <span className={cn("text-sm font-semibold text-clay", className)}>Het is vandaag! 🎉</span>;
   return (
     <span className={cn("text-sm text-ink-soft", className)}>
       Nog <span className="font-semibold text-ink">{days}</span> {days === 1 ? "dag" : "dagen"}

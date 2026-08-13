@@ -32,7 +32,7 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
       <Card>
         <div className="flex flex-wrap items-start gap-5">
           <SupplierAvatar
-            gradient={["#C7B8FF", "#6D5CF0"]}
+            gradient={["#E8C9A8", "#B5674A"]}
             initials={supplier.companyName.slice(0, 2).toUpperCase()}
             imageUrl={supplier.logoUrl}
             verified={supplier.verified}
@@ -42,7 +42,7 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
             <h1 className="font-display text-2xl text-ink">{supplier.companyName}</h1>
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
               {categories.map((c) => (
-                <Badge key={c} tone="violet">{SUPPLIER_CATEGORY_LABELS[c]}</Badge>
+                <Badge key={c} tone="sage">{SUPPLIER_CATEGORY_LABELS[c]}</Badge>
               ))}
               {supplier.categoryOther && <Badge tone="neutral">{supplier.categoryOther}</Badge>}
               {supplier.verified && (
@@ -52,7 +52,7 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
 
             <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-ink-soft">
               {supplier.ratingCount > 0 ? (
-                <span className="flex items-center gap-1"><Star className="size-3.5 fill-gold text-gold" /> {supplier.ratingAvg.toFixed(1)} ({supplier.ratingCount} review{supplier.ratingCount !== 1 ? "s" : ""})</span>
+                <span className="flex items-center gap-1"><Star className="size-3.5 fill-ochre text-ochre" /> {supplier.ratingAvg.toFixed(1)} ({supplier.ratingCount} review{supplier.ratingCount !== 1 ? "s" : ""})</span>
               ) : (
                 <span className="flex items-center gap-1 text-ink-faint"><Star className="size-3.5" /> Nog geen reviews</span>
               )}
@@ -63,22 +63,22 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
             {(supplier.website || supplier.socialFacebook || supplier.socialInstagram || supplier.socialTiktok) && (
               <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
                 {supplier.website && (
-                  <a href={supplier.website} target="_blank" className="flex items-center gap-1 text-violet hover:underline">
+                  <a href={supplier.website} target="_blank" className="flex items-center gap-1 text-sage hover:underline">
                     <ExternalLink className="size-3.5" /> Website
                   </a>
                 )}
                 {supplier.socialFacebook && (
-                  <a href={supplier.socialFacebook} target="_blank" className="flex items-center gap-1 text-violet hover:underline">
+                  <a href={supplier.socialFacebook} target="_blank" className="flex items-center gap-1 text-sage hover:underline">
                     <Link2 className="size-3.5" /> Facebook
                   </a>
                 )}
                 {supplier.socialInstagram && (
-                  <a href={supplier.socialInstagram} target="_blank" className="flex items-center gap-1 text-violet hover:underline">
+                  <a href={supplier.socialInstagram} target="_blank" className="flex items-center gap-1 text-sage hover:underline">
                     <Link2 className="size-3.5" /> Instagram
                   </a>
                 )}
                 {supplier.socialTiktok && (
-                  <a href={supplier.socialTiktok} target="_blank" className="flex items-center gap-1 text-violet hover:underline">
+                  <a href={supplier.socialTiktok} target="_blank" className="flex items-center gap-1 text-sage hover:underline">
                     <Link2 className="size-3.5" /> TikTok
                   </a>
                 )}
@@ -121,13 +121,13 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
 
         {!user ? (
           <p className="mt-4 text-sm text-ink-soft">
-            <Link href={`/login?redirect=/leveranciers/${supplier.id}`} className="font-medium text-coral hover:underline">Log in</Link> of{" "}
-            <Link href={`/signup?intent=organizer`} className="font-medium text-coral hover:underline">maak een account</Link> om een maatwerkaanvraag te sturen.
+            <Link href={`/login?redirect=/leveranciers/${supplier.id}`} className="font-medium text-clay hover:underline">Log in</Link> of{" "}
+            <Link href={`/signup?intent=organizer`} className="font-medium text-clay hover:underline">maak een account</Link> om een maatwerkaanvraag te sturen.
           </p>
         ) : events.length === 0 ? (
           <p className="mt-4 text-sm text-ink-soft">
             Je hebt nog geen evenement om deze aanvraag aan te koppelen.{" "}
-            <Link href="/events/new" className="font-medium text-coral hover:underline">Maak eerst een evenement aan</Link>.
+            <Link href="/events/new" className="font-medium text-clay hover:underline">Maak eerst een evenement aan</Link>.
           </p>
         ) : (
           <form action={submitCustomSupplierRequestAction} className="mt-4 space-y-4">
@@ -157,7 +157,7 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
             <Field label="Budget-indicatie (€)" hint="Optioneel">
               <Input name="budget" type="number" min={0} step={1} />
             </Field>
-            <button type="submit" className="w-full rounded-full bg-coral py-2.5 text-sm font-medium text-white transition-colors hover:bg-coral-dark">
+            <button type="submit" className="w-full rounded-xl bg-clay py-2.5 text-sm font-medium text-white transition-colors hover:bg-clay-dark">
               Maatwerkaanvraag versturen
             </button>
           </form>

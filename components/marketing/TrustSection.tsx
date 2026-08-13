@@ -14,7 +14,7 @@ export function TrustSection() {
         <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
           {items.map((item) => (
             <div key={item.title}>
-              <div className="flex size-10 items-center justify-center rounded-xl bg-white/10 text-coral">
+              <div className="flex size-10 items-center justify-center rounded-xl bg-white/10 text-clay">
                 <item.icon className="size-5" />
               </div>
               <h3 className="mt-4 font-display text-lg">{item.title}</h3>

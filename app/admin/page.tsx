@@ -88,7 +88,7 @@ export default async function AdminPage() {
                       <p className="text-xs text-ink-faint">{s.serviceAreas.join(", ")}</p>
                     </div>
                     <span className="flex items-center gap-1 text-xs text-ink-faint">
-                      <Star className="size-3.5 fill-gold text-gold" /> {s.ratingAvg.toFixed(1)}
+                      <Star className="size-3.5 fill-ochre text-ochre" /> {s.ratingAvg.toFixed(1)}
                     </span>
                   </div>
                 ))}
@@ -109,7 +109,7 @@ export default async function AdminPage() {
                       <p className="font-medium text-ink">{formatCurrency(p.totalCents)}</p>
                       <p className="text-xs text-ink-faint">Fee: {formatCurrency(p.platformFeeCents)}</p>
                     </div>
-                    <span className={`text-xs font-medium ${p.status === "paid" ? "text-success" : "text-gold"}`}>{p.status === "paid" ? "Betaald" : "In behandeling"}</span>
+                    <span className={`text-xs font-medium ${p.status === "paid" ? "text-success" : "text-ochre"}`}>{p.status === "paid" ? "Betaald" : "In behandeling"}</span>
                   </div>
                 ))}
               </div>

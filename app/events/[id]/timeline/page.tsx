@@ -38,7 +38,7 @@ export default async function TimelinePage(props: PageProps<"/events/[id]/timeli
             <span className={`absolute -left-[41px] top-0.5 flex size-5 items-center justify-center rounded-full ${item.done ? "bg-success" : "bg-white border-2 border-line"}`}>
               {item.done && <CheckCircle2 className="size-3.5 text-white" />}
             </span>
-            <p className="text-xs font-medium uppercase tracking-wide text-coral">{item.leadTimeLabel}</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-clay">{item.leadTimeLabel}</p>
             <form action={toggleTimelineAction.bind(null, id, item.id, !item.done)} className="mt-1">
               <button type="submit" className="flex items-center gap-2 text-left">
                 {item.done ? <CheckCircle2 className="size-4 text-success" /> : <Circle className="size-4 text-ink-faint" />}

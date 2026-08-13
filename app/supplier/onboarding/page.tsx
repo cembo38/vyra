@@ -22,7 +22,7 @@ export default async function SupplierOnboardingPage(props: PageProps<"/supplier
       <div className="w-full max-w-lg">
         <div className="mb-8 flex justify-center"><Logo /></div>
         <div className="rounded-2xl border border-line bg-white p-8 [box-shadow:var(--shadow-card)]">
-          <span className="text-xs font-medium uppercase tracking-wide text-coral">Laatste stap</span>
+          <span className="text-xs font-medium uppercase tracking-wide text-clay">Laatste stap</span>
           <h1 className="mt-1 font-display text-2xl text-ink">Richt je bedrijfsprofiel in</h1>
           <p className="mt-1 text-sm text-ink-soft">
             Dit bepaalt bij welke aanvragen je wordt gematcht. Je kunt dit later aanpassen.
@@ -45,11 +45,11 @@ export default async function SupplierOnboardingPage(props: PageProps<"/supplier
             </div>
 
             <fieldset>
-              <legend className="mb-1.5 text-sm font-medium text-ink">Categorieën <span className="text-coral">*</span></legend>
+              <legend className="mb-1.5 text-sm font-medium text-ink">Categorieën <span className="text-clay">*</span></legend>
               <div className="grid max-h-48 grid-cols-2 gap-1.5 overflow-y-auto rounded-xl border border-line p-3">
                 {Object.entries(SUPPLIER_CATEGORY_LABELS).map(([key, label]) => (
                   <label key={key} className="flex items-center gap-2 text-sm text-ink-soft">
-                    <input type="checkbox" name="categories" value={key} className="size-4 rounded border-line text-coral accent-coral" />
+                    <input type="checkbox" name="categories" value={key} className="size-4 rounded border-line text-clay accent-clay" />
                     {label}
                   </label>
                 ))}
@@ -83,7 +83,7 @@ export default async function SupplierOnboardingPage(props: PageProps<"/supplier
               </Field>
             </div>
 
-            <button type="submit" className="w-full rounded-full bg-coral py-2.5 text-sm font-medium text-white transition-colors hover:bg-coral-dark">
+            <button type="submit" className="w-full rounded-xl bg-clay py-2.5 text-sm font-medium text-white transition-colors hover:bg-clay-dark">
               Profiel opslaan en naar dashboard
             </button>
           </form>

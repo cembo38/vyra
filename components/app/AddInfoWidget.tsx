@@ -14,7 +14,7 @@ export function AddInfoWidget({ eventId }: { eventId: string }) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3.5 py-1.5 text-xs font-medium text-ink-soft transition-colors hover:border-coral/50 hover:text-ink"
+        className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3.5 py-1.5 text-xs font-medium text-ink-soft transition-colors hover:border-clay/50 hover:text-ink"
       >
         <Plus className="size-3.5" /> Informatie toevoegen
       </button>
@@ -37,7 +37,7 @@ export function AddInfoWidget({ eventId }: { eventId: string }) {
             onChange={(e) => setText(e.target.value)}
             placeholder="Bijv. 'Er komen uiteindelijk 135 gasten' of 'Mijn budget is verhoogd naar €30.000'"
             rows={3}
-            className="w-full resize-none rounded-xl border border-line px-3 py-2 text-sm outline-none focus:border-violet"
+            className="w-full resize-none rounded-xl border border-line px-3 py-2 text-sm outline-none focus:border-sage"
           />
           <button
             disabled={!text.trim() || pending}
@@ -54,7 +54,7 @@ export function AddInfoWidget({ eventId }: { eventId: string }) {
           </button>
         </>
       ) : (
-        <div className="rounded-xl bg-violet-50 p-3 text-sm text-violet-dark">
+        <div className="rounded-xl bg-sage-50 p-3 text-sm text-sage-dark">
           <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide">
             <Sparkles className="size-3.5" /> AI-signalering
           </div>

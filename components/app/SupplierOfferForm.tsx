@@ -18,7 +18,7 @@ export function SupplierOfferForm({ requestId, eventId, categoryKey }: { request
 
   return (
     <div className="rounded-2xl border border-line bg-white p-6">
-      <div className="mb-3 flex items-center gap-2 text-violet">
+      <div className="mb-3 flex items-center gap-2 text-sage">
         <Sparkles className="size-4.5" />
         <p className="font-display text-lg text-ink">Breng je offerte uit</p>
       </div>
@@ -90,7 +90,7 @@ export function SupplierOfferForm({ requestId, eventId, categoryKey }: { request
         <button
           type="submit"
           disabled={submitting || !price}
-          className="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-full bg-coral py-2.5 text-sm font-medium text-white transition-colors hover:bg-coral-dark disabled:opacity-40"
+          className="mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-clay py-2.5 text-sm font-medium text-white transition-colors hover:bg-clay-dark disabled:opacity-40"
         >
           {submitting ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           Verstuur offerte naar organisator

@@ -18,7 +18,7 @@ export default function PrivacyPage() {
     <>
       <MarketingHeader />
       <main className="mx-auto max-w-3xl px-6 py-16">
-        <span className="text-sm font-medium uppercase tracking-wide text-coral">Juridisch</span>
+        <span className="text-sm font-medium uppercase tracking-wide text-clay">Juridisch</span>
         <h1 className="mt-2 font-display text-3xl tracking-tight text-ink sm:text-4xl">Privacyverklaring</h1>
         <p className="mt-3 text-sm text-ink-faint">Laatst bijgewerkt: 12 augustus 2026</p>
 
@@ -28,7 +28,7 @@ export default function PrivacyPage() {
               <p>
                 Vyra wordt op dit moment beheerd door Cem Adıyaman, handelend als particulier (nog geen KVK-inschrijving). Voor
                 vragen over deze privacyverklaring of je gegevens kun je contact opnemen via{" "}
-                <a href="mailto:cemadiyaman91@gmail.com" className="text-coral hover:underline">cemadiyaman91@gmail.com</a>.
+                <a href="mailto:cemadiyaman91@gmail.com" className="text-clay hover:underline">cemadiyaman91@gmail.com</a>.
               </p>
             </Section>
 
@@ -66,7 +66,7 @@ export default function PrivacyPage() {
             </Section>
 
             <Section title="8. Jouw rechten">
-              <p>Je hebt recht op inzage, rectificatie, verwijdering, beperking, overdraagbaarheid en bezwaar. Neem hiervoor contact op via <a href="mailto:cemadiyaman91@gmail.com" className="text-coral hover:underline">cemadiyaman91@gmail.com</a>. Ook heb je het recht een klacht in te dienen bij de Autoriteit Persoonsgegevens.</p>
+              <p>Je hebt recht op inzage, rectificatie, verwijdering, beperking, overdraagbaarheid en bezwaar. Neem hiervoor contact op via <a href="mailto:cemadiyaman91@gmail.com" className="text-clay hover:underline">cemadiyaman91@gmail.com</a>. Ook heb je het recht een klacht in te dienen bij de Autoriteit Persoonsgegevens.</p>
             </Section>
 
             <Section title="9. Cookies">

@@ -70,7 +70,7 @@ function rowToUser(r: Row): UserAccount {
     language: r.language ?? "nl",
     currency: r.currency ?? "EUR",
     createdAt: r.created_at,
-    avatarColor: r.avatar_color ?? "#6D5CF0",
+    avatarColor: r.avatar_color ?? "#6B7A5E",
   };
 }
 
@@ -481,12 +481,12 @@ export async function uploadSupplierFile(ownerId: string, file: File, folder: "l
 }
 
 const DISPLAY_GRADIENTS: [string, string][] = [
-  ["#FFD8A8", "#FF5A46"],
-  ["#C7B8FF", "#6D5CF0"],
-  ["#FFE29A", "#B8892B"],
-  ["#B7E4C7", "#1C8A54"],
-  ["#FFC6C0", "#D1443B"],
-  ["#AFE0F5", "#2C7DA0"],
+  ["#E8C9A8", "#B5674A"],
+  ["#C9D4BC", "#6B7A5E"],
+  ["#EAD9A8", "#B08A3E"],
+  ["#C9CCC0", "#5C5748"],
+  ["#E3C4B8", "#9C5540"],
+  ["#BFCBC2", "#56634A"],
 ];
 
 function gradientFor(id: string): [string, string] {

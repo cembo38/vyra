@@ -12,7 +12,7 @@ export function EventTypesGrid() {
     <section id="evenementen" className="py-20 sm:py-28">
       <div className="mx-auto max-w-6xl px-6">
         <div className="mx-auto max-w-xl text-center">
-          <span className="text-sm font-medium uppercase tracking-wide text-coral">Voor elk evenement</span>
+          <span className="text-sm font-medium uppercase tracking-wide text-clay">Voor elk evenement</span>
           <h2 className="mt-3 font-display text-3xl tracking-tight text-ink sm:text-4xl">
             Eén platform, ieder denkbaar evenement
           </h2>
@@ -25,7 +25,7 @@ export function EventTypesGrid() {
           {ORDER.map((key) => (
             <span
               key={key}
-              className="rounded-full border border-line bg-white px-4 py-2 text-sm text-ink-soft transition-colors hover:border-coral/50 hover:text-ink"
+              className="rounded-full border border-line bg-white px-4 py-2 text-sm text-ink-soft transition-colors hover:border-clay/50 hover:text-ink"
             >
               {EVENT_TYPE_LABELS[key]}
             </span>

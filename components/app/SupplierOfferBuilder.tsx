@@ -14,7 +14,7 @@ export function SupplierOfferBuilder() {
 
   return (
     <div className="rounded-2xl border border-line bg-white p-6">
-      <div className="mb-3 flex items-center gap-2 text-violet">
+      <div className="mb-3 flex items-center gap-2 text-sage">
         <Sparkles className="size-4.5" />
         <p className="font-display text-lg text-ink">AI-offerte-assistent</p>
       </div>
@@ -24,7 +24,7 @@ export function SupplierOfferBuilder() {
         onChange={(e) => setText(e.target.value)}
         placeholder="Bijv. 'Voor €6.500 kan ik volledige catering verzorgen inclusief bediening en levering, met vegetarische opties.'"
         rows={3}
-        className="w-full resize-none rounded-xl border border-line px-3.5 py-2.5 text-sm outline-none focus:border-violet"
+        className="w-full resize-none rounded-xl border border-line px-3.5 py-2.5 text-sm outline-none focus:border-sage"
       />
       <button
         disabled={!text.trim() || pending}
