@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { ArrowUp, Loader2 } from "lucide-react";
 import { sendMessageAction } from "@/lib/actions/message-actions";
+import { VoiceInputButton } from "@/components/app/VoiceInputButton";
 import { SupplierCategory } from "@/lib/types";
 
 export function MessageComposer({ eventId, categoryKey, supplierId }: { eventId: string; categoryKey: SupplierCategory; supplierId: string }) {
@@ -23,9 +24,10 @@ export function MessageComposer({ eventId, categoryKey, supplierId }: { eventId:
       <input
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Typ een bericht…"
+        placeholder="Typ of spreek een bericht in…"
         className="flex-1 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-ink-faint"
       />
+      <VoiceInputButton className="size-9" onTranscript={(t) => setText((prev) => (prev.trim() ? `${prev.trim()} ${t}` : t))} />
       <button type="submit" disabled={pending || !text.trim()} aria-label="Versturen" className="icon-pop flex size-9 shrink-0 items-center justify-center rounded-full bg-ink text-paper disabled:opacity-30 disabled:pointer-events-none">
         {pending ? <Loader2 className="size-4 animate-spin" /> : <ArrowUp className="size-4" />}
       </button>

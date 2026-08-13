@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { Sparkles, ArrowUp, Loader2, AlertTriangle } from "lucide-react";
 import { startInterviewAction, continueInterviewAction, generatePlanAction } from "@/lib/actions/event-actions";
+import { VoiceInputButton } from "@/components/app/VoiceInputButton";
 import { cn } from "@/lib/utils";
 
 interface ChatMessage {
@@ -168,8 +169,12 @@ export function NewEventInterview() {
               }
             }}
             rows={1}
-            placeholder="Typ je antwoord…"
+            placeholder="Typ of spreek je antwoord in…"
             className="max-h-32 flex-1 resize-none bg-transparent px-3 py-2 text-[15px] outline-none placeholder:text-ink-faint"
+          />
+          <VoiceInputButton
+            className="size-10"
+            onTranscript={(text) => setInput((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))}
           />
           <button
             type="submit"

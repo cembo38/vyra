@@ -48,7 +48,7 @@ export default async function MyEventsPage() {
             const guests = (event.guestCountAdults ?? 0) + (event.guestCountChildren ?? 0);
             return (
               <Link key={event.id} href={`/events/${event.id}`}>
-                <CardHover className="h-full">
+                <CardHover className={event.stage === "cancelled" ? "h-full opacity-60" : "h-full"}>
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <span className="text-xs font-medium uppercase tracking-wide text-ink-faint">{EVENT_TYPE_LABELS[event.type]}</span>

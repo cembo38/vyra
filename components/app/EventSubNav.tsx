@@ -16,6 +16,7 @@ export function EventSubNav({ eventId }: { eventId: string }) {
     { href: `${base}/budget`, label: "Budget" },
     { href: `${base}/timeline`, label: "Planning" },
     { href: `${base}/messages`, label: "Berichten" },
+    { href: `${base}/settings`, label: "Instellingen" },
   ];
 
   return (

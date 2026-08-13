@@ -343,6 +343,18 @@ export async function updateEvent(eventId: string, patch: Partial<EventCore>): P
   return getEvent(eventId);
 }
 
+/**
+ * Verwijdert een evenement definitief. Alle gekoppelde data (notities,
+ * AI-interviewberichten, requirements, aanvragen, offertes, berichten,
+ * betalingen, gasten, taken/risico's/tijdlijn) gaat mee weg via
+ * `on delete cascade` in het databaseschema — dit is dus onomkeerbaar.
+ */
+export async function deleteEvent(eventId: string): Promise<boolean> {
+  const supabase = await sb();
+  const { error } = await supabase.from("events").delete().eq("id", eventId);
+  return !error;
+}
+
 export async function addEventNote(eventId: string, text: string, source: EventNote["source"], impactSummary?: string): Promise<EventNote | null> {
   const supabase = await sb();
   const { data, error } = await supabase
@@ -1646,7 +1658,7 @@ export async function getNotifications(userId: string): Promise<AppNotification[
  */
 async function ensureAutoNotifications(userId: string): Promise<void> {
   const events = await listEventsForUser(userId);
-  const activeEvents = events.filter((e) => e.stage !== "completed");
+  const activeEvents = events.filter((e) => e.stage !== "completed" && e.stage !== "cancelled");
   const now = new Date();
 
   for (const event of activeEvents) {
