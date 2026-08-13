@@ -51,13 +51,14 @@ export function PriorityBadge({ priority }: { priority: RequirementPriority }) {
   return <Badge tone={tone}>{label}</Badge>;
 }
 
-const stageConfig: Record<EventStage, { label: string; tone: "neutral" | "success" | "sage" | "ochre" }> = {
+const stageConfig: Record<EventStage, { label: string; tone: "neutral" | "success" | "sage" | "ochre" | "danger" }> = {
   draft: { label: "Concept", tone: "neutral" },
   planning: { label: "Plan wordt gemaakt", tone: "sage" },
   sourcing: { label: "Aanvragen lopen", tone: "ochre" },
   booking: { label: "Keuzes maken", tone: "ochre" },
   confirmed: { label: "Bevestigd", tone: "success" },
   completed: { label: "Afgerond", tone: "success" },
+  cancelled: { label: "Gesloten", tone: "danger" },
 };
 
 export function StageBadge({ stage }: { stage: EventStage }) {

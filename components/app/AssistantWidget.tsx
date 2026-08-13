@@ -3,6 +3,7 @@
 import { useState, useTransition, useRef } from "react";
 import { Sparkles, ArrowUp, Loader2 } from "lucide-react";
 import { askAssistantAction } from "@/lib/actions/assistant-actions";
+import { VoiceInputButton } from "@/components/app/VoiceInputButton";
 
 const SUGGESTIONS = ["Wat moet ik nog regelen?", "Welke leveranciers hebben nog niet gereageerd?", "Hoe staat mijn budget ervoor?", "Wat is urgent deze week?"];
 
@@ -73,9 +74,10 @@ export function AssistantWidget({ eventId }: { eventId: string }) {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Stel een vraag over dit evenement…"
+          placeholder="Typ of spreek je vraag in…"
           className="flex-1 bg-transparent px-2.5 py-1.5 text-sm outline-none placeholder:text-ink-faint"
         />
+        <VoiceInputButton className="size-8" onTranscript={(text) => setInput((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))} />
         <button
           type="submit"
           disabled={pending || !input.trim()}

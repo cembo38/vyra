@@ -7,6 +7,7 @@ import {
   addEventNote,
   addInterviewMessage,
   createEvent,
+  deleteEvent,
   getEvent,
   getInterviewMessages,
   getRequirements,
@@ -165,4 +166,49 @@ export async function addNoteAction(eventId: string, text: string) {
   });
   revalidatePath(`/events/${eventId}`, "layout");
   return { impact };
+}
+
+/**
+ * Sluit een evenement handmatig (stage -> "cancelled"). Dit verwijdert géén
+ * data — het evenement blijft gewoon zichtbaar in "Mijn evenementen", maar
+ * telt niet langer mee voor automatische herinneringen (verlopen
+ * reactietermijnen, naderende deadlines, budgetoverschrijding).
+ */
+export async function closeEventAction(eventId: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const event = await getEvent(eventId);
+  if (!event || event.ownerId !== user.id) redirect("/events");
+
+  await updateEvent(eventId, { stage: "cancelled" });
+  revalidatePath(`/events/${eventId}`, "layout");
+  revalidatePath("/events");
+}
+
+/** Heropent een gesloten evenement — zet de stage terug naar "planning". */
+export async function reopenEventAction(eventId: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const event = await getEvent(eventId);
+  if (!event || event.ownerId !== user.id) redirect("/events");
+
+  await updateEvent(eventId, { stage: "planning" });
+  revalidatePath(`/events/${eventId}`, "layout");
+  revalidatePath("/events");
+}
+
+/**
+ * Verwijdert een evenement definitief, inclusief alle gekoppelde data
+ * (notities, aanvragen, offertes, berichten, betalingen, gasten, ...).
+ * Onomkeerbaar — de UI vraagt hier expliciet bevestiging voor.
+ */
+export async function deleteEventAction(eventId: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const event = await getEvent(eventId);
+  if (!event || event.ownerId !== user.id) redirect("/events");
+
+  await deleteEvent(eventId);
+  revalidatePath("/events");
+  redirect("/events");
 }

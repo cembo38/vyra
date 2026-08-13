@@ -88,7 +88,8 @@ export type EventStage =
   | "sourcing" // aanvragen verstuurd, offertes worden verzameld
   | "booking" // shortlist/keuzes, betalingen lopen
   | "confirmed" // alles geboekt
-  | "completed";
+  | "completed"
+  | "cancelled"; // organisator heeft het evenement handmatig gesloten
 
 export interface EventBudget {
   totalCents: number;
