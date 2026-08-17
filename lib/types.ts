@@ -35,6 +35,9 @@ export interface UserAccount {
   currency: string;
   createdAt: string;
   avatarColor: string; // gebruikt voor gegenereerde avatar-initials
+  /** Gezet door een admin-actie (zie lib/actions/admin-actions.ts) — niet null betekent: geblokkeerd. */
+  bannedAt: string | null;
+  banReason: string | null;
 }
 
 /* ------------------------------------------------------------------ */

@@ -1,8 +1,9 @@
 import { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { AppTopBar } from "@/components/app/AppTopBar";
+import { AdminUserActions } from "@/components/app/AdminUserActions";
 import { Card } from "@/components/ui/Card";
-import { StageBadge } from "@/components/ui/Badge";
+import { Badge, StageBadge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import {
   allSuppliers,
@@ -16,10 +17,17 @@ import {
 import { isServiceRoleConfigured } from "@/lib/supabase/admin";
 import { formatCurrency, PLATFORM_COMMISSION_RATE, ADMIN_EMAILS } from "@/lib/config";
 import { getCurrentUser } from "@/lib/auth";
-import { EVENT_TYPE_LABELS } from "@/lib/types";
+import { EVENT_TYPE_LABELS, UserRole } from "@/lib/types";
 import { SIDEBAR_OFFSET_CLASS } from "@/lib/nav-constants";
 import { cn } from "@/lib/utils";
-import { AlertCircle, AlertTriangle, Building2, CalendarDays, LineChart, Percent, ShieldAlert, Sparkles, Star, Users } from "lucide-react";
+import { AlertCircle, AlertTriangle, Ban, Building2, CalendarDays, LineChart, Percent, ShieldAlert, Sparkles, Star, Users } from "lucide-react";
+
+const ROLE_LABELS: Record<UserRole, string> = {
+  customer: "Organisator",
+  supplier: "Leverancier",
+  both: "Organisator + leverancier",
+  admin: "Admin",
+};
 
 export const metadata = { title: "Admin — Vyra" };
 
@@ -78,7 +86,53 @@ export default async function AdminPage() {
           <Kpi icon={<Star className="size-4" />} label="Gem. reactietijd" value={`${avgResponseHours.toFixed(0)} uur`} sub="Leveranciers" />
         </div>
 
-        <div className="mt-10 grid gap-6 lg:grid-cols-2">
+        <div className="mt-10">
+          <Card>
+            <div className="mb-1 flex items-center justify-between">
+              <h2 className="font-display text-lg text-ink">Gebruikers</h2>
+              {users.some((u) => u.bannedAt) && (
+                <span className="flex items-center gap-1 rounded-full bg-danger-50 px-2.5 py-1 text-xs font-medium text-danger">
+                  <Ban className="size-3.5" /> {users.filter((u) => u.bannedAt).length} geblokkeerd
+                </span>
+              )}
+            </div>
+            <p className="mb-4 text-xs text-ink-faint">
+              Blokkeer een account bij misbruik of een geschil — de gebruiker wordt meteen uitgelogd en kan niet meer inloggen totdat je &apos;m deblokkeert.
+            </p>
+            {!serviceRoleConfigured ? (
+              <p className="text-sm text-ink-faint">Vereist de service-role sleutel (zie melding bovenaan) om gebruikers te kunnen blokkeren.</p>
+            ) : users.length === 0 ? (
+              <p className="text-sm text-ink-faint">Nog geen gebruikers.</p>
+            ) : (
+              <div className="max-h-[28rem] space-y-2 overflow-y-auto">
+                {[...users]
+                  .sort((a, b) => (a.bannedAt ? -1 : 0) - (b.bannedAt ? -1 : 0))
+                  .map((u) => (
+                    <div
+                      key={u.id}
+                      className={cn(
+                        "flex flex-wrap items-center justify-between gap-3 rounded-xl border px-3.5 py-2.5 text-sm",
+                        u.bannedAt ? "border-danger/30 bg-danger-50/40" : "border-line-soft"
+                      )}
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-ink">{u.firstName} {u.lastName}</p>
+                          <Badge tone={u.role === "admin" ? "clay" : "neutral"}>{ROLE_LABELS[u.role]}</Badge>
+                          {u.bannedAt && <Badge tone="danger">Geblokkeerd</Badge>}
+                        </div>
+                        <p className="text-xs text-ink-faint">{u.email}</p>
+                        {u.bannedAt && u.banReason && <p className="mt-0.5 text-xs text-danger">Reden: {u.banReason}</p>}
+                      </div>
+                      <AdminUserActions userId={u.id} bannedAt={u.bannedAt} />
+                    </div>
+                  ))}
+              </div>
+            )}
+          </Card>
+        </div>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
           <Card>
             <h2 className="mb-4 font-display text-lg text-ink">Recente evenementen</h2>
             <div className="space-y-2">

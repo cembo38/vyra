@@ -8,6 +8,7 @@ const MESSAGES: Record<string, string> = {
   not_confirmed: "Bevestig eerst je account via de link die we je per e-mail hebben gestuurd.",
   ratelimit: "Er zijn zojuist al meerdere e-mails verstuurd naar dit adres. Wacht ongeveer een uur en probeer het dan opnieuw, of check ook je spam-map.",
   send_failed: "Dit is niet gelukt. Probeer het over een paar minuten opnieuw.",
+  banned: "Dit account is geblokkeerd. Neem contact met ons op als je denkt dat dit een vergissing is.",
   "1": "Inloggen is niet gelukt. Probeer het opnieuw.",
 };
 

@@ -1,4 +1,5 @@
 import "server-only";
+import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getUser } from "@/lib/data/store";
 import { UserAccount } from "@/lib/types";
@@ -7,6 +8,15 @@ import { UserAccount } from "@/lib/types";
  * Echte authenticatie via Supabase Auth met e-mail + wachtwoord.
  * `getCurrentUser()` geeft `null` terug als niemand is ingelogd; de callers
  * (layouts/pages) sturen dan door naar /login.
+ *
+ * Geblokkeerde gebruikers (admin-actie, zie lib/actions/admin-actions.ts)
+ * worden hier meteen uitgelogd en doorgestuurd naar /login met een
+ * duidelijke melding — dit is bewust de ENIGE plek waar dat gebeurt, zodat
+ * elke pagina die al `if (!user) redirect(...)` doet dit automatisch mee
+ * afdwingt, zonder dat we die check overal apart hoeven toe te voegen. Dit
+ * is veilig tegen een oneindige doorstuurlus: /login zelf roept
+ * `getCurrentUser()` nergens aan (gecontroleerd), dus de redirect hieronder
+ * komt altijd tot rust op de inlogpagina.
  */
 export async function getCurrentUser(): Promise<UserAccount | null> {
   const supabase = await createSupabaseServerClient();
@@ -17,7 +27,12 @@ export async function getCurrentUser(): Promise<UserAccount | null> {
   } = await supabase.auth.getUser();
   if (!user) return null;
 
-  return getUser(user.id);
+  const account = await getUser(user.id);
+  if (account?.bannedAt) {
+    await signOut();
+    redirect("/login?error=banned");
+  }
+  return account;
 }
 
 function authFailure(): never {

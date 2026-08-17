@@ -77,6 +77,8 @@ function rowToUser(r: Row): UserAccount {
     currency: r.currency ?? "EUR",
     createdAt: r.created_at,
     avatarColor: r.avatar_color ?? "#6B7A5E",
+    bannedAt: r.banned_at ?? null,
+    banReason: r.ban_reason ?? null,
   };
 }
 

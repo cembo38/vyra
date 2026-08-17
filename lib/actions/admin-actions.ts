@@ -1,0 +1,54 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { getCurrentUser } from "@/lib/auth";
+import { ADMIN_EMAILS } from "@/lib/config";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+
+/**
+ * Elke actie hier raakt ANDERE gebruikers dan de aanroeper — dus altijd
+ * eerst zelf verifiëren dat de aanroeper daadwerkelijk een admin is
+ * (los van of de UI-knop al alleen op /admin staat, want een Server
+ * Action is los aan te roepen). Gooit een gewone Error als dat niet zo
+ * is; `useTransition` aan de clientkant vangt dat gewoon op.
+ */
+async function requireAdmin() {
+  const user = await getCurrentUser();
+  if (!user || !ADMIN_EMAILS.includes(user.email.toLowerCase())) {
+    throw new Error("Niet geautoriseerd.");
+  }
+  return user;
+}
+
+export async function banUserAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const userId = String(formData.get("userId") ?? "").trim();
+  const reason = String(formData.get("reason") ?? "").trim();
+  if (!userId) throw new Error("Geen gebruiker opgegeven.");
+  if (userId === admin.id) throw new Error("Je kunt jezelf niet blokkeren.");
+
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) throw new Error("Service-role sleutel niet geconfigureerd — kan geen gebruikers blokkeren (zie melding bovenaan het admin-dashboard).");
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ banned_at: new Date().toISOString(), ban_reason: reason || null })
+    .eq("id", userId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/admin");
+}
+
+export async function unbanUserAction(formData: FormData) {
+  await requireAdmin();
+  const userId = String(formData.get("userId") ?? "").trim();
+  if (!userId) throw new Error("Geen gebruiker opgegeven.");
+
+  const supabase = createSupabaseAdminClient();
+  if (!supabase) throw new Error("Service-role sleutel niet geconfigureerd.");
+
+  const { error } = await supabase.from("profiles").update({ banned_at: null, ban_reason: null }).eq("id", userId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/admin");
+}
