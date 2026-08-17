@@ -4,24 +4,15 @@ import { MarketingHeader } from "@/components/marketing/MarketingHeader";
 import { Footer } from "@/components/marketing/Footer";
 import { SupplierOfferBuilder } from "@/components/app/SupplierOfferBuilder";
 import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
 import { LinkButton } from "@/components/ui/Button";
-import { DeadlineCountdown } from "@/components/ui/Countdown";
-import { SUPPLIER_CATEGORY_LABELS, ServiceRequest } from "@/lib/types";
-import { getSupplierById } from "@/lib/data/suppliers";
+import { SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
 import { formatCurrency } from "@/lib/config";
 import { CheckCircle2, Clock, Percent, Sparkles, Star } from "lucide-react";
 
 export const metadata = { title: "Voor leveranciers — Vyra" };
 
 export default function SupplierLandingPage() {
-  // Deze marketingpagina toont normaliter een live voorbeeld uit een echt
-  // account; met echte, per-gebruiker beveiligde data (RLS) is er geen
-  // platformbreed "demo-event" meer beschikbaar zonder in te loggen. De
-  // volledige leverancier-flow (met eigen account) is een volgende stap —
-  // zie docs/ARCHITECTURE.md.
-  const demoEvent: { name: string } | null = null as { name: string } | null;
-  const openRequests: ServiceRequest[] = [];
-
   return (
     <>
       <MarketingHeader />
@@ -47,35 +38,29 @@ export default function SupplierLandingPage() {
         </section>
 
         <section className="mx-auto max-w-3xl px-6 py-16">
-          <h2 className="mb-1 font-display text-2xl text-ink">Voorbeeld: je aanvragen-inbox</h2>
-          <p className="mb-6 text-sm text-ink-faint">Zo ziet een openstaande aanvraag eruit voor een leverancier op het platform.</p>
+          <div className="mb-1 flex items-center gap-2">
+            <h2 className="font-display text-2xl text-ink">Zo ziet een aanvraag eruit</h2>
+            <Badge tone="clay">Ter illustratie</Badge>
+          </div>
+          <p className="mb-6 text-sm text-ink-faint">Een fictief voorbeeld — zodra je bent geregistreerd, verschijnen hier je eigen, echte aanvragen.</p>
 
-          {openRequests.length === 0 ? (
-            <Card><p className="text-sm text-ink-faint">Op dit moment geen open demo-aanvragen.</p></Card>
-          ) : (
-            <div className="space-y-3">
-              {openRequests.map((req) => {
-                const supplier = getSupplierById(req.supplierIds[0]);
-                return (
-                  <Card key={req.id}>
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="text-xs font-medium uppercase tracking-wide text-ink-faint">{SUPPLIER_CATEGORY_LABELS[req.categoryKey]}</p>
-                        <p className="mt-1 font-display text-lg text-ink">{demoEvent?.name}</p>
-                        <p className="mt-1 text-sm text-ink-soft">{req.desiredService}</p>
-                        {req.specialRequests && <p className="mt-1 text-sm text-ink-faint">Wens: {req.specialRequests}</p>}
-                      </div>
-                      <DeadlineCountdown deadlineIso={req.deadlineAt} />
-                    </div>
-                    <div className="mt-3 flex items-center justify-between border-t border-line-soft pt-3 text-sm">
-                      <span className="text-ink-faint">Aanvraag voor: <strong className="text-ink">{supplier?.companyName}</strong></span>
-                      {req.budgetCents && <span className="text-ink-faint">Budget-indicatie: {formatCurrency(req.budgetCents)}</span>}
-                    </div>
-                  </Card>
-                );
-              })}
+          <Card>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-ink-faint">{SUPPLIER_CATEGORY_LABELS.catering}</p>
+                <p className="mt-1 font-display text-lg text-ink">Bruiloft van Lisa &amp; Tom</p>
+                <p className="mt-1 text-sm text-ink-soft">Volledige catering voor 80 gasten, inclusief bediening</p>
+                <p className="mt-1 text-sm text-ink-faint">Wens: minimaal twee vegetarische opties</p>
+              </div>
+              <span className="inline-flex items-center gap-1 text-xs font-medium text-warning">
+                <Clock className="size-3.5" /> Nog 36 uur om te reageren
+              </span>
             </div>
-          )}
+            <div className="mt-3 flex items-center justify-between border-t border-line-soft pt-3 text-sm">
+              <span className="text-ink-faint">Aanvraag voor: <strong className="text-ink">jouw bedrijf</strong></span>
+              <span className="text-ink-faint">Budget-indicatie: {formatCurrency(650000)}</span>
+            </div>
+          </Card>
 
           <div id="offerte-assistent" className="mt-10">
             <SupplierOfferBuilder />
