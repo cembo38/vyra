@@ -5,11 +5,18 @@ import "./globals.css";
  * Bewust GEEN next/font/google hier: dat vereist een netwerkverbinding met
  * fonts.googleapis.com tijdens `next dev`/`next build`, wat in afgesloten
  * omgevingen (CI, sandboxes zonder internet) de build laat falen. In plaats
- * daarvan gebruiken we een zorgvuldig gekozen system-font stack (zie
- * app/globals.css, --font-display / --font-sans) die overal werkt zonder
- * externe afhankelijkheid. Wil je een custom lettertype? Zelf-host het met
- * next/font/local voor dezelfde premium uitstraling zonder netwerkrisico.
+ * daarvan zelf-hosten we de lettertypes via `@fontsource-variable` — dat
+ * zijn heel gewone npm-pakketten die de daadwerkelijke lettertypebestanden
+ * meeleveren (opgehaald bij `npm install`, zoals elke andere dependency),
+ * dus geen enkele netwerkaanroep meer nodig tijdens `next dev`/`next build`
+ * zelf. Fraunces (kopregels) en Plus Jakarta Sans (de rest) zijn variabele
+ * lettertypes — dat houdt dit ondanks twee lettertypefamilies licht: één
+ * bestand per taalbereik dekt het hele gewicht- (en bij Fraunces ook
+ * stijl-)bereik, i.p.v. een apart bestand per gewicht.
  */
+import "@fontsource-variable/fraunces/full.css";
+import "@fontsource-variable/fraunces/full-italic.css";
+import "@fontsource-variable/plus-jakarta-sans";
 
 export const metadata: Metadata = {
   title: "Vyra — Celebrate. Simplified.",
