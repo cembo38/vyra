@@ -52,6 +52,15 @@
   --shadow-card: 0 1px 2px rgba(43, 40, 35, 0.03), 0 6px 20px -12px rgba(43, 40, 35, 0.10);
   --shadow-card-hover: 0 2px 4px rgba(43, 40, 35, 0.05), 0 14px 32px -16px rgba(43, 40, 35, 0.14);
   --shadow-pop: 0 16px 48px -18px rgba(43, 40, 35, 0.22);
+
+  /* Ruimte voor de iPhone-notch/dynamic island en de home-indicator-balk
+     onderin — resolvet alleen naar iets anders dan 0px als app/layout.tsx
+     `viewport.viewportFit: "cover"` exporteert (zie daar). Gebruik via
+     Tailwind arbitrary values, bv. `pb-[var(--safe-b)]`. */
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
 }
 
 @theme inline {
@@ -233,6 +242,14 @@
 
 html {
   scroll-behavior: smooth;
+  /* Vangnet tegen horizontaal scrollen op mobiel: een met `translate`
+     volledig "verborgen" fixed-positioned paneel (zoals de dichte
+     navigatie-drawer, rechts-uitgelijnd) telt in de meeste browsers nog
+     wél mee voor de scrollbare breedte van de pagina, ook al is er
+     zichtbaar niets van te zien. Dit voorkomt dat zo'n element (of een
+     toekomstige, per ongeluk te brede rij) de hele pagina zijwaarts laat
+     schuiven. position: sticky blijft hierdoor gewoon werken. */
+  overflow-x: hidden;
 }
 
 body {
@@ -268,4 +285,51 @@ select:focus-visible,
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+/**
+ * ── TOUCH / MOBIEL ──────────────────────────────────────────────────
+ * Geen grijs "tik"-vlak op iOS/Android (we hebben al eigen :active-stijlen
+ * via .icon-pop/.chip-hover/.lift-hover), en `touch-action: manipulation`
+ * scheelt de ~300ms tik-vertraging op oudere mobiele browsers en voorkomt
+ * dubbel-tik-zoom op knoppen/links.
+ */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+a,
+button {
+  touch-action: manipulation;
+}
+
+/**
+ * Scroll-schaduw-hint (pure CSS, geen JS): op een horizontaal scrollende
+ * strook (EventSubNav-tabs, de vergelijkingstabel) laat dit een subtiele
+ * schaduw zien aan de kant(en) waar nog meer inhoud verborgen zit, en laat
+ * 'm vanzelf verdwijnen zodra je aan dat uiteinde bent. Klassieke 4-lagen
+ * truc: twee "dekkende" fades die MET de inhoud meescrollen
+ * (`background-attachment: local`, dus ze zitten altijd precies op de
+ * echte rand van de inhoud) verbergen de schaduw zodra je daar bent; twee
+ * schaduw-gradients die VAST staan t.o.v. de container
+ * (`background-attachment: scroll`) zijn verder altijd zichtbaar.
+ * `.scroll-fade-x` is voor stroken op de --color-paper achtergrond,
+ * `.scroll-fade-x-white` voor stroken op een witte kaart/balk.
+ */
+.scroll-fade-x {
+  background:
+    linear-gradient(to right, var(--color-paper) 0, transparent 100%) local,
+    linear-gradient(to left, var(--color-paper) 0, transparent 100%) 100% 0 local,
+    linear-gradient(to right, rgba(43, 40, 35, 0.1), transparent 100%) scroll,
+    linear-gradient(to left, rgba(43, 40, 35, 0.1), transparent 100%) 100% 0 scroll;
+  background-repeat: no-repeat;
+  background-size: 24px 100%;
+}
+.scroll-fade-x-white {
+  background:
+    linear-gradient(to right, white 0, transparent 100%) local,
+    linear-gradient(to left, white 0, transparent 100%) 100% 0 local,
+    linear-gradient(to right, rgba(43, 40, 35, 0.1), transparent 100%) scroll,
+    linear-gradient(to left, rgba(43, 40, 35, 0.1), transparent 100%) 100% 0 scroll;
+  background-repeat: no-repeat;
+  background-size: 24px 100%;
 }

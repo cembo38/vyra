@@ -13,9 +13,16 @@ const variantClasses: Record<Variant, string> = {
   danger: "bg-danger text-white hover:opacity-90",
 };
 
+/**
+ * `md` (het meest gebruikte formaat, ook de default) is bewust ~44px hoog
+ * — de aanbevolen minimale tikgrootte voor mobiel (Apple HIG/Material).
+ * `sm` blijft daaronder (~36px): die wordt gebruikt in dichte/secundaire
+ * contexten (naast chips, in rijen met meerdere acties) waar alles naar
+ * 44px optrekken juist een te-vol/"knoppen te groot"-gevoel zou geven.
+ */
 const sizeClasses: Record<Size, string> = {
-  sm: "text-sm px-3.5 py-1.5 rounded-xl gap-1.5",
-  md: "text-sm px-5 py-2.5 rounded-xl gap-2",
+  sm: "text-sm px-3.5 py-2 rounded-xl gap-1.5",
+  md: "text-sm px-5 py-3 rounded-xl gap-2",
   lg: "text-base px-7 py-3.5 rounded-xl gap-2.5",
 };
 

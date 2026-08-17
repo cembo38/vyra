@@ -7,6 +7,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { listEventsForUser } from "@/lib/data/store";
 import { updateProfileAction, logoutAction } from "@/lib/actions/auth-actions";
 import { PLATFORM_COMMISSION_RATE } from "@/lib/config";
+import { SIDEBAR_OFFSET_CLASS } from "@/lib/nav-constants";
+import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Profiel — Vyra" };
 
@@ -17,7 +19,7 @@ export default async function ProfilePage(props: PageProps<"/profile">) {
   const events = await listEventsForUser(user.id);
 
   return (
-    <div className="min-h-screen bg-paper">
+    <div className={cn("min-h-screen bg-paper", SIDEBAR_OFFSET_CLASS)}>
       <AppTopBar />
       <div className="mx-auto max-w-2xl px-6 py-10">
         <div className="mb-6 flex items-center gap-4">

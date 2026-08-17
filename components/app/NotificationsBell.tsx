@@ -18,7 +18,16 @@ function timeAgo(iso: string) {
   return `${days} dag${days > 1 ? "en" : ""} geleden`;
 }
 
-export function NotificationsBell({ userId, notifications }: { userId: string; notifications: AppNotification[] }) {
+export function NotificationsBell({
+  userId,
+  notifications,
+  align = "right",
+}: {
+  userId: string;
+  notifications: AppNotification[];
+  /** Aan welke kant het paneel opent — "left" voor gebruik in een zijbalk-footer die tegen de linkerrand van het scherm zit. */
+  align?: "left" | "right";
+}) {
   const [open, setOpen] = useState(false);
   const [, startTransition] = useTransition();
   const ref = useRef<HTMLDivElement>(null);
@@ -38,20 +47,25 @@ export function NotificationsBell({ userId, notifications }: { userId: string; n
         onClick={() => setOpen((v) => !v)}
         aria-label="Notificaties"
         aria-expanded={open}
-        className="bell-btn relative flex size-9 items-center justify-center rounded-full text-ink-soft transition-colors duration-[var(--duration-swift)] hover:bg-paper-dim hover:text-ink"
+        className="bell-btn relative flex size-11 items-center justify-center rounded-full text-ink-soft transition-colors duration-[var(--duration-swift)] hover:bg-paper-dim hover:text-ink"
       >
         <Bell className="bell-icon size-5" />
         {unread > 0 && (
-          <span className="absolute right-1.5 top-1.5 flex size-2 items-center justify-center rounded-full bg-clay" />
+          <span className="absolute right-2 top-2 flex size-2 items-center justify-center rounded-full bg-clay" />
         )}
       </button>
       {open && (
-        <div className="absolute right-0 z-50 mt-2 w-80 rounded-2xl border border-line bg-white p-2 [box-shadow:var(--shadow-pop)]">
+        <div
+          className={cn(
+            "absolute z-50 mt-2 w-[min(20rem,calc(100vw-1.5rem))] rounded-2xl border border-line bg-white p-2 [box-shadow:var(--shadow-pop)]",
+            align === "right" ? "right-0" : "left-0"
+          )}
+        >
           <div className="flex items-center justify-between px-2 py-1.5">
             <span className="text-sm font-medium text-ink">Notificaties</span>
             {unread > 0 && <span className="text-xs text-ink-faint">{unread} ongelezen</span>}
           </div>
-          <div className="max-h-80 overflow-y-auto no-scrollbar">
+          <div className="max-h-[min(20rem,70vh)] overflow-y-auto no-scrollbar">
             {notifications.length === 0 && <p className="px-2 py-6 text-center text-sm text-ink-faint">Nog geen notificaties.</p>}
             {notifications.slice(0, 8).map((n) => (
               <Link

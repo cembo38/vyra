@@ -91,7 +91,10 @@ export function NewEventInterview() {
   }
 
   return (
-    <div className="mx-auto flex min-h-[calc(100vh-0px)] max-w-2xl flex-col px-6 py-10">
+    // `min-h-dvh` i.p.v. `100vh`: op mobiele Safari/Chrome verandert de
+    // adresbalk-hoogte tijdens het scrollen, waardoor `100vh` een sprong
+    // in de layout veroorzaakte. `dvh` (dynamic viewport height) volgt dat.
+    <div className="mx-auto flex min-h-dvh max-w-2xl flex-col px-6 py-10">
       <div className="mb-6 flex items-center gap-3">
         <div className="flex size-9 items-center justify-center rounded-full bg-sage-50 text-sage">
           <Sparkles className="size-4.5" />
@@ -142,50 +145,55 @@ export function NewEventInterview() {
         </div>
       )}
 
-      {done ? (
-        <button
-          onClick={goToPlan}
-          disabled={pending}
-          className="lift-hover inline-flex w-full items-center justify-center gap-2 rounded-xl bg-clay px-6 py-3.5 text-sm font-medium text-white shadow-sm hover:bg-clay-dark disabled:opacity-60 disabled:pointer-events-none"
-        >
-          {pending ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-          Bekijk mijn AI-eventplan
-        </button>
-      ) : (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            send(input);
-          }}
-          className="flex items-end gap-2 rounded-2xl border border-line bg-white p-2 shadow-sm"
-        >
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                send(input);
-              }
-            }}
-            rows={1}
-            placeholder="Typ of spreek je antwoord in…"
-            className="max-h-32 flex-1 resize-none bg-transparent px-3 py-2 text-[15px] outline-none placeholder:text-ink-faint"
-          />
-          <VoiceInputButton
-            className="size-10"
-            onTranscript={(text) => setInput((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))}
-          />
+      {/* Sticky + safe-area-opvulling: blijft altijd bereikbaar boven de
+          systeem-thuisbalk op iPhone, ook als de berichtenlijst hierboven
+          zijn eigen scroll heeft. */}
+      <div className="sticky bottom-0 bg-paper pb-[max(var(--safe-b),0.75rem)] pt-1">
+        {done ? (
           <button
-            type="submit"
-            disabled={pending || !input.trim()}
-            aria-label="Versturen"
-            className="icon-pop flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-paper disabled:opacity-30 disabled:pointer-events-none"
+            onClick={goToPlan}
+            disabled={pending}
+            className="lift-hover inline-flex w-full items-center justify-center gap-2 rounded-xl bg-clay px-6 py-3.5 text-sm font-medium text-white shadow-sm hover:bg-clay-dark disabled:opacity-60 disabled:pointer-events-none"
           >
-            <ArrowUp className="size-4.5" />
+            {pending ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+            Bekijk mijn AI-eventplan
           </button>
-        </form>
-      )}
+        ) : (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              send(input);
+            }}
+            className="flex items-end gap-2 rounded-2xl border border-line bg-white p-2 shadow-sm"
+          >
+            <textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  send(input);
+                }
+              }}
+              rows={1}
+              placeholder="Typ of spreek je antwoord in…"
+              className="max-h-32 flex-1 resize-none bg-transparent px-3 py-2 text-[15px] outline-none placeholder:text-ink-faint"
+            />
+            <VoiceInputButton
+              className="size-11"
+              onTranscript={(text) => setInput((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))}
+            />
+            <button
+              type="submit"
+              disabled={pending || !input.trim()}
+              aria-label="Versturen"
+              className="icon-pop flex size-11 shrink-0 items-center justify-center rounded-full bg-ink text-paper disabled:opacity-30 disabled:pointer-events-none"
+            >
+              <ArrowUp className="size-4.5" />
+            </button>
+          </form>
+        )}
+      </div>
     </div>
   );
 }

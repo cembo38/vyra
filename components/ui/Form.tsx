@@ -1,8 +1,11 @@
 import { cn } from "@/lib/utils";
 import { InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
 
+// text-base (16px) i.p.v. 15px: onder de 16px triggert iOS Safari een
+// automatische in-zoom zodra een veld focus krijgt — een klassieke,
+// vervelende mobiele bug die zo op elk formulier in de app is voorkomen.
 const fieldBase =
-  "w-full rounded-xl border border-line bg-white px-4 py-2.5 text-[15px] text-ink placeholder:text-ink-faint outline-none transition-all duration-[var(--duration-swift)] ease-[var(--ease-swift)] focus:border-sage focus:[box-shadow:0_0_0_3px_var(--color-sage-50)]";
+  "w-full rounded-xl border border-line bg-white px-4 py-3 text-base text-ink placeholder:text-ink-faint outline-none transition-all duration-[var(--duration-swift)] ease-[var(--ease-swift)] focus:border-sage focus:[box-shadow:0_0_0_3px_var(--color-sage-50)]";
 
 export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
   return <input className={cn(fieldBase, className)} {...props} />;

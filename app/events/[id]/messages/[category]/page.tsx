@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { ChevronLeft, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { getEvent, getMessages, getRequestsForEvent, resolveSupplierDisplay } from "@/lib/data/store";
 import { SupplierAvatar } from "@/components/ui/Avatar";
+import { BackLink } from "@/components/ui/BackLink";
 import { MessageComposer } from "@/components/app/MessageComposer";
 import { SUPPLIER_CATEGORY_LABELS, SupplierCategory } from "@/lib/types";
 import { cn, formatDateNL } from "@/lib/utils";
@@ -24,9 +24,7 @@ export default async function MessageThreadPage(props: PageProps<"/events/[id]/m
 
   return (
     <div className="mx-auto max-w-2xl">
-      <Link href={`/events/${id}/messages`} className="mb-4 inline-flex items-center gap-1 text-sm text-ink-faint hover:text-ink">
-        <ChevronLeft className="size-4" /> Alle gesprekken
-      </Link>
+      <BackLink fallbackHref={`/events/${id}/messages`} label="Alle gesprekken" className="mb-4" />
 
       <div className="mb-6 flex items-center gap-3">
         {supplier && <SupplierAvatar gradient={supplier.photoGradient} initials={supplier.initials} imageUrl={supplier.logoUrl} verified={supplier.verified} />}
@@ -63,7 +61,11 @@ export default async function MessageThreadPage(props: PageProps<"/events/[id]/m
         ))}
       </div>
 
-      <div className="sticky bottom-6 mt-6">
+      {/* Vroeger een zwevende pil met marge (`bottom-6`) — die kon op mobiel
+          onder de systeem-thuisbalk terechtkomen. Nu vlak tegen de onderkant
+          aan, met een scheidingslijn en de veilige-zone-opvulling zodat hij
+          nooit onder de home-indicator hangt. */}
+      <div className="sticky bottom-0 mt-6 border-t border-line-soft bg-paper pb-[max(var(--safe-b),0.75rem)] pt-3">
         <MessageComposer eventId={id} categoryKey={categoryKey} supplierId={supplierId ?? ""} />
       </div>
     </div>

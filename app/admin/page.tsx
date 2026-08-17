@@ -17,6 +17,8 @@ import { isServiceRoleConfigured } from "@/lib/supabase/admin";
 import { formatCurrency, PLATFORM_COMMISSION_RATE, ADMIN_EMAILS } from "@/lib/config";
 import { getCurrentUser } from "@/lib/auth";
 import { EVENT_TYPE_LABELS } from "@/lib/types";
+import { SIDEBAR_OFFSET_CLASS } from "@/lib/nav-constants";
+import { cn } from "@/lib/utils";
 import { AlertCircle, AlertTriangle, Building2, CalendarDays, LineChart, Percent, ShieldAlert, Sparkles, Star, Users } from "lucide-react";
 
 export const metadata = { title: "Admin — Vyra" };
@@ -46,7 +48,7 @@ export default async function AdminPage() {
   const conversionRate = requests.length ? (paidPayments.length / requests.length) * 100 : 0;
 
   return (
-    <div className="min-h-screen bg-paper">
+    <div className={cn("min-h-screen bg-paper", SIDEBAR_OFFSET_CLASS)}>
       <AppTopBar />
       <div className="mx-auto max-w-6xl px-6 py-10">
         <h1 className="font-display text-3xl text-ink">Platform overzicht</h1>

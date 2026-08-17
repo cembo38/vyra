@@ -27,8 +27,8 @@ export function MessageComposer({ eventId, categoryKey, supplierId }: { eventId:
         placeholder="Typ of spreek een bericht in…"
         className="flex-1 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-ink-faint"
       />
-      <VoiceInputButton className="size-9" onTranscript={(t) => setText((prev) => (prev.trim() ? `${prev.trim()} ${t}` : t))} />
-      <button type="submit" disabled={pending || !text.trim()} aria-label="Versturen" className="icon-pop flex size-9 shrink-0 items-center justify-center rounded-full bg-ink text-paper disabled:opacity-30 disabled:pointer-events-none">
+      <VoiceInputButton className="size-10" onTranscript={(t) => setText((prev) => (prev.trim() ? `${prev.trim()} ${t}` : t))} />
+      <button type="submit" disabled={pending || !text.trim()} aria-label="Versturen" className="icon-pop flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-paper disabled:opacity-30 disabled:pointer-events-none">
         {pending ? <Loader2 className="size-4 animate-spin" /> : <ArrowUp className="size-4" />}
       </button>
     </form>

@@ -53,7 +53,7 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
           <div>
             <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-ink-faint">Basisgegevens</h2>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label="Bedrijfsnaam" required>
                   <Input name="companyName" required defaultValue={supplier.companyName} />
                 </Field>
@@ -70,7 +70,7 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
                 <Input name="website" type="url" defaultValue={supplier.website ?? ""} placeholder="https://jouwbedrijf.nl" />
               </Field>
 
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <Field label="Facebook" hint="Optioneel">
                   <Input name="socialFacebook" defaultValue={supplier.socialFacebook ?? ""} placeholder="facebook.com/..." />
                 </Field>
@@ -110,7 +110,7 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
                 <Input name="categoryOther" defaultValue={supplier.categoryOther ?? ""} placeholder="Bijv. Ceremoniemeester" />
               </Field>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label="Vestigingsplaats / postcode" required hint="Middelpunt van je werkgebied">
                   <Input name="baseLocation" required defaultValue={supplier.baseLocation} />
                 </Field>
@@ -123,7 +123,7 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
                 <Textarea name="description" required rows={3} defaultValue={supplier.description} />
               </Field>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label="Startprijs (€)" required hint="Vanaf-prijs">
                   <Input name="minPrice" type="number" min={0} step={1} required defaultValue={Math.round(supplier.minPriceCents / 100)} />
                 </Field>
@@ -165,14 +165,14 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
               {supplier.galleryUrls.length > 0 && (
                 <div className="grid grid-cols-4 gap-2">
                   {supplier.galleryUrls.map((url) => (
-                    <div key={url} className="group relative aspect-square overflow-hidden rounded-xl border border-line">
+                    <div key={url} className="relative aspect-square overflow-hidden rounded-xl border border-line">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={url} alt="" className="h-full w-full object-cover" />
                       <button
                         formAction={removeSupplierGalleryImageAction.bind(null, url)}
                         type="submit"
                         aria-label="Foto verwijderen"
-                        className="absolute right-1 top-1 rounded-full bg-ink/70 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
+                        className="absolute right-1 top-1 rounded-full bg-ink/70 p-1.5 text-white"
                       >
                         <X className="size-3" />
                       </button>

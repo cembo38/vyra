@@ -1,14 +1,14 @@
 import { notFound, redirect } from "next/navigation";
-import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { DeadlineCountdown } from "@/components/ui/Countdown";
+import { BackLink } from "@/components/ui/BackLink";
 import { SupplierOfferForm } from "@/components/app/SupplierOfferForm";
 import { getCurrentUser } from "@/lib/auth";
 import { getSupplierAccountByOwner, getSupplierLead, getSupplierOfferForRequest } from "@/lib/data/store";
 import { EVENT_TYPE_LABELS, SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
 import { formatCurrency } from "@/lib/config";
-import { ArrowLeft, CheckCircle2, MapPin, Users } from "lucide-react";
+import { CheckCircle2, MapPin, Users } from "lucide-react";
 
 export const metadata = { title: "Aanvraag — Vyra voor leveranciers" };
 
@@ -27,9 +27,7 @@ export default async function SupplierRequestDetailPage(props: PageProps<"/suppl
 
   return (
     <div className="mx-auto max-w-2xl">
-      <Link href="/supplier/requests" className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-faint hover:text-ink">
-        <ArrowLeft className="size-4" /> Terug naar aanvragen
-      </Link>
+      <BackLink fallbackHref="/supplier/requests" label="Terug naar aanvragen" />
 
       <div className="mt-4 flex items-start justify-between gap-3">
         <div>

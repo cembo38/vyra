@@ -56,7 +56,14 @@ export function OfferBrowser({ offers, categoryLabel }: { offers: OfferWithSuppl
 
       {view === "swipe" && <SwipeStack offers={undecided} />}
       {view === "list" && <OfferList offers={offers} />}
-      {view === "compare" && <CompareTable offers={offers} />}
+      {view === "compare" && (
+        <>
+          {/* Volle tabel (8 kolommen, min-w-[820px]) past pas comfortabel vanaf
+              `lg` (iPad landscape en groter); daaronder de kaartenlijst. */}
+          <CompareTable offers={offers} />
+          <CompareCardList offers={offers} />
+        </>
+      )}
 
       {decided.length > 0 && view === "swipe" && (
         <div className="mt-10">
@@ -110,7 +117,10 @@ function SwipeStack({ offers }: { offers: OfferWithSupplier[] }) {
 
   return (
     <div className="mx-auto max-w-md">
-      <div className="relative h-[480px]">
+      {/* Vaste 480px viel op korte telefoons (bv. iPhone SE) deels buiten
+          beeld door de omringende chrome; krimpt nu mee met de viewport
+          maar wordt nooit groter dan de oorspronkelijke 480px. */}
+      <div className="relative h-[min(30rem,58dvh)]">
         <AnimatePresence>
           {queue
             .slice(0, 3)
@@ -224,7 +234,7 @@ function CompareTable({ offers }: { offers: OfferWithSupplier[] }) {
   const sorted = useMemo(() => [...offers].sort((a, b) => b.matchScore - a.matchScore), [offers]);
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-line [box-shadow:var(--shadow-card)]">
+    <div className="hidden overflow-x-auto rounded-2xl border border-line [box-shadow:var(--shadow-card)] lg:block">
       <table className="w-full min-w-[820px] border-collapse text-sm">
         <thead>
           <tr className="border-b border-line-soft bg-paper-dim text-left text-xs font-medium uppercase tracking-wide text-ink-faint">
@@ -278,7 +288,7 @@ function CompareTable({ offers }: { offers: OfferWithSupplier[] }) {
                       disabled={pending}
                       onClick={() => startTransition(async () => { await swipeOfferAction(offer.id, "shortlisted"); })}
                       aria-label="Shortlist"
-                      className="icon-pop flex size-8 items-center justify-center rounded-full bg-paper-dim text-ink"
+                      className="icon-pop flex size-9 items-center justify-center rounded-full bg-paper-dim text-ink"
                     >
                       <Heart className="size-3.5" />
                     </button>
@@ -287,7 +297,7 @@ function CompareTable({ offers }: { offers: OfferWithSupplier[] }) {
                       onClick={() => startTransition(() => acceptOfferAction(offer.id, "full"))}
                       aria-label="Accepteren — volledig betalen"
                       title="Accepteren — volledig betalen"
-                      className="icon-pop flex size-8 items-center justify-center rounded-full bg-clay text-white"
+                      className="icon-pop flex size-9 items-center justify-center rounded-full bg-clay text-white"
                     >
                       {pending ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
                     </button>
@@ -296,7 +306,7 @@ function CompareTable({ offers }: { offers: OfferWithSupplier[] }) {
                       onClick={() => startTransition(() => acceptOfferAction(offer.id, "deposit"))}
                       aria-label={`Accepteren met aanbetaling (${Math.round(DEFAULT_DEPOSIT_PERCENT * 100)}%)`}
                       title={`Accepteren met aanbetaling (${Math.round(DEFAULT_DEPOSIT_PERCENT * 100)}%), rest later`}
-                      className="icon-pop flex size-8 items-center justify-center rounded-full bg-paper-dim text-ink"
+                      className="icon-pop flex size-9 items-center justify-center rounded-full bg-paper-dim text-ink"
                     >
                       <PiggyBank className="size-3.5" />
                     </button>
@@ -309,6 +319,103 @@ function CompareTable({ offers }: { offers: OfferWithSupplier[] }) {
           ))}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+/**
+ * Kaarten-variant van de vergelijkingstabel voor `< lg` (telefoon en
+ * iPad-portret). Geen opgeschaalde telefoon-view: 1 kolom op telefoon,
+ * 2 kolommen vanaf `sm` — op iPad-portret staan er dus al 2 offertes
+ * naast elkaar te vergelijken, i.p.v. een enkele, lange lijst.
+ */
+function CompareCardList({ offers }: { offers: OfferWithSupplier[] }) {
+  const [pending, startTransition] = useTransition();
+  const sorted = useMemo(() => [...offers].sort((a, b) => b.matchScore - a.matchScore), [offers]);
+
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 lg:hidden">
+      {sorted.map((offer) => (
+        <div key={offer.id} className="rounded-2xl border border-line bg-white p-4 [box-shadow:var(--shadow-card)]">
+          <div className="flex items-center gap-2.5">
+            <SupplierAvatar gradient={offer.supplier.photoGradient} initials={offer.supplier.initials} imageUrl={offer.supplier.logoUrl} verified={offer.supplier.verified} size={36} />
+            <div className="min-w-0 flex-1">
+              {offer.supplier.isReal ? (
+                <Link href={`/leveranciers/${offer.supplier.id}`} target="_blank" className="flex min-w-0 items-center gap-1 truncate font-medium text-ink hover:text-sage hover:underline">
+                  <span className="truncate">{offer.supplier.companyName}</span> <ExternalLink className="size-3 shrink-0" />
+                </Link>
+              ) : (
+                <p className="truncate font-medium text-ink">{offer.supplier.companyName}</p>
+              )}
+            </div>
+            <OfferStatusBadge status={offer.status} />
+          </div>
+
+          <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 rounded-xl bg-paper-dim/60 px-3 py-2.5 text-sm">
+            <div>
+              <p className="text-xs text-ink-faint">Prijs</p>
+              <p className="font-display text-base text-ink">{formatCurrency(offer.totalPriceCents)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-ink-faint">Match</p>
+              <Badge tone="sage">{offer.matchScore}%</Badge>
+            </div>
+            <div>
+              <p className="text-xs text-ink-faint">Beoordeling</p>
+              {offer.supplier.ratingCount > 0 ? (
+                <span className="flex items-center gap-1 text-ink-soft"><Star className="size-3.5 fill-ochre text-ochre" /> {offer.supplier.ratingAvg.toFixed(1)}</span>
+              ) : (
+                <span className="text-ink-soft">Nog geen reviews</span>
+              )}
+            </div>
+            <div>
+              <p className="text-xs text-ink-faint">Reactietijd</p>
+              <p className="text-ink-soft">± {offer.supplier.avgResponseHours} uur</p>
+            </div>
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {offer.includes.slice(0, 3).map((inc) => (
+              <Badge key={inc} tone="neutral">{inc}</Badge>
+            ))}
+          </div>
+
+          {offer.status !== "accepted" ? (
+            <div className="mt-3 flex items-center justify-end gap-2">
+              <button
+                disabled={pending}
+                onClick={() => startTransition(async () => { await swipeOfferAction(offer.id, "shortlisted"); })}
+                aria-label="Shortlist"
+                className="icon-pop flex size-10 items-center justify-center rounded-full bg-paper-dim text-ink"
+              >
+                <Heart className="size-4" />
+              </button>
+              <button
+                disabled={pending}
+                onClick={() => startTransition(() => acceptOfferAction(offer.id, "deposit"))}
+                aria-label={`Accepteren met aanbetaling (${Math.round(DEFAULT_DEPOSIT_PERCENT * 100)}%)`}
+                title={`Accepteren met aanbetaling (${Math.round(DEFAULT_DEPOSIT_PERCENT * 100)}%), rest later`}
+                className="icon-pop flex size-10 items-center justify-center rounded-full bg-paper-dim text-ink"
+              >
+                <PiggyBank className="size-4" />
+              </button>
+              <button
+                disabled={pending}
+                onClick={() => startTransition(() => acceptOfferAction(offer.id, "full"))}
+                aria-label="Accepteren — volledig betalen"
+                title="Accepteren — volledig betalen"
+                className="icon-pop flex size-10 items-center justify-center rounded-full bg-clay text-white"
+              >
+                {pending ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+              </button>
+            </div>
+          ) : (
+            <div className="mt-3 flex items-center justify-end gap-1 text-xs font-medium text-success">
+              <CheckCircle2 className="size-3.5" /> Geaccepteerd
+            </div>
+          )}
+        </div>
+      ))}
     </div>
   );
 }

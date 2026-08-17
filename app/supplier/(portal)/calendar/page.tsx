@@ -109,7 +109,10 @@ export default async function SupplierCalendarPage(props: PageProps<"/supplier/c
         <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-ochre" /> Aanvraagdeadline</span>
       </div>
 
-      <Card className="mt-3 p-0">
+      {/* Volle maand-grid: cellen van ~50px op een telefoon van 375px zijn te
+          dicht om nauwkeurig te tikken — vanaf `md` (iPad-portret) is er
+          genoeg ruimte om deze interactief te tonen. */}
+      <Card className="mt-3 hidden p-0 md:block">
         <div className="grid grid-cols-7 border-b border-line-soft text-center text-xs font-medium uppercase tracking-wide text-ink-faint">
           {WEEKDAY_LABELS.map((w) => (
             <div key={w} className="py-2">{w}</div>
@@ -139,30 +142,34 @@ export default async function SupplierCalendarPage(props: PageProps<"/supplier/c
         </div>
       </Card>
 
-      <h2 className="mb-3 mt-8 font-display text-lg text-ink">Deze maand</h2>
-      {agenda.length === 0 ? (
-        <Card><p className="text-sm text-ink-faint">Geen boekingen of deadlines deze maand.</p></Card>
-      ) : (
-        <div className="space-y-2">
-          {agenda.map((d) => (
-            <Card key={d.key} className="flex flex-wrap items-center justify-between gap-2 p-4">
-              <span className="text-sm font-medium text-ink">{d.key}</span>
-              <div className="flex flex-wrap items-center gap-2">
-                {d.bookings.map((b, i) => (
-                  <Badge key={`b-${i}`} tone="sage" icon={<PartyPopper className="size-3" />}>
-                    {b.label} · {formatCurrency(b.amount)}
-                  </Badge>
-                ))}
-                {d.deadlines.map((dl, i) => (
-                  <Link key={`d-${i}`} href={`/supplier/requests/${dl.requestId}`}>
-                    <Badge tone="ochre" icon={<Clock className="size-3" />}>Deadline: {dl.label}</Badge>
-                  </Link>
-                ))}
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
+      {/* Telefoon-only: op een klein scherm is een lijst overzichtelijker en
+          beter aan te tikken dan een dichte maand-grid. */}
+      <div className="md:hidden">
+        <h2 className="mb-3 mt-8 font-display text-lg text-ink">Deze maand</h2>
+        {agenda.length === 0 ? (
+          <Card><p className="text-sm text-ink-faint">Geen boekingen of deadlines deze maand.</p></Card>
+        ) : (
+          <div className="space-y-2">
+            {agenda.map((d) => (
+              <Card key={d.key} className="flex flex-wrap items-center justify-between gap-2 p-4">
+                <span className="text-sm font-medium text-ink">{d.key}</span>
+                <div className="flex flex-wrap items-center gap-2">
+                  {d.bookings.map((b, i) => (
+                    <Badge key={`b-${i}`} tone="sage" icon={<PartyPopper className="size-3" />}>
+                      {b.label} · {formatCurrency(b.amount)}
+                    </Badge>
+                  ))}
+                  {d.deadlines.map((dl, i) => (
+                    <Link key={`d-${i}`} href={`/supplier/requests/${dl.requestId}`}>
+                      <Badge tone="ochre" icon={<Clock className="size-3" />}>Deadline: {dl.label}</Badge>
+                    </Link>
+                  ))}
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

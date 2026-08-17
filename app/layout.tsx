@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 /**
@@ -15,6 +15,25 @@ export const metadata: Metadata = {
   title: "Vyra — Celebrate. Simplified.",
   description:
     "Vertel wat je wilt organiseren. Onze AI ontdekt welke mensen, diensten en producten je nodig hebt, vraagt automatisch aanbiedingen aan en helpt je in enkele swipes de juiste leveranciers te kiezen.",
+};
+
+/**
+ * Expliciete viewport-configuratie i.p.v. op Next.js' impliciete default te
+ * vertrouwen — nodig voor twee mobiele dingen die anders stuk blijven:
+ * `viewportFit: "cover"` activeert `env(safe-area-inset-*)` op iOS (zonder
+ * dit blijven die altijd 0px, ongeacht de CSS die ernaar verwijst), en
+ * `interactiveWidget: "resizes-content"` laat de layout-viewport écht
+ * krimpen zodra het schermtoetsenbord opent, zodat "sticky bottom"-balken
+ * (chatvensters) niet onder het toetsenbord verdwijnen. Bewust GEEN
+ * `maximumScale`/`userScalable: false` — dat blokkeert pinch-zoom, een
+ * WCAG 1.4.4-toegankelijkheidsprobleem, en is hier niet nodig.
+ */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  interactiveWidget: "resizes-content",
+  themeColor: [{ media: "(prefers-color-scheme: light)", color: "#f7f4ee" }],
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

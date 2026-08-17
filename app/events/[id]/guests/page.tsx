@@ -62,7 +62,7 @@ export default async function GuestsPage(props: PageProps<"/events/[id]/guests">
 
           <Card className="divide-y divide-line-soft p-0">
             {guests.map((guest) => (
-              <div key={guest.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
+              <div key={guest.id} className="flex flex-col items-start gap-3 px-5 py-3.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-medium text-ink">{guest.name}</span>
@@ -101,7 +101,7 @@ export default async function GuestsPage(props: PageProps<"/events/[id]/guests">
                     <button
                       type="submit"
                       aria-label="Gast verwijderen"
-                      className="icon-pop flex size-8 items-center justify-center rounded-full text-ink-faint hover:bg-danger-50 hover:text-danger"
+                      className="icon-pop flex size-10 items-center justify-center rounded-full text-ink-faint hover:bg-danger-50 hover:text-danger"
                     >
                       <Trash2 className="size-3.5" />
                     </button>

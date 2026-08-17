@@ -4,6 +4,7 @@ import { getEvent } from "@/lib/data/store";
 import { EventSubNav } from "@/components/app/EventSubNav";
 import { StageBadge } from "@/components/ui/Badge";
 import { EventCountdown } from "@/components/ui/Countdown";
+import { BackLink } from "@/components/ui/BackLink";
 import { EVENT_TYPE_LABELS } from "@/lib/types";
 
 export default async function EventLayout(props: LayoutProps<"/events/[id]">) {
@@ -19,6 +20,7 @@ export default async function EventLayout(props: LayoutProps<"/events/[id]">) {
     <div>
       <div className="border-b border-line-soft bg-white">
         <div className="mx-auto max-w-6xl px-6 pb-5 pt-7">
+          <BackLink fallbackHref="/events" label="Mijn evenementen" className="mb-2" />
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <span className="text-xs font-medium uppercase tracking-wide text-ink-faint">{EVENT_TYPE_LABELS[event.type]}</span>

@@ -21,7 +21,7 @@ export function EventSubNav({ eventId }: { eventId: string }) {
 
   return (
     <div className="border-b border-line bg-white">
-      <nav className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-6 no-scrollbar">
+      <nav className="scroll-fade-x-white mx-auto flex max-w-6xl gap-1 overflow-x-auto px-6 no-scrollbar">
         {tabs.map((tab) => {
           const active = tab.match ? tab.match(pathname) : pathname === tab.href;
           return (

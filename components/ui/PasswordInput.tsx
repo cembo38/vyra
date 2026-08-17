@@ -27,13 +27,13 @@ export function PasswordInput({
         minLength={minLength}
         placeholder={placeholder}
         autoComplete={autoComplete}
-        className="w-full rounded-xl border border-line bg-white px-4 py-2.5 pr-11 text-[15px] text-ink placeholder:text-ink-faint outline-none transition-colors focus:border-sage"
+        className="w-full rounded-xl border border-line bg-white px-4 py-3 pr-11 text-base text-ink placeholder:text-ink-faint outline-none transition-colors focus:border-sage"
       />
       <button
         type="button"
         onClick={() => setVisible((v) => !v)}
         aria-label={visible ? "Verberg wachtwoord" : "Toon wachtwoord"}
-        className="group absolute right-3 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink"
+        className="group absolute right-3 top-1/2 -translate-y-1/2 text-ink-faint hover:text-ink after:absolute after:-inset-2.5 after:content-['']"
       >
         {visible ? (
           <EyeOff className="size-4 transition-transform duration-[var(--duration-swift)] ease-[var(--ease-swift)] group-hover:scale-110 group-active:scale-90" />

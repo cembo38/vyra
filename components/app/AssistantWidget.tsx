@@ -77,12 +77,12 @@ export function AssistantWidget({ eventId }: { eventId: string }) {
           placeholder="Typ of spreek je vraag in…"
           className="flex-1 bg-transparent px-2.5 py-1.5 text-sm outline-none placeholder:text-ink-faint"
         />
-        <VoiceInputButton className="size-8" onTranscript={(text) => setInput((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))} />
+        <VoiceInputButton className="size-9" onTranscript={(text) => setInput((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))} />
         <button
           type="submit"
           disabled={pending || !input.trim()}
           aria-label="Versturen"
-          className="icon-pop flex size-8 shrink-0 items-center justify-center rounded-full bg-ink text-paper disabled:opacity-30 disabled:pointer-events-none"
+          className="icon-pop flex size-9 shrink-0 items-center justify-center rounded-full bg-ink text-paper disabled:opacity-30 disabled:pointer-events-none"
         >
           <ArrowUp className="size-4" />
         </button>
