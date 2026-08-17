@@ -150,6 +150,10 @@
  *  - .img-zoom-wrap / .img-zoom → afbeelding zoomt subtiel in bij hover van de kaart
  *  - .nav-link       → navigatielinks: onderstreping schuift in bij hover
  *  - .nav-tab-hover  → subnav-tabs: lichte onderstreping-preview bij hover (inactieve tab)
+ *  - .expand-hover / .expand-hover-label → icoon-knop die het label pas
+ *    uitklapt bij hover — alleen op apparaten met écht hover (muis/trackpad,
+ *    via de `(hover: hover)`-mediaquery); op touchscreens staat het label
+ *    gewoon altijd zichtbaar, want daar bestaat "hoveren" niet.
  * ─────────────────────────────────────────────────────────────────── */
 :root {
   --ease-swift: cubic-bezier(0.22, 1, 0.36, 1);
@@ -248,6 +252,30 @@
 .nav-tab-hover:hover::after {
   opacity: 0.35;
   transform: scaleX(1);
+}
+
+/* Standaard (ook touchscreens): label altijd zichtbaar, gewoon met een
+   vaste marge naast het icoon. Pas op apparaten met écht hover wordt dat
+   hieronder overschreven naar "eerst ingeklapt, uitklappen bij hover". */
+.expand-hover-label {
+  margin-left: 0.5rem;
+  overflow: hidden;
+  white-space: nowrap;
+}
+@media (hover: hover) and (pointer: fine) {
+  .expand-hover-label {
+    max-width: 0;
+    margin-left: 0;
+    opacity: 0;
+    transition: max-width var(--duration-swift) var(--ease-swift), margin-left var(--duration-swift) var(--ease-swift),
+      opacity var(--duration-swift) var(--ease-swift);
+  }
+  .expand-hover:hover .expand-hover-label,
+  .expand-hover:focus-visible .expand-hover-label {
+    max-width: 12rem;
+    margin-left: 0.5rem;
+    opacity: 1;
+  }
 }
 
 @keyframes ring {

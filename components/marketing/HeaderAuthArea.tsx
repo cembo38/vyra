@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Search, LogOut } from "lucide-react";
+import { Search, Sparkles, LogOut } from "lucide-react";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { LinkButton } from "@/components/ui/Button";
 import { getCurrentUser } from "@/lib/auth";
@@ -12,10 +12,41 @@ const MARKETING_LINKS = [
   { href: "/supplier", label: "Voor leveranciers" },
 ];
 
+/**
+ * Icoon-eerst: het label klapt pas open bij hover (`.expand-hover`), zodat
+ * dit de opvallende hoofdknop kan zijn zonder de header vol te proppen. Op
+ * touchscreens (geen hover) staat de tekst gewoon altijd naast het icoon —
+ * zie de mediaquery in globals.css.
+ */
 function SearchSuppliersButton() {
   return (
-    <LinkButton href="/leveranciers" size="sm" variant="outline" icon={<Search className="size-3.5" />} className="hidden md:inline-flex">
+    <LinkButton
+      href="/leveranciers"
+      size="sm"
+      variant="primary"
+      expandOnHover
+      icon={<Search className="size-4" />}
+      ariaLabel="Leveranciers zoeken"
+      className="!gap-0 px-2.5"
+    >
       Leveranciers zoeken
+    </LinkButton>
+  );
+}
+
+/** Zelfde opzet als `SearchSuppliersButton`, maar als secundaire (outline) knop — zie de toelichting daar. */
+function StartEventButton() {
+  return (
+    <LinkButton
+      href="/events/new"
+      size="sm"
+      variant="outline"
+      expandOnHover
+      icon={<Sparkles className="size-4" />}
+      ariaLabel="Start mijn evenement"
+      className="!gap-0 px-2.5"
+    >
+      Start mijn evenement
     </LinkButton>
   );
 }
@@ -69,13 +100,10 @@ export async function HeaderAuthArea() {
   return (
     <div className="flex items-center gap-2 sm:gap-3">
       <SearchSuppliersButton />
+      <StartEventButton />
       <Link href="/login" className="nav-link hidden text-sm font-medium text-ink-soft hover:text-ink sm:block">
         Inloggen
       </Link>
-      <LinkButton href="/events/new" size="sm" iconRight={<span aria-hidden>→</span>}>
-        <span className="sm:hidden">Start</span>
-        <span className="hidden sm:inline">Start mijn evenement</span>
-      </LinkButton>
       <MarketingNavDrawer
         links={MARKETING_LINKS}
         footer={
@@ -98,13 +126,10 @@ export function HeaderAuthAreaFallback() {
   return (
     <div className="flex items-center gap-2 sm:gap-3">
       <SearchSuppliersButton />
+      <StartEventButton />
       <Link href="/login" className="nav-link hidden text-sm font-medium text-ink-soft hover:text-ink sm:block">
         Inloggen
       </Link>
-      <LinkButton href="/events/new" size="sm" iconRight={<span aria-hidden>→</span>}>
-        <span className="sm:hidden">Start</span>
-        <span className="hidden sm:inline">Start mijn evenement</span>
-      </LinkButton>
       <MarketingNavDrawer
         links={MARKETING_LINKS}
         footer={

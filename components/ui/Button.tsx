@@ -60,15 +60,37 @@ export function Button({ variant = "primary", size = "md", children, className, 
 interface LinkButtonProps extends CommonProps {
   href: string;
   target?: string;
+  /**
+   * Toont standaard alleen het icoon; de tekst verschijnt pas als
+   * uitklappend label bij hover (zie `.expand-hover` in globals.css) — op
+   * apparaten zonder hover (touchscreens) blijft de tekst gewoon altijd
+   * zichtbaar. `icon` is in die combinatie verplicht om zinnig te zijn.
+   */
+  expandOnHover?: boolean;
+  ariaLabel?: string;
 }
 
-export function LinkButton({ variant = "primary", size = "md", children, className, icon, iconRight, fullWidth, href, target }: LinkButtonProps) {
+export function LinkButton({
+  variant = "primary",
+  size = "md",
+  children,
+  className,
+  icon,
+  iconRight,
+  fullWidth,
+  href,
+  target,
+  expandOnHover,
+  ariaLabel,
+}: LinkButtonProps) {
   return (
     <Link
       href={href}
       target={target}
+      aria-label={ariaLabel}
       className={cn(
         "inline-flex items-center justify-center font-medium transition-all duration-[var(--duration-swift)] ease-[var(--ease-swift)] hover:-translate-y-0.5 active:scale-[0.98] active:translate-y-0",
+        expandOnHover && "expand-hover",
         variantClasses[variant],
         sizeClasses[size],
         fullWidth && "w-full",
@@ -76,7 +98,7 @@ export function LinkButton({ variant = "primary", size = "md", children, classNa
       )}
     >
       {icon}
-      {children}
+      {expandOnHover ? <span className="expand-hover-label">{children}</span> : children}
       {iconRight}
     </Link>
   );
