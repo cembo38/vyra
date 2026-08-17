@@ -139,14 +139,14 @@ export function NavShell({ items, logo, logoMark, badge, primaryAction, utility,
         )}
       >
         <div className="flex items-center justify-center px-3 py-4 lg:justify-start lg:px-5">
-          <span className="lg:hidden">{logoMark}</span>
-          <span className="hidden lg:block">{logo}</span>
+          <span className="lg:hidden sidebar-compact">{logoMark}</span>
+          <span className="hidden lg:block sidebar-full-block">{logo}</span>
         </div>
-        {badge && <div className="hidden px-5 pb-3 lg:block">{badge}</div>}
+        {badge && <div className="hidden px-5 pb-3 lg:block sidebar-full-block">{badge}</div>}
         {primaryAction && (
           <div className="px-3 pb-4 lg:px-5">
-            <LinkButton href={primaryAction.href} variant="secondary" fullWidth className="lg:justify-start" icon={primaryAction.icon}>
-              <span className="hidden lg:inline">{primaryAction.label}</span>
+            <LinkButton href={primaryAction.href} variant="secondary" fullWidth className="lg:justify-start sidebar-item" icon={primaryAction.icon}>
+              <span className="hidden lg:inline sidebar-full-inline">{primaryAction.label}</span>
             </LinkButton>
           </div>
         )}
@@ -160,19 +160,19 @@ export function NavShell({ items, logo, logoMark, badge, primaryAction, utility,
                 title={item.label}
                 aria-label={item.label}
                 className={cn(
-                  "flex min-h-11 items-center justify-center gap-3 rounded-xl px-2 text-sm font-medium transition-colors duration-[var(--duration-swift)] lg:justify-start lg:px-3",
+                  "flex min-h-11 items-center justify-center gap-3 rounded-xl px-2 text-sm font-medium transition-colors duration-[var(--duration-swift)] lg:justify-start lg:px-3 sidebar-item",
                   active ? "bg-paper-dim text-ink" : "text-ink-soft hover:bg-paper-dim hover:text-ink"
                 )}
               >
                 {item.icon}
-                <span className="hidden lg:inline">{item.label}</span>
+                <span className="hidden lg:inline sidebar-full-inline">{item.label}</span>
               </Link>
             );
           })}
         </nav>
         <div className="border-t border-line-soft px-2 py-3 lg:px-4">
-          <div className="flex flex-col items-center gap-2 lg:flex-row lg:justify-start">{utility}</div>
-          {footerExtra && <div className="mt-2 hidden lg:block">{footerExtra}</div>}
+          <div className="flex flex-col items-center gap-2 lg:flex-row lg:justify-start sidebar-utility-row">{utility}</div>
+          {footerExtra && <div className="mt-2 hidden lg:block sidebar-full-block">{footerExtra}</div>}
         </div>
       </aside>
     </>

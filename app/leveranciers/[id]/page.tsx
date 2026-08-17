@@ -3,12 +3,17 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
 import { getSupplierAccount, listEventsForUser } from "@/lib/data/store";
 import { submitCustomSupplierRequestAction } from "@/lib/actions/supplier-actions";
+import { MarketingHeader } from "@/components/marketing/MarketingHeader";
+import { Footer } from "@/components/marketing/Footer";
+import { AppTopBar } from "@/components/app/AppTopBar";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { SupplierAvatar } from "@/components/ui/Avatar";
 import { Field, Input, Select, Textarea } from "@/components/ui/Form";
 import { formatCurrency } from "@/lib/config";
 import { SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
+import { SIDEBAR_OFFSET_CLASS } from "@/lib/nav-constants";
+import { cn } from "@/lib/utils";
 import { CheckCircle2, Clock, ExternalLink, Link2, MapPin, ShieldCheck, Star } from "lucide-react";
 
 export const metadata = { title: "Leveranciersprofiel — Vyra" };
@@ -27,7 +32,7 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
 
   const categories = supplier.categories.length > 0 ? supplier.categories : [supplier.category];
 
-  return (
+  const main = (
     <div className="mx-auto max-w-3xl px-4 py-10">
       <Card>
         <div className="flex flex-wrap items-start gap-5">
@@ -166,5 +171,22 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
         )}
       </Card>
     </div>
+  );
+
+  if (user) {
+    return (
+      <div className={cn("min-h-screen bg-paper", SIDEBAR_OFFSET_CLASS)}>
+        <AppTopBar />
+        {main}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <MarketingHeader />
+      {main}
+      <Footer />
+    </>
   );
 }

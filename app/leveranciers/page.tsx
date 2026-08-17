@@ -1,13 +1,17 @@
 import Link from "next/link";
 import { MarketingHeader } from "@/components/marketing/MarketingHeader";
 import { Footer } from "@/components/marketing/Footer";
+import { AppTopBar } from "@/components/app/AppTopBar";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Field, Input, Select } from "@/components/ui/Form";
 import { SupplierAvatar } from "@/components/ui/Avatar";
+import { getCurrentUser } from "@/lib/auth";
 import { searchSupplierAccounts } from "@/lib/data/store";
 import { SUPPLIER_CATEGORY_LABELS, SupplierCategory } from "@/lib/types";
 import { formatCurrency } from "@/lib/config";
+import { SIDEBAR_OFFSET_CLASS } from "@/lib/nav-constants";
+import { cn } from "@/lib/utils";
 import { MapPin, Search, ShieldCheck, Star } from "lucide-react";
 
 export const metadata = { title: "Leveranciers zoeken — Vyra" };
@@ -29,10 +33,9 @@ export default async function SupplierDirectoryPage(props: PageProps<"/leveranci
   });
 
   const hasFilters = Boolean(category || location || q || minPriceEuros || maxPriceEuros);
+  const user = await getCurrentUser();
 
-  return (
-    <>
-      <MarketingHeader />
+  const main = (
       <main className="mx-auto max-w-6xl px-6 py-10">
         <h1 className="font-display text-3xl text-ink">Leveranciers zoeken</h1>
         <p className="mt-1 text-ink-soft">Filter op categorie, prijs en werkgebied — of beschrijf gewoon wat je zoekt.</p>
@@ -127,6 +130,21 @@ export default async function SupplierDirectoryPage(props: PageProps<"/leveranci
           </div>
         )}
       </main>
+  );
+
+  if (user) {
+    return (
+      <div className={cn("min-h-screen bg-paper", SIDEBAR_OFFSET_CLASS)}>
+        <AppTopBar />
+        {main}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <MarketingHeader />
+      {main}
       <Footer />
     </>
   );

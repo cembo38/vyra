@@ -292,6 +292,76 @@
   }
 }
 
+/* ── Permanente app-zijbalk (`NavShell`): op apparaten met écht hover
+ * (muis/trackpad) staat de zijbalk vanaf `lg` (1024px) standaard ingeklapt
+ * — net zo'n icoon-only rail als de `md`-stand — en klapt hij bij
+ * hover/focus soepel uit tot de volledige, met-labels zijbalk. Hij
+ * verdwijnt daarbij nooit: de rail blijft altijd zichtbaar, en het
+ * uitklappen overlapt de inhoud (`.app-sidebar` is `position: fixed`)
+ * i.p.v. 'm opzij te duwen, dus geen layout-sprong in de pagina-inhoud.
+ * Op apparaten zonder écht hover (bv. iPad in landscape) blijft de
+ * zijbalk zoals hij al was: altijd volledig zichtbaar met labels — de
+ * `lg:w-64`/`lg:pl-64`-klassen van `SIDEBAR_WIDTH_CLASS`/
+ * `SIDEBAR_OFFSET_CLASS` zijn dan de daadwerkelijke, ongewijzigde stand.
+ * Dit is dezelfde "altijd-zichtbare fallback i.p.v. kapotte hover-state"-
+ * aanpak als `.expand-hover` hierboven. */
+@media (hover: hover) and (pointer: fine) and (min-width: 1024px) {
+  .app-sidebar {
+    width: 76px !important;
+    transition: width calc(var(--duration-swift) * 1.6) var(--ease-swift), box-shadow var(--duration-swift) var(--ease-swift);
+  }
+  .app-sidebar:hover,
+  .app-sidebar:focus-within {
+    width: 16rem !important;
+    box-shadow: var(--shadow-card-hover);
+  }
+  .app-sidebar .sidebar-compact {
+    display: block;
+  }
+  .app-sidebar:hover .sidebar-compact,
+  .app-sidebar:focus-within .sidebar-compact {
+    display: none;
+  }
+  .app-sidebar .sidebar-full-block,
+  .app-sidebar .sidebar-full-inline {
+    display: none;
+  }
+  .app-sidebar:hover .sidebar-full-block,
+  .app-sidebar:focus-within .sidebar-full-block {
+    display: block;
+  }
+  .app-sidebar:hover .sidebar-full-inline,
+  .app-sidebar:focus-within .sidebar-full-inline {
+    display: inline;
+  }
+  .app-sidebar .sidebar-item {
+    justify-content: center !important;
+    padding-left: 0.5rem !important;
+    padding-right: 0.5rem !important;
+  }
+  .app-sidebar:hover .sidebar-item,
+  .app-sidebar:focus-within .sidebar-item {
+    justify-content: flex-start !important;
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+  .app-sidebar .sidebar-utility-row {
+    flex-direction: column;
+    justify-content: center;
+  }
+  .app-sidebar:hover .sidebar-utility-row,
+  .app-sidebar:focus-within .sidebar-utility-row {
+    flex-direction: row;
+    justify-content: flex-start;
+  }
+  /* Zorgt dat de pagina-inhoud altijd op de ingeklapte breedte (76px)
+     blijft staan — ook tijdens het uitklappen, want dat overlapt de
+     inhoud i.p.v. 'm te verschuiven (zie hierboven). */
+  .app-sidebar-offset {
+    padding-left: 76px !important;
+  }
+}
+
 @keyframes ring {
   0%, 100% { transform: rotate(0); }
   20% { transform: rotate(13deg); }
