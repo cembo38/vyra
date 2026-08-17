@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { Search } from "lucide-react";
+import { Search, LogOut } from "lucide-react";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { LinkButton } from "@/components/ui/Button";
 import { getCurrentUser } from "@/lib/auth";
+import { logoutAction } from "@/lib/actions/auth-actions";
 import { MarketingNavDrawer } from "@/components/marketing/MarketingNavDrawer";
 
 const MARKETING_LINKS = [
@@ -34,11 +35,19 @@ export async function HeaderAuthArea() {
       <div className="flex items-center gap-2 sm:gap-3">
         <SearchSuppliersButton />
         <LinkButton href="/events" size="sm" iconRight={<span aria-hidden>→</span>}>
-          Mijn evenementen
+          {user.firstName ? `${user.firstName}'s Vyra` : "Mijn Vyra"}
         </LinkButton>
-        <Link href="/profile" aria-label="Profiel" className="icon-pop hidden rounded-full sm:inline-block">
-          <UserAvatar firstName={user.firstName || "?"} lastName={user.lastName} color={user.avatarColor} size={32} />
-        </Link>
+        {/* Uitloggen i.p.v. een link naar het profiel — dat blijft bereikbaar via het
+            uitklapmenu hieronder ("Mijn profiel") en via de avatar in de ingelogde app zelf. */}
+        <form action={logoutAction} className="hidden sm:block">
+          <button
+            type="submit"
+            aria-label="Uitloggen"
+            className="icon-pop flex size-9 items-center justify-center rounded-full text-ink-faint hover:bg-paper-dim hover:text-ink"
+          >
+            <LogOut className="size-4" />
+          </button>
+        </form>
         <MarketingNavDrawer
           links={MARKETING_LINKS}
           footer={
