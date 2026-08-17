@@ -109,6 +109,8 @@ export interface EventCore {
   updatedAt: string;
 
   date: string | null; // ISO date
+  /** Als tijdens het AI-interview alleen een maand is genoemd ("ergens in juni"), zonder exacte datum. Wordt genegeerd zodra `date` bekend is. */
+  monthHint: string | null;
   startTime: string | null; // HH:mm
   endTime: string | null;
   timezone: string;
@@ -156,6 +158,14 @@ export interface RequirementCategory {
   aiRationale: string; // "Dit is een AI-aanbeveling: ..."
   selected: boolean; // gebruikerskeuze
   estimatedBudgetCents: number | null;
+  /**
+   * AI-conceptbericht voor deze categorie — de tekst die met leveranciers
+   * gedeeld gaat worden zodra er een aanvraag verstuurd wordt. Wordt
+   * gegenereerd zodra het plan klaarstaat (zie draftSupplierMessages() in
+   * lib/ai/planning.ts) en is door de organisator aan te passen vóórdat
+   * er echt iets verstuurd wordt.
+   */
+  draftMessage: string | null;
   status:
     | "suggested"
     | "selected"
@@ -491,6 +501,7 @@ export interface AppNotification {
   userId: string;
   eventId: string | null;
   type:
+    | "new_request"
     | "new_offer"
     | "supplier_responded"
     | "deadline_approaching"

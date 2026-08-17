@@ -177,7 +177,7 @@ function mockNextQuestion(event: EventCore, history: AiInterviewMessage[]): Next
         ? "Is het bij jou thuis, of zoek je een externe locatie?"
         : "Heb je al een locatie op het oog, of mag ik daar rekening mee houden dat we die nog gaan zoeken?",
     },
-    { known: isFieldKnown(event.date) || isFieldKnown((event as unknown as { monthHint?: string }).monthHint), question: "Wat is de gewenste datum, of in ieder geval de gewenste maand?" },
+    { known: isFieldKnown(event.date) || isFieldKnown(event.monthHint), question: "Wat is de gewenste datum, of in ieder geval de gewenste maand?" },
     { known: isFieldKnown(event.formality), question: "Wil je een formele of juist een informele sfeer?" },
     { known: isFieldKnown(event.budget?.totalCents), question: "Wat is ongeveer je totale budget voor dit evenement?" },
   ];
@@ -200,6 +200,7 @@ export async function generateNextQuestion(event: EventCore, history: AiIntervie
     location: event.locationLabel,
     locationType: event.locationType,
     date: event.date,
+    monthHint: event.monthHint,
     formality: event.formality,
     budget: event.budget?.totalCents,
     style: event.style,

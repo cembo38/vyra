@@ -3,6 +3,7 @@ import { getEvent, getRequirements } from "@/lib/data/store";
 import { Card } from "@/components/ui/Card";
 import { PriorityBadge } from "@/components/ui/Badge";
 import { RequirementToggle } from "@/components/app/RequirementToggle";
+import { RequirementDraftEditor } from "@/components/app/RequirementDraftEditor";
 import { LinkButton } from "@/components/ui/Button";
 import { confirmRequirementsAction } from "@/lib/actions/event-actions";
 import { formatCurrency } from "@/lib/config";
@@ -79,6 +80,7 @@ export default async function PlanPage(props: PageProps<"/events/[id]/plan">) {
                     <Sparkles className="mt-0.5 size-3.5 shrink-0" />
                     <p>{r.aiRationale}</p>
                   </div>
+                  {r.selected && <RequirementDraftEditor eventId={id} categoryId={r.id} initialMessage={r.draftMessage} />}
                 </Card>
               ))}
             </div>

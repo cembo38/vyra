@@ -1,9 +1,10 @@
 import "server-only";
 import { callStructuredAI } from "@/lib/ai/client";
-import { REQUIREMENT_GENERATOR_PROMPT, TIMELINE_ASSISTANT_PROMPT, RISK_DETECTION_PROMPT } from "@/lib/ai/prompts";
+import { REQUIREMENT_GENERATOR_PROMPT, TIMELINE_ASSISTANT_PROMPT, RISK_DETECTION_PROMPT, REQUEST_MESSAGE_DRAFTER_PROMPT } from "@/lib/ai/prompts";
 import { ALL_SUPPLIER_CATEGORIES, buildDefaultRequirements } from "@/lib/ai/catalog";
 import { EventCore, EventTimelineItem, RequirementCategory, RequirementPriority, RiskFlag, SupplierCategory, EVENT_TYPE_LABELS, SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
-import { uid } from "@/lib/utils";
+import { formatCurrency } from "@/lib/config";
+import { uid, formatDateNL } from "@/lib/utils";
 
 /* ------------------------------------------------------------------ */
 /* Requirement Generator AI                                            */
@@ -75,10 +76,109 @@ export async function generateRequirementPlan(event: EventCore) {
     aiRationale: c.rationale,
     selected: c.priority !== "optional",
     estimatedBudgetCents: c.estimatedBudgetCents,
+    draftMessage: null,
     status: "suggested",
   }));
 
   return { categories, usedAI };
+}
+
+/* ------------------------------------------------------------------ */
+/* Request Message Drafter AI                                          */
+/* ------------------------------------------------------------------ */
+
+const FORMALITY_LABELS: Record<NonNullable<EventCore["formality"]>, string> = {
+  casual: "informeel/relaxed",
+  semi_formal: "semi-formeel",
+  formal: "formeel/chic",
+};
+
+interface AiDraftMessage {
+  categoryKey: SupplierCategory;
+  message: string;
+}
+
+const DRAFT_MESSAGES_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    messages: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          categoryKey: { type: "string", enum: ALL_SUPPLIER_CATEGORIES },
+          message: { type: "string" },
+        },
+        required: ["categoryKey", "message"],
+      },
+    },
+  },
+  required: ["messages"],
+};
+
+/**
+ * Bouwt, zonder AI, een net-zo-bruikbaar conceptbericht op uit alleen de
+ * bekende eventvelden — gebruikt zowel als mock-fallback (geen
+ * ANTHROPIC_API_KEY) als wanneer de échte AI om wat voor reden dan ook
+ * geen tekst voor een categorie teruggeeft.
+ */
+function mockDraftMessage(event: EventCore, category: RequirementCategory): string {
+  const guestTotal = (event.guestCountAdults ?? 0) + (event.guestCountChildren ?? 0);
+  const opening: string[] = [`Op zoek naar ${category.label.toLowerCase()} voor ${EVENT_TYPE_LABELS[event.type].toLowerCase()}`];
+  if (guestTotal > 0) opening.push(`voor ongeveer ${guestTotal} gasten`);
+  if (event.locationLabel) opening.push(`in ${event.locationLabel}`);
+  if (event.date) opening.push(`op ${formatDateNL(event.date)}`);
+  else if (event.monthHint) opening.push(`ergens in ${event.monthHint}`);
+
+  const extras: string[] = [];
+  if (event.formality) extras.push(`De gewenste sfeer is ${FORMALITY_LABELS[event.formality]}.`);
+  if (event.style) extras.push(`Stijl: ${event.style}.`);
+  if (category.estimatedBudgetCents) extras.push(`Budget-indicatie voor deze categorie: ongeveer ${formatCurrency(category.estimatedBudgetCents)}.`);
+
+  return [opening.join(", ") + ".", ...extras].join(" ");
+}
+
+/**
+ * Schrijft, per geselecteerde categorie, een kort conceptbericht dat de
+ * organisator straks (aangepast of niet) naar leveranciers stuurt. Draait
+ * ná generateRequirementPlan() — de organisator ziet en bewerkt dit
+ * conceptbericht op /events/[id]/plan, vóórdat er ook maar iets echt
+ * verstuurd wordt (zie RequirementDraftEditor.tsx).
+ */
+export async function draftSupplierMessages(event: EventCore, categories: RequirementCategory[]) {
+  const selected = categories.filter((c) => c.selected);
+  if (selected.length === 0) return { messagesByCategory: new Map<SupplierCategory, string>(), usedAI: false };
+
+  const { data, usedAI } = await callStructuredAI<{ messages: AiDraftMessage[] }>({
+    role: "request_message_drafter",
+    system: REQUEST_MESSAGE_DRAFTER_PROMPT,
+    user: `Evenement: ${JSON.stringify({
+      type: EVENT_TYPE_LABELS[event.type],
+      naam: event.name,
+      gasten: (event.guestCountAdults ?? 0) + (event.guestCountChildren ?? 0),
+      locatie: event.locationLabel,
+      datum: event.date,
+      maandIndicatie: event.monthHint,
+      stijl: event.style,
+      formaliteit: event.formality,
+      zakelijk: event.isProfessional,
+    })}\nSchrijf voor elk van deze categorieën een apart conceptbericht: ${JSON.stringify(
+      selected.map((c) => ({ categoryKey: c.categoryKey, label: c.label, budgetIndicatie: c.estimatedBudgetCents }))
+    )}`,
+    schema: DRAFT_MESSAGES_SCHEMA,
+    schemaName: "draft_messages",
+    context: { userId: event.ownerId, eventId: event.id },
+    mockFallback: () => ({ messages: selected.map((c) => ({ categoryKey: c.categoryKey, message: mockDraftMessage(event, c) })) }),
+  });
+
+  const messagesByCategory = new Map<SupplierCategory, string>();
+  for (const c of selected) {
+    const found = data.messages.find((m) => m.categoryKey === c.categoryKey);
+    messagesByCategory.set(c.categoryKey, found?.message?.trim() || mockDraftMessage(event, c));
+  }
+  return { messagesByCategory, usedAI };
 }
 
 /* ------------------------------------------------------------------ */

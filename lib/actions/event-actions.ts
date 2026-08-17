@@ -18,9 +18,10 @@ import {
   setTimeline,
   toggleRequirementSelection,
   updateEvent,
+  updateRequirementDraftMessage,
 } from "@/lib/data/store";
 import { extractEventFields, generateNextQuestion } from "@/lib/ai/interview";
-import { generateRequirementPlan, generateTimeline, detectRisks } from "@/lib/ai/planning";
+import { generateRequirementPlan, generateTimeline, detectRisks, draftSupplierMessages } from "@/lib/ai/planning";
 import { detectChangeImpact } from "@/lib/ai/assistant";
 import { EVENT_TYPE_LABELS } from "@/lib/types";
 import { uid } from "@/lib/utils";
@@ -34,6 +35,11 @@ async function applyExtractedFields(eventId: string, extracted: Awaited<ReturnTy
   if (extracted.guestCountAdults != null && event.guestCountAdults == null) patch.guestCountAdults = extracted.guestCountAdults;
   if (extracted.guestCountChildren != null && event.guestCountChildren == null) patch.guestCountChildren = extracted.guestCountChildren;
   if (extracted.locationLabel && !event.locationLabel) patch.locationLabel = extracted.locationLabel;
+  // Alleen een maand genoemd ("ergens in juni"), geen exacte datum — bewaar
+  // 'm apart zodat dit antwoord niet verloren gaat (zie migratie 0013).
+  // Zodra een exacte datum bekend is (via de losse datumkiezer) is deze
+  // hint niet meer relevant, dus dan niet meer overschrijven.
+  if (extracted.monthHint && !event.date && !event.monthHint) patch.monthHint = extracted.monthHint;
   if (extracted.locationType && !event.locationType) patch.locationType = extracted.locationType;
   if (extracted.indoorOutdoor && !event.indoorOutdoor) patch.indoorOutdoor = extracted.indoorOutdoor;
   if (extracted.budgetCents != null && !event.budget) patch.budget = { totalCents: extracted.budgetCents, source: "user" };
@@ -92,7 +98,21 @@ export async function generatePlanAction(eventId: string) {
   if (!event) return;
 
   const { categories } = await generateRequirementPlan(event);
-  await setRequirements(eventId, categories);
+
+  // Meteen ook een conceptbericht per (geselecteerde) categorie klaarzetten
+  // — dit is de tekst die straks écht naar leveranciers gaat. De
+  // organisator ziet en bewerkt 'm op /events/[id]/plan, vóórdat er iets
+  // verstuurd wordt (zie RequirementDraftEditor.tsx). Nooit laten falen op
+  // een AI-hikje: zonder conceptbericht valt de kaart gewoon terug op de
+  // kale categorienaam, zoals voorheen.
+  let categoriesWithDrafts = categories;
+  try {
+    const { messagesByCategory } = await draftSupplierMessages(event, categories);
+    categoriesWithDrafts = categories.map((c) => ({ ...c, draftMessage: messagesByCategory.get(c.categoryKey) ?? null }));
+  } catch (err) {
+    console.error("[generatePlanAction] conceptberichten genereren mislukt, ga door zonder concept.", err);
+  }
+  await setRequirements(eventId, categoriesWithDrafts);
 
   const { timeline } = await generateTimeline(event, categories);
   await setTimeline(eventId, timeline);
@@ -122,6 +142,21 @@ export async function generatePlanAction(eventId: string) {
 export async function toggleRequirementAction(eventId: string, categoryId: string, selected: boolean) {
   await toggleRequirementSelection(eventId, categoryId, selected);
   revalidatePath(`/events/${eventId}`, "layout");
+}
+
+/**
+ * Slaat een handmatige aanpassing van het AI-conceptbericht op (zie
+ * RequirementDraftEditor.tsx op /events/[id]/plan) — dit is precies de
+ * tekst die straks als `desiredService` meegaat zodra de organisator de
+ * aanvraag voor deze categorie verstuurt.
+ */
+export async function updateRequirementDraftAction(eventId: string, categoryId: string, draftMessage: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const event = await getEvent(eventId);
+  if (!event || event.ownerId !== user.id) redirect("/events");
+
+  await updateRequirementDraftMessage(eventId, categoryId, draftMessage);
 }
 
 export async function confirmRequirementsAction(eventId: string) {

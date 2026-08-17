@@ -23,15 +23,19 @@ export function RequestCategoryCard({
   categoryKey,
   label,
   defaultBudgetCents,
+  initialMessage,
   matches,
 }: {
   eventId: string;
   categoryKey: SupplierCategory;
   label: string;
   defaultBudgetCents: number | null;
+  /** Het (eventueel al aangepaste) AI-conceptbericht van /events/[id]/plan — voorgevuld i.p.v. leeg. */
+  initialMessage: string | null;
   matches: SupplierPreview[];
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [message, setMessage] = useState(initialMessage ?? "");
   const [specialRequests, setSpecialRequests] = useState("");
   const [sent, setSent] = useState<number | null>(null);
   const [pending, startTransition] = useTransition();
@@ -86,10 +90,22 @@ export function RequestCategoryCard({
               </div>
             ))}
           </div>
+          <div>
+            <p className="mb-1 flex items-center gap-1 text-xs font-medium text-ink-faint">
+              <Sparkles className="size-3 text-sage" /> Bericht aan leveranciers
+            </p>
+            <textarea
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder={`Vertel leveranciers wat je zoekt voor ${label.toLowerCase()}.`}
+              rows={3}
+              className="w-full resize-none rounded-xl border border-line px-3 py-2 text-sm outline-none focus:border-sage"
+            />
+          </div>
           <textarea
             value={specialRequests}
             onChange={(e) => setSpecialRequests(e.target.value)}
-            placeholder="Speciale wensen? Bijv. 'vegetarische opties' of 'graag ook zaterdag beschikbaar'"
+            placeholder="Nog iets toevoegen? Bijv. 'vegetarische opties' of 'graag ook zaterdag beschikbaar'"
             rows={2}
             className="w-full resize-none rounded-xl border border-line px-3 py-2 text-sm outline-none focus:border-sage"
           />
@@ -97,7 +113,7 @@ export function RequestCategoryCard({
             disabled={pending}
             onClick={() =>
               startTransition(async () => {
-                const res = await sendRequestAction({ eventId, categoryKey, desiredService: label, specialRequests, budgetCents: defaultBudgetCents });
+                const res = await sendRequestAction({ eventId, categoryKey, desiredService: message.trim() || label, specialRequests, budgetCents: defaultBudgetCents });
                 setSent(res?.offerCount ?? 0);
               })
             }

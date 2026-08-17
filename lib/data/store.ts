@@ -1,9 +1,10 @@
 import "server-only";
 import { uid } from "@/lib/utils";
-import { DEFAULT_DEPOSIT_PERCENT, PLATFORM_COMMISSION_RATE, SUPPLIER_RESPONSE_WINDOW_HOURS, calculateCommission } from "@/lib/config";
+import { DEFAULT_DEPOSIT_PERCENT, EMAIL_ENABLED, PLATFORM_COMMISSION_RATE, SUPPLIER_RESPONSE_WINDOW_HOURS, calculateCommission } from "@/lib/config";
 import { SUPPLIERS, suppliersByCategory, getSupplierById } from "@/lib/data/suppliers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { sendNotificationEmail } from "@/lib/email/send";
 import {
   AiInterviewMessage,
   AppNotification,
@@ -92,6 +93,7 @@ function rowToEvent(r: Row, notes: EventNote[] = []): EventCore {
     createdAt: r.created_at,
     updatedAt: r.updated_at,
     date: r.date,
+    monthHint: r.month_hint ?? null,
     startTime: r.start_time,
     endTime: r.end_time,
     timezone: r.timezone,
@@ -128,6 +130,7 @@ function rowToRequirement(r: Row): RequirementCategory {
     aiRationale: r.ai_rationale ?? "",
     selected: r.selected,
     estimatedBudgetCents: r.estimated_budget_cents,
+    draftMessage: r.draft_message ?? null,
     status: r.status,
   };
 }
@@ -330,7 +333,7 @@ export async function updateEvent(eventId: string, patch: Partial<EventCore>): P
   const supabase = await sb();
   const update: Row = { updated_at: new Date().toISOString() };
   const map: Record<string, string> = {
-    name: "name", type: "type", stage: "stage", description: "description", date: "date",
+    name: "name", type: "type", stage: "stage", description: "description", date: "date", monthHint: "month_hint",
     startTime: "start_time", endTime: "end_time", timezone: "timezone",
     guestCountAdults: "guest_count_adults", guestCountChildren: "guest_count_children",
     locationLabel: "location_label", locationType: "location_type", indoorOutdoor: "indoor_outdoor",
@@ -412,6 +415,7 @@ export async function setRequirements(eventId: string, categories: RequirementCa
     ai_rationale: c.aiRationale,
     selected: c.selected,
     estimated_budget_cents: c.estimatedBudgetCents,
+    draft_message: c.draftMessage,
     status: c.status,
   }));
   const { data, error } = await supabase.from("event_requirements").insert(rows).select();
@@ -425,6 +429,16 @@ export async function toggleRequirementSelection(eventId: string, categoryId: st
   if (selected) patch.status = "selected";
   await supabase.from("event_requirements").update(patch).eq("id", categoryId).eq("event_id", eventId);
   return getRequirements(eventId);
+}
+
+/**
+ * Laat de organisator het AI-conceptbericht voor een categorie aanpassen
+ * vóórdat er een aanvraag naar leveranciers verstuurd wordt (zie
+ * RequirementDraftEditor.tsx op /events/[id]/plan).
+ */
+export async function updateRequirementDraftMessage(eventId: string, categoryId: string, draftMessage: string): Promise<void> {
+  const supabase = await sb();
+  await supabase.from("event_requirements").update({ draft_message: draftMessage }).eq("id", categoryId).eq("event_id", eventId);
 }
 
 export async function updateRequirementStatus(eventId: string, categoryKey: SupplierCategory, status: RequirementCategory["status"]): Promise<RequirementCategory[]> {
@@ -919,6 +933,23 @@ export async function createAndSendRequest(params: {
     await supabase.from("request_targets").insert(
       realMatches.map(({ supplier }) => ({ request_id: request.id, supplier_id: supplier.id, status: "pending" }))
     );
+
+    // Tot nu toe kreeg een écht (niet-gesimuleerd) leveranciersaccount
+    // helemaal geen seintje dat er een nieuwe aanvraag in hun inbox lag —
+    // niet in-app, niet per e-mail. Zonder dit moet een leverancier zelf
+    // regelmatig /supplier/requests blijven controleren.
+    await Promise.all(
+      realMatches.map(({ supplier }) =>
+        pushNotification({
+          userId: supplier.ownerId,
+          eventId: params.eventId,
+          type: "new_request",
+          title: "Nieuwe aanvraag",
+          body: `Een organisator zoekt ${SUPPLIER_CATEGORY_LABELS[params.categoryKey].toLowerCase()} voor hun evenement.`,
+          href: `/supplier/requests/${request.id}`,
+        })
+      )
+    );
   }
 
   // Demo-modus: we simuleren dat leveranciers (met wisselende snelheid)
@@ -1007,6 +1038,18 @@ export async function sendCustomSupplierRequest(params: {
   const request = rowToRequest(requestRow);
 
   await supabase.from("request_targets").insert({ request_id: request.id, supplier_id: params.supplierId, status: "pending" });
+
+  const supplier = await getSupplierAccount(params.supplierId);
+  if (supplier) {
+    await pushNotification({
+      userId: supplier.ownerId,
+      eventId: params.eventId,
+      type: "new_request",
+      title: "Nieuwe maatwerkaanvraag",
+      body: `Een organisator heeft rechtstreeks een aanvraag voor ${SUPPLIER_CATEGORY_LABELS[params.categoryKey].toLowerCase()} naar je gestuurd.`,
+      href: `/supplier/requests/${request.id}`,
+    });
+  }
 
   return request;
 }
@@ -1754,6 +1797,15 @@ async function pushNotificationOnce(
   });
 }
 
+/**
+ * Meldingstypes die, naast de in-app-melding, ook een e-mail waard zijn —
+ * bewust een beperkte selectie (nieuwe aanvraag, nieuwe/beantwoorde
+ * offerte, verlopen reactietermijn) in plaats van alles: te veel mails
+ * voelt al snel als spam, en niet elke melding (bv. "notitie bijgewerkt")
+ * is dringend genoeg om iemands inbox te storen.
+ */
+const EMAIL_NOTIFICATION_TYPES = new Set<AppNotification["type"]>(["new_request", "new_offer", "supplier_responded", "deadline_approaching"]);
+
 export async function pushNotification(n: Omit<AppNotification, "id" | "createdAt" | "read">): Promise<AppNotification | null> {
   const supabase = await sb();
   const { data, error } = await supabase
@@ -1762,6 +1814,31 @@ export async function pushNotification(n: Omit<AppNotification, "id" | "createdA
     .select()
     .single();
   if (error || !data) return null;
+
+  if (EMAIL_ENABLED && EMAIL_NOTIFICATION_TYPES.has(n.type)) {
+    // Los van de gewone (RLS-beperkte) client: de aanroeper van
+    // pushNotification() is vaak een ANDERE gebruiker dan de ontvanger
+    // (bv. een leverancier die de organisator een melding stuurt), en mag
+    // diens profiel dus niet lezen. Zie de uitgebreide toelichting bij
+    // createSupabaseAdminClient() in lib/supabase/admin.ts. Bewust
+    // AWAITED (niet fire-and-forget) — in een serverless functie kan
+    // niet-afgewachte achtergrondcode worden afgebroken zodra het
+    // antwoord is verstuurd. try/catch eromheen zodat een hikkende
+    // mailprovider nooit de eigenlijke actie (aanvraag versturen, offerte
+    // indienen, ...) laat mislukken.
+    try {
+      const admin = createSupabaseAdminClient();
+      if (admin) {
+        const { data: profile } = await admin.from("profiles").select("email").eq("id", n.userId).maybeSingle();
+        if (profile?.email) {
+          await sendNotificationEmail({ to: profile.email, title: n.title, body: n.body, href: n.href });
+        }
+      }
+    } catch (err) {
+      console.error("[email] versturen van meldingsmail mislukt:", err);
+    }
+  }
+
   return rowToNotification(data);
 }
 

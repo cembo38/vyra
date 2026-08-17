@@ -121,6 +121,7 @@ function req(params: {
     aiRationale: params.aiRationale,
     selected: true,
     estimatedBudgetCents: params.estimatedBudgetCents,
+    draftMessage: null,
     status: params.status,
   };
 }
@@ -147,6 +148,7 @@ function buildWeddingEvent(ownerId: string): EventBundle {
     createdAt: new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(),
     date: eventDate,
+    monthHint: null,
     startTime: "15:00",
     endTime: "23:59",
     timezone: "Europe/Amsterdam",
@@ -342,6 +344,7 @@ function buildBirthdayEvent(ownerId: string): EventBundle {
     createdAt: new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000).toISOString(),
     updatedAt: new Date(now.getTime() - 5 * 60 * 60 * 1000).toISOString(),
     date: eventDate,
+    monthHint: null,
     startTime: "17:00",
     endTime: "23:00",
     timezone: "Europe/Amsterdam",

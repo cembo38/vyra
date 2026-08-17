@@ -28,7 +28,15 @@ export default async function EventLayout(props: LayoutProps<"/events/[id]">) {
               <h1 className="mt-1 font-display text-2xl tracking-tight text-ink sm:text-3xl">{event.name}</h1>
               <div className="mt-2 flex flex-wrap items-center gap-3">
                 <StageBadge stage={event.stage} />
-                <EventCountdown dateIso={event.date} emptyState={<EventDateQuickAdd eventId={event.id} />} />
+                <EventCountdown
+                  dateIso={event.date}
+                  emptyState={
+                    <div className="flex flex-wrap items-center gap-2">
+                      <EventDateQuickAdd eventId={event.id} />
+                      {event.monthHint && <span className="text-xs text-ink-faint">(uit je gesprek: {event.monthHint})</span>}
+                    </div>
+                  }
+                />
               </div>
             </div>
           </div>

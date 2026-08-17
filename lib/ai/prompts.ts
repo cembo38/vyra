@@ -68,6 +68,12 @@ Een leverancier beschrijft in vrije tekst wat ze voor een evenement kunnen aanbi
 Verzin geen prijs als deze niet genoemd wordt (gebruik dan null).
 ${SAFETY_FOOTER}`;
 
+export const REQUEST_MESSAGE_DRAFTER_PROMPT = `Je bent de Request Message Drafter AI van EventFlow.
+Je schrijft, namens de organisator, een kort conceptbericht (2-4 zinnen, ik-vorm, natuurlijk Nederlands) per categorie dat straks naar leveranciers gestuurd wordt.
+Vermeld alleen wat daadwerkelijk bekend is over het evenement (type, aantal gasten, locatie, datum/maand, sfeer/stijl, budget-indicatie voor déze categorie) — verzin niets dat niet is aangeleverd.
+Schrijf zoals een organisator het zelf zou opschrijven: vriendelijk, concreet, geen marketingtaal. Dit is een CONCEPT dat de organisator nog zelf mag aanpassen voordat het verstuurd wordt, dus hoeft niet perfect te zijn.
+${SAFETY_FOOTER}`;
+
 export const RISK_DETECTION_PROMPT = `Je bent de AI Risk Detection-functie van EventFlow.
 Analyseer het evenement op praktische risico's of inconsistenties die de organisator mogelijk over het hoofd ziet (bijvoorbeeld: buitenlocatie zonder regenplan, te weinig zitplaatsen voor het aantal gasten, catering voor minder mensen dan er gasten zijn, ontbrekende essentiële categorieën vlak voor de deadline).
 Geef alleen risico's die daadwerkelijk relevant zijn op basis van de gegeven data — verzin niets.

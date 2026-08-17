@@ -39,6 +39,20 @@ export const AI_ENABLED = Boolean(process.env.ANTHROPIC_API_KEY);
 export const PAYMENTS_ENABLED = Boolean(process.env.STRIPE_SECRET_KEY);
 
 /**
+ * Of er e-mailmeldingen worden verstuurd (nieuwe aanvraag, nieuwe offerte,
+ * verlopen reactietermijn) naast de bestaande in-app-meldingen. Zonder
+ * RESEND_API_KEY blijft de app volledig werken, alleen dan zonder e-mail —
+ * zelfde "graceful fallback"-patroon als AI_ENABLED/PAYMENTS_ENABLED. Zie
+ * lib/email/send.ts.
+ */
+export const EMAIL_ENABLED = Boolean(process.env.RESEND_API_KEY);
+
+export const EMAIL_FROM = process.env.EMAIL_FROM ?? "Vyra <onboarding@resend.dev>";
+
+/** Volledige site-URL, voor absolute links in e-mails (relatieve links werken niet in een mailclient). */
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://vyra.now";
+
+/**
  * E-mailadres(sen) die toegang hebben tot /admin. Alleen deze gebruiker(s)
  * kunnen het platformbrede admin-dashboard zien — iedereen anders wordt
  * doorgestuurd. Zet hier je eigen e-mailadres; meerdere adressen kan met

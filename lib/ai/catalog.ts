@@ -180,6 +180,7 @@ export function buildDefaultRequirements(event: EventCore): RequirementCategory[
     aiRationale: t.rationale,
     selected: t.priority !== "optional",
     estimatedBudgetCents: totalBudget ? Math.round((t.weight / totalWeight) * totalBudget) : null,
+    draftMessage: null,
     status: "suggested",
   }));
 }

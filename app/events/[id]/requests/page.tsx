@@ -58,6 +58,7 @@ export default async function RequestsPage(props: PageProps<"/events/[id]/reques
                   categoryKey={r.categoryKey}
                   label={r.label}
                   defaultBudgetCents={r.estimatedBudgetCents}
+                  initialMessage={r.draftMessage}
                   matches={matches}
                 />
               );
