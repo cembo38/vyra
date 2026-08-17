@@ -20,7 +20,7 @@ export default async function MessageThreadPage(props: PageProps<"/events/[id]/m
   const request = requests.find((r) => r.categoryKey === categoryKey);
   const supplierId = request?.targetSupplierId ?? request?.supplierIds[0];
   const supplier = supplierId ? await resolveSupplierDisplay(supplierId) : null;
-  const messages = await getMessages(id, categoryKey);
+  const messages = await getMessages(id, categoryKey, supplierId);
 
   return (
     <div className="mx-auto max-w-2xl">

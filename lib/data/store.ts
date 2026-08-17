@@ -1438,9 +1438,20 @@ export async function getPaymentsForEvent(eventId: string): Promise<Payment[]> {
 /* MESSAGES                                                             */
 /* ------------------------------------------------------------------ */
 
-export async function getMessages(eventId: string, categoryKey: SupplierCategory): Promise<Message[]> {
+/**
+ * `supplierId` is optioneel: de organisatoren-kant kent 'm niet altijd
+ * vooraf (zie `app/events/[id]/messages/[category]/page.tsx`, waar hij pas
+ * ná het opzoeken van de aanvraag bekend is) en zonder filter blijft het
+ * bestaande gedrag exact hetzelfde. Wél meegeven zodra bekend — inclusief
+ * altijd vanaf de leverancierskant — scopet het gesprek netjes tot precies
+ * díe leverancier, ook in het randgeval dat eenzelfde categorie ooit naar
+ * meerdere leveranciers is gestuurd.
+ */
+export async function getMessages(eventId: string, categoryKey: SupplierCategory, supplierId?: string): Promise<Message[]> {
   const supabase = await sb();
-  const { data } = await supabase.from("messages").select("*").eq("event_id", eventId).eq("category_key", categoryKey).order("created_at", { ascending: true });
+  let query = supabase.from("messages").select("*").eq("event_id", eventId).eq("category_key", categoryKey);
+  if (supplierId) query = query.eq("supplier_id", supplierId);
+  const { data } = await query.order("created_at", { ascending: true });
   return (data ?? []).map(rowToMessage);
 }
 

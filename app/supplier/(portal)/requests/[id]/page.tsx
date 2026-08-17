@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -8,7 +9,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getSupplierAccountByOwner, getSupplierLead, getSupplierOfferForRequest } from "@/lib/data/store";
 import { EVENT_TYPE_LABELS, SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
 import { formatCurrency } from "@/lib/config";
-import { CheckCircle2, MapPin, Users } from "lucide-react";
+import { CheckCircle2, MapPin, MessageSquare, Users } from "lucide-react";
 
 export const metadata = { title: "Aanvraag — Vyra voor leveranciers" };
 
@@ -40,6 +41,13 @@ export default async function SupplierRequestDetailPage(props: PageProps<"/suppl
         </div>
         {!existingOffer && <DeadlineCountdown deadlineIso={lead.request.deadlineAt} />}
       </div>
+
+      <Link
+        href={`/supplier/messages/${lead.request.id}`}
+        className="chip-hover mt-4 inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3.5 py-2 text-sm font-medium text-ink-soft hover:border-sage/50 hover:text-ink"
+      >
+        <MessageSquare className="size-4" /> Naar het gesprek
+      </Link>
 
       <Card className="mt-6">
         <h2 className="mb-3 font-display text-lg text-ink">Details van het evenement</h2>
