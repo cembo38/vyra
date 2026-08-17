@@ -37,5 +37,9 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  // "icon"/"apple-icon" erbij: sinds het favicon nu een gegenereerde route
+  // is (app/icon.tsx) i.p.v. het statische favicon.ico, moet die net als
+  // favicon.ico hier uitgezonderd worden — anders ververst elke favicon-
+  // aanvraag (die browsers vaak sturen) onnodig de Supabase-sessie mee.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|icon|apple-icon|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };

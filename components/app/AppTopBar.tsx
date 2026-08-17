@@ -13,12 +13,12 @@ export async function AppTopBar() {
   const [notifications, supplier] = await Promise.all([getNotifications(user.id), getSupplierAccountByOwner(user.id)]);
 
   const items: NavShellItem[] = [
-    { href: "/events", label: "Mijn evenementen", icon: CalendarHeart },
-    { href: "/leveranciers", label: "Leveranciers zoeken", icon: Search },
+    { href: "/events", label: "Mijn evenementen", icon: <CalendarHeart className="size-5 shrink-0" /> },
+    { href: "/leveranciers", label: "Leveranciers zoeken", icon: <Search className="size-5 shrink-0" /> },
     {
       href: supplier ? "/supplier/dashboard" : "/supplier/onboarding",
       label: supplier ? "Leveranciersportaal" : "Ook leverancier worden?",
-      icon: Store,
+      icon: <Store className="size-5 shrink-0" />,
     },
   ];
 

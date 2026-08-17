@@ -8,11 +8,11 @@ import { logoutAction } from "@/lib/actions/auth-actions";
 import { LogOut, LayoutDashboard, Inbox, ShoppingBag, CalendarDays, CalendarHeart } from "lucide-react";
 
 const ITEMS: NavShellItem[] = [
-  { href: "/supplier/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/supplier/requests", label: "Aanvragen", icon: Inbox },
-  { href: "/supplier/orders", label: "Orders", icon: ShoppingBag },
-  { href: "/supplier/calendar", label: "Kalender", icon: CalendarDays },
-  { href: "/events", label: "Mijn evenementen", icon: CalendarHeart },
+  { href: "/supplier/dashboard", label: "Dashboard", icon: <LayoutDashboard className="size-5 shrink-0" /> },
+  { href: "/supplier/requests", label: "Aanvragen", icon: <Inbox className="size-5 shrink-0" /> },
+  { href: "/supplier/orders", label: "Orders", icon: <ShoppingBag className="size-5 shrink-0" /> },
+  { href: "/supplier/calendar", label: "Kalender", icon: <CalendarDays className="size-5 shrink-0" /> },
+  { href: "/events", label: "Mijn evenementen", icon: <CalendarHeart className="size-5 shrink-0" /> },
 ];
 
 export function SupplierTopBar({ user, supplier }: { user: UserAccount; supplier: SupplierAccount }) {

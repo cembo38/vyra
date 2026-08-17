@@ -3,7 +3,7 @@
 import { ReactNode, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, type LucideIcon } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { Drawer } from "@/components/ui/Drawer";
 import { LinkButton } from "@/components/ui/Button";
 import { SIDEBAR_WIDTH_CLASS } from "@/lib/nav-constants";
@@ -12,7 +12,17 @@ import { cn } from "@/lib/utils";
 export interface NavShellItem {
   href: string;
   label: string;
-  icon: LucideIcon;
+  /**
+   * Al-gerenderd icoon-element (bv. `<CalendarHeart className="size-5
+   * shrink-0" />`), GEEN los componenttype. NavShell is een Client
+   * Component; een niet-aangeroepen componentverwijzing (zoals het
+   * componenttype zelf) is een functie en functies kunnen niet van een
+   * Server Component naar een Client Component worden doorgegeven — dat
+   * crasht de pagina met "Functions cannot be passed directly to Client
+   * Components". Een reeds gerenderd element (het resultaat van `<Icon />`)
+   * is wél gewoon serialiseerbare React-inhoud.
+   */
+  icon: ReactNode;
 }
 
 interface NavShellProps {
@@ -98,7 +108,6 @@ export function NavShell({ items, logo, logoMark, badge, primaryAction, utility,
         )}
         <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-4">
           {items.map((item) => {
-            const Icon = item.icon;
             const active = isActive(item.href, pathname);
             return (
               <Link
@@ -109,7 +118,7 @@ export function NavShell({ items, logo, logoMark, badge, primaryAction, utility,
                   active ? "bg-paper-dim text-ink" : "text-ink-soft hover:bg-paper-dim hover:text-ink"
                 )}
               >
-                <Icon className="size-5 shrink-0" />
+                {item.icon}
                 {item.label}
               </Link>
             );
@@ -143,7 +152,6 @@ export function NavShell({ items, logo, logoMark, badge, primaryAction, utility,
         )}
         <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-2 lg:px-3">
           {items.map((item) => {
-            const Icon = item.icon;
             const active = isActive(item.href, pathname);
             return (
               <Link
@@ -156,7 +164,7 @@ export function NavShell({ items, logo, logoMark, badge, primaryAction, utility,
                   active ? "bg-paper-dim text-ink" : "text-ink-soft hover:bg-paper-dim hover:text-ink"
                 )}
               >
-                <Icon className="size-5 shrink-0" />
+                {item.icon}
                 <span className="hidden lg:inline">{item.label}</span>
               </Link>
             );
