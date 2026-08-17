@@ -256,23 +256,37 @@
 
 /* Standaard (ook touchscreens): label altijd zichtbaar, gewoon met een
    vaste marge naast het icoon. Pas op apparaten met écht hover wordt dat
-   hieronder overschreven naar "eerst ingeklapt, uitklappen bij hover". */
+   hieronder overschreven naar "eerst ingeklapt, uitklappen bij hover".
+   De buitenste span is een 1-koloms grid (`fr`-eenheid) i.p.v. een
+   geschatte max-width: zo volgt de animatie precies de werkelijke
+   tekstbreedte. Met max-width oogde het uitklappen abrupt zodra de tekst
+   al "op" was terwijl de animatie richting een groter geschat maximum
+   bleef doorlopen — de zichtbare groei stopte dan te vroeg. De iets
+   langzamere duur (1,6× de standaard --duration-swift) en de vertraagde
+   opacity geven het geheel bovendien een rustiger, minder "knipperig"
+   verloop dan de knop-klikfeedback elders, die bewust wél snel is. */
 .expand-hover-label {
+  display: grid;
+  grid-template-columns: 1fr;
   margin-left: 0.5rem;
+}
+.expand-hover-label-inner {
   overflow: hidden;
   white-space: nowrap;
+  min-width: 0;
 }
 @media (hover: hover) and (pointer: fine) {
   .expand-hover-label {
-    max-width: 0;
+    grid-template-columns: 0fr;
     margin-left: 0;
     opacity: 0;
-    transition: max-width var(--duration-swift) var(--ease-swift), margin-left var(--duration-swift) var(--ease-swift),
-      opacity var(--duration-swift) var(--ease-swift);
+    transition: grid-template-columns calc(var(--duration-swift) * 1.6) var(--ease-swift),
+      margin-left calc(var(--duration-swift) * 1.6) var(--ease-swift),
+      opacity var(--duration-swift) var(--ease-swift) calc(var(--duration-swift) * 0.5);
   }
   .expand-hover:hover .expand-hover-label,
   .expand-hover:focus-visible .expand-hover-label {
-    max-width: 12rem;
+    grid-template-columns: 1fr;
     margin-left: 0.5rem;
     opacity: 1;
   }

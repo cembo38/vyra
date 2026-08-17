@@ -98,7 +98,13 @@ export function LinkButton({
       )}
     >
       {icon}
-      {expandOnHover ? <span className="expand-hover-label">{children}</span> : children}
+      {expandOnHover ? (
+        <span className="expand-hover-label">
+          <span className="expand-hover-label-inner">{children}</span>
+        </span>
+      ) : (
+        children
+      )}
       {iconRight}
     </Link>
   );
