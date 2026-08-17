@@ -5,6 +5,7 @@ import { computeReadiness, getBudgetSummary, listEventsForUser } from "@/lib/dat
 import { CardHover } from "@/components/ui/Card";
 import { StageBadge } from "@/components/ui/Badge";
 import { EventCountdown } from "@/components/ui/Countdown";
+import { EventDateQuickAdd } from "@/components/app/EventDateQuickAdd";
 import { ReadinessRing } from "@/components/ui/ProgressBar";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkButton } from "@/components/ui/Button";
@@ -63,8 +64,14 @@ export default async function MyEventsPage() {
 
                   <div className="mt-5 space-y-2 text-sm text-ink-soft">
                     <div className="flex items-center gap-2">
-                      <CalendarHeart className="size-4 text-ink-faint" />
-                      {event.date ? formatDateNL(event.date) : "Datum nog niet bepaald"}
+                      {event.date ? (
+                        <>
+                          <CalendarHeart className="size-4 text-ink-faint" />
+                          {formatDateNL(event.date)}
+                        </>
+                      ) : (
+                        <EventDateQuickAdd eventId={event.id} stopPropagation />
+                      )}
                     </div>
                     {event.locationLabel && (
                       <div className="flex items-center gap-2">

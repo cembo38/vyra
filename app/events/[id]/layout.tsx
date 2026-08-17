@@ -2,6 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { getEvent } from "@/lib/data/store";
 import { EventSubNav } from "@/components/app/EventSubNav";
+import { EventDateQuickAdd } from "@/components/app/EventDateQuickAdd";
 import { StageBadge } from "@/components/ui/Badge";
 import { EventCountdown } from "@/components/ui/Countdown";
 import { BackLink } from "@/components/ui/BackLink";
@@ -27,7 +28,7 @@ export default async function EventLayout(props: LayoutProps<"/events/[id]">) {
               <h1 className="mt-1 font-display text-2xl tracking-tight text-ink sm:text-3xl">{event.name}</h1>
               <div className="mt-2 flex flex-wrap items-center gap-3">
                 <StageBadge stage={event.stage} />
-                <EventCountdown dateIso={event.date} />
+                <EventCountdown dateIso={event.date} emptyState={<EventDateQuickAdd eventId={event.id} />} />
               </div>
             </div>
           </div>

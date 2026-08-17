@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { Clock } from "lucide-react";
 
@@ -38,9 +38,18 @@ export function DeadlineCountdown({ deadlineIso, className }: { deadlineIso: str
   );
 }
 
-export function EventCountdown({ dateIso, className }: { dateIso: string | null; className?: string }) {
+export function EventCountdown({
+  dateIso,
+  className,
+  emptyState,
+}: {
+  dateIso: string | null;
+  className?: string;
+  /** Optioneel: vervangt de standaard "Datum nog niet bepaald"-tekst, bv. door een klikbaar veldje om er meteen een datum aan toe te voegen. */
+  emptyState?: ReactNode;
+}) {
   if (!dateIso) {
-    return <span className={cn("text-sm text-ink-faint", className)}>Datum nog niet bepaald</span>;
+    return emptyState ?? <span className={cn("text-sm text-ink-faint", className)}>Datum nog niet bepaald</span>;
   }
   const target = new Date(dateIso + "T00:00:00");
   const now = new Date();

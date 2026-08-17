@@ -174,6 +174,25 @@ export async function addNoteAction(eventId: string, text: string) {
  * telt niet langer mee voor automatische herinneringen (verlopen
  * reactietermijnen, naderende deadlines, budgetoverschrijding).
  */
+/**
+ * Zet (of wijzigt) de datum van een evenement — bedoeld voor de "Datum
+ * toevoegen"-snelkoppeling die overal verschijnt waar nog geen datum is
+ * ingevuld (evenementenlijst, evenement-header). `date` komt rechtstreeks
+ * uit een `<input type="date">`, dus al in `YYYY-MM-DD`-formaat — precies
+ * wat `EventCore.date` verwacht.
+ */
+export async function updateEventDateAction(eventId: string, formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const event = await getEvent(eventId);
+  if (!event || event.ownerId !== user.id) redirect("/events");
+
+  const date = String(formData.get("date") ?? "").trim();
+  await updateEvent(eventId, { date: date || null });
+  revalidatePath(`/events/${eventId}`, "layout");
+  revalidatePath("/events");
+}
+
 export async function closeEventAction(eventId: string) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
