@@ -1,7 +1,7 @@
 import "server-only";
 import { callStructuredAI } from "@/lib/ai/client";
 import { REQUIREMENT_GENERATOR_PROMPT, TIMELINE_ASSISTANT_PROMPT, RISK_DETECTION_PROMPT, REQUEST_MESSAGE_DRAFTER_PROMPT } from "@/lib/ai/prompts";
-import { ALL_SUPPLIER_CATEGORIES, buildDefaultRequirements } from "@/lib/ai/catalog";
+import { ALL_SUPPLIER_CATEGORIES, buildDefaultRequirements, TYPICAL_CATEGORY_COST_CENTS } from "@/lib/ai/catalog";
 import { EventCore, EventTimelineItem, RequirementCategory, RequirementPriority, RiskFlag, SupplierCategory, EVENT_TYPE_LABELS, SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
 import { formatCurrency } from "@/lib/config";
 import { uid, formatDateNL } from "@/lib/utils";
@@ -53,7 +53,7 @@ export async function generateRequirementPlan(event: EventCore) {
       formaliteit: event.formality,
       zakelijk: event.isProfessional,
       beschrijving: event.description,
-    })}\nToegestane categorie-sleutels: ${ALL_SUPPLIER_CATEGORIES.join(", ")}`,
+    })}\nToegestane categorie-sleutels: ${ALL_SUPPLIER_CATEGORIES.join(", ")}\nTypische marktprijzen per categorie in centen (richtlijn, gebruik vooral als het totaalbudget van de gebruiker onbekend is): ${JSON.stringify(TYPICAL_CATEGORY_COST_CENTS)}`,
     schema: REQUIREMENTS_SCHEMA,
     schemaName: "requirement_plan",
     context: { userId: event.ownerId, eventId: event.id },

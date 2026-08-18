@@ -108,6 +108,7 @@ function playBeep(frequencyHz: number, durationMs: number) {
 export function VoiceInputButton({ onTranscript, className }: { onTranscript: (text: string) => void; className?: string }) {
   const supported = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const [listening, setListening] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const onTranscriptRef = useRef(onTranscript);
   // Ref i.p.v. de `listening`-state: deze wordt gelezen in event-handlers
@@ -115,10 +116,28 @@ export function VoiceInputButton({ onTranscript, className }: { onTranscript: (t
   // een ref blijft — anders dan een uit de sluiting meegekregen state-
   // waarde — altijd actueel.
   const holdingRef = useRef(false);
+  const gotResultRef = useRef(false);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     onTranscriptRef.current = onTranscript;
   });
+
+  // Foutmelding na een paar seconden vanzelf laten verdwijnen, zodat hij
+  // niet voor altijd blijft hangen als iemand het gewoon nog een keer
+  // probeert of overschakelt naar typen.
+  useEffect(() => {
+    if (!error) return;
+    const t = setTimeout(() => setError(null), 5000);
+    return () => clearTimeout(t);
+  }, [error]);
+
+  function clearSafetyTimeout() {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }
 
   useEffect(() => {
     if (!supported) return;
@@ -134,11 +153,22 @@ export function VoiceInputButton({ onTranscript, className }: { onTranscript: (t
         .map((result) => result[0]?.transcript ?? "")
         .join(" ")
         .trim();
-      if (transcript) onTranscriptRef.current(transcript);
+      if (transcript) {
+        gotResultRef.current = true;
+        clearSafetyTimeout();
+        setError(null);
+        onTranscriptRef.current(transcript);
+      }
     };
     recognition.onerror = () => {
+      // Sommige browsers (met name mobiele Safari) laten dit event soms
+      // ook zonder echte fout afgaan wanneer er simpelweg niets werd
+      // gehoord — toon daarom een neutrale, geruststellende melding i.p.v.
+      // een harde foutmelding.
       holdingRef.current = false;
+      clearSafetyTimeout();
       setListening(false);
+      setError("Geen spraak herkend — probeer het nog eens, of typ je antwoord.");
     };
     recognition.onend = () => {
       // De browser stopt vanzelf na een korte stilte, ook als de knop nog
@@ -155,6 +185,14 @@ export function VoiceInputButton({ onTranscript, className }: { onTranscript: (t
           // Val door naar het gewone stop-gedrag hieronder.
         }
       }
+      clearSafetyTimeout();
+      // Als "luisteren" gewoon eindigde zonder dat er ooit een transcript
+      // binnenkwam (en zonder dat `onerror` iets meldde) — dit is precies
+      // het stille faalpatroon dat op sommige mobiele browsers optreedt —
+      // laat dat dan alsnog duidelijk merken i.p.v. gewoon niets te doen.
+      if (listening && !gotResultRef.current) {
+        setError("Er is niets opgenomen — controleer of de microfoon is toegestaan, of typ je antwoord.");
+      }
       setListening(false);
     };
     recognitionRef.current = recognition;
@@ -165,35 +203,80 @@ export function VoiceInputButton({ onTranscript, className }: { onTranscript: (t
       recognition.onend = null;
       recognition.stop();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supported]);
 
   if (!supported) return null;
 
-  function startListening() {
+  async function startListening() {
     if (holdingRef.current) return;
     const recognition = recognitionRef.current;
     if (!recognition) return;
     holdingRef.current = true;
+    gotResultRef.current = false;
+    setError(null);
+
+    // Vraag microfoontoegang eerst expliciet zelf aan i.p.v. te vertrouwen
+    // op de interne toestemmingsaanvraag van `SpeechRecognition` — op
+    // mobiele Safari bleek die laatste onbetrouwbaar: soms verschijnt er
+    // helemaal geen toestemmingsprompt en start `recognition.start()`
+    // vervolgens stilzwijgend niets op (geen opname, geen fout, geen
+    // transcript — precies het gemelde probleem). Deze expliciete aanvraag
+    // dwingt de browser-eigen prompt af en geeft ons een harde fout te
+    // pakken als toegang geweigerd is.
+    if (navigator.mediaDevices?.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Alleen nodig om de toestemming te forceren/bevestigen —
+        // `SpeechRecognition` beheert zijn eigen audio-opname apart, dus
+        // deze losse stream meteen weer sluiten.
+        stream.getTracks().forEach((track) => track.stop());
+      } catch {
+        holdingRef.current = false;
+        setError("Geen toegang tot de microfoon — controleer microfoontoestemming voor deze site in je browser-/telefooninstellingen.");
+        return;
+      }
+    }
+    // De knop kan intussen (tijdens het wachten op de toestemmingsprompt)
+    // alweer losgelaten zijn — dan niet alsnog beginnen met luisteren.
+    if (!holdingRef.current) return;
+
     try {
       recognition.start();
       setListening(true);
       playBeep(880, 100);
+      // Vangnet: als er na 10 seconden nog steeds niets is gebeurd (geen
+      // resultaat, geen fout, geen einde), forceer dan een duidelijke
+      // melding i.p.v. de gebruiker met een stille, "vastzittende" knop
+      // achter te laten.
+      clearSafetyTimeout();
+      timeoutRef.current = setTimeout(() => {
+        if (holdingRef.current && !gotResultRef.current) {
+          holdingRef.current = false;
+          recognition.stop();
+          setListening(false);
+          setError("Spraakherkenning reageert niet — typ je antwoord, of probeer het later opnieuw.");
+        }
+      }, 10000);
     } catch {
-      // Al bezig met luisteren, of microfoon geweigerd — negeren, de knop
-      // blijft gewoon klikbaar voor een nieuwe poging.
+      // Al bezig met luisteren, of microfoon geweigerd — duidelijk melden
+      // i.p.v. stilzwijgend niets te doen.
       holdingRef.current = false;
+      setError("Kon spraakherkenning niet starten — typ je antwoord, of probeer het opnieuw.");
     }
   }
 
   function stopListening() {
     if (!holdingRef.current) return;
     holdingRef.current = false;
+    clearSafetyTimeout();
     recognitionRef.current?.stop();
     setListening(false);
     playBeep(520, 120);
   }
 
   return (
+    <span className="relative inline-flex">
     <button
       type="button"
       onPointerDown={(e) => {
@@ -253,5 +336,14 @@ export function VoiceInputButton({ onTranscript, className }: { onTranscript: (t
         <Mic className="size-4" />
       )}
     </button>
+    {error && !listening && (
+      <span
+        role="alert"
+        className="absolute bottom-full left-1/2 z-20 mb-2 w-max max-w-[14rem] -translate-x-1/2 rounded-xl bg-danger px-2.5 py-1.5 text-center text-[11px] font-medium leading-snug text-white shadow-[var(--shadow-pop)]"
+      >
+        {error}
+      </span>
+    )}
+    </span>
   );
 }

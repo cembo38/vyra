@@ -65,6 +65,12 @@ export function Drawer({
     if (!open) return;
     const previousOverflow = document.documentElement.style.overflow;
     document.documentElement.style.overflow = "hidden";
+    // Andere losstaande uitklap-paneeltjes (bv. het notificatiepaneel van
+    // `NotificationsBell`, dat zijn eigen open/dicht-status bijhoudt) horen
+    // te sluiten zodra een drawer opent — anders bleef zo'n paneel op
+    // mobiel zichtbaar "doorschemeren" achter de drawer. `NotificationsBell`
+    // luistert naar dit event.
+    window.dispatchEvent(new Event("vyra:overlay-open"));
     return () => {
       document.documentElement.style.overflow = previousOverflow;
     };
@@ -90,7 +96,12 @@ export function Drawer({
         aria-hidden="true"
         onClick={onClose}
         className={cn(
-          "fixed inset-0 z-40 bg-ink/40 transition-opacity duration-300",
+          // z-[55]/z-[60] i.p.v. z-40/z-50: staat bewust boven het
+          // notificatiepaneel van `NotificationsBell` (z-50), zodat een
+          // drawer altijd een eventueel nog openstaand notificatiepaneel
+          // volledig afdekt — ook als dat paneel om wat voor reden dan ook
+          // niet (op tijd) door het `vyra:overlay-open`-event is gesloten.
+          "fixed inset-0 z-[55] bg-ink/40 transition-opacity duration-300",
           open ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0"
         )}
       />
@@ -102,7 +113,7 @@ export function Drawer({
         inert={!open ? true : undefined}
         data-testid={testId}
         className={cn(
-          "fixed inset-y-0 z-50 flex flex-col bg-paper pt-[var(--safe-t)] pb-[var(--safe-b)] shadow-[var(--shadow-pop)] transition-transform duration-300 ease-[var(--ease-swift)]",
+          "fixed inset-y-0 z-[60] flex flex-col bg-paper pt-[var(--safe-t)] pb-[var(--safe-b)] shadow-[var(--shadow-pop)] transition-transform duration-300 ease-[var(--ease-swift)]",
           side === "left" ? "left-0" : "right-0",
           widthClassName,
           open ? "translate-x-0" : side === "left" ? "-translate-x-full" : "translate-x-full"

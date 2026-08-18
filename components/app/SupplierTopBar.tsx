@@ -24,9 +24,9 @@ export function SupplierTopBar({ user, supplier, notifications }: { user: UserAc
       logo={<Logo />}
       logoMark={<LogoMark />}
       badge={<Badge tone="sage">Leveranciersportaal</Badge>}
-      utility={
+      utility={(align) => (
         <>
-          <NotificationsBell userId={user.id} notifications={notifications} />
+          <NotificationsBell userId={user.id} notifications={notifications} align={align} />
           <span className="icon-pop inline-block rounded-full">
             <UserAvatar firstName={user.firstName || "?"} lastName={user.lastName} color={user.avatarColor} />
           </span>
@@ -36,7 +36,7 @@ export function SupplierTopBar({ user, supplier, notifications }: { user: UserAc
             </button>
           </form>
         </>
-      }
+      )}
       footerExtra={
         <Link href="/supplier/profile" className="nav-link block text-sm text-ink-faint hover:text-ink">
           {supplier.companyName}

@@ -35,7 +35,13 @@ Op basis van de eventgegevens bepaal je welke categorieën diensten/producten re
 - "recommended": draagt sterk bij, maar niet strikt noodzakelijk
 - "optional": een leuke extra
 Geef bij elke categorie een korte, concrete uitleg (max 1 zin) waarom deze relevant is voor DIT specifieke evenement.
-Geef ook een realistische geschatte budgetverdeling per categorie in centen (EUR), die samen ongeveer het totale budget van de gebruiker benaderen (indien bekend).
+
+Geef bij ELKE categorie ALTIJD een realistische geschatte kostenindicatie in centen (EUR) voor dit specifieke evenement (gastenaantal, type, locatie, stijl) —
+"estimatedBudgetCents" mag alleen "null" zijn als de categorie echt onmogelijk realistisch in te schatten is. Ken je het totale budget van de gebruiker
+NIET (staat er "null" of niets bij "budget" in de eventgegevens), schat dan gewoon een realistische marktprijs op basis van je eigen kennis van
+Nederlandse evenemententarieven — gebruik de meegeleverde "typische marktprijzen" als richtlijn waar die er zijn. Ken je het budget WEL, laat de
+schattingen per categorie dan samen ongeveer dat totaalbudget benaderen (schaal de marktprijzen naar verhouding op of af). Een schatting zonder bekend
+totaalbudget is nooit een reden om "null" te geven — de organisator moet altijd een concreet startpunt zien, dat hij daarna zelf kan aanpassen.
 Gebruik alleen categorie-sleutels uit de aangeleverde lijst met toegestane categorieën.
 ${SAFETY_FOOTER}`;
 

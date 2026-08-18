@@ -41,6 +41,17 @@ export function NotificationsBell({
     return () => document.removeEventListener("mousedown", onClick);
   }, []);
 
+  // Sluit dit paneel zodra ergens anders een drawer opent (zie
+  // `components/ui/Drawer.tsx`) — voorkomt dat dit paneel op mobiel
+  // achter een net-geopende drawer blijft "doorschemeren".
+  useEffect(() => {
+    function onOtherOverlayOpen() {
+      setOpen(false);
+    }
+    window.addEventListener("vyra:overlay-open", onOtherOverlayOpen);
+    return () => window.removeEventListener("vyra:overlay-open", onOtherOverlayOpen);
+  }, []);
+
   return (
     <div className="relative" ref={ref}>
       <button

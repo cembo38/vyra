@@ -33,8 +33,16 @@ interface NavShellProps {
   logoMark: ReactNode;
   badge?: ReactNode;
   primaryAction?: { href: string; label: string; icon?: ReactNode };
-  /** Notificatiebel + avatar, kant-en-klaar meegegeven door de server-parent (die de gebruiker al heeft opgehaald). */
-  utility: ReactNode;
+  /**
+   * Notificatiebel + avatar, kant-en-klaar meegegeven door de server-parent
+   * (die de gebruiker al heeft opgehaald) — als functie i.p.v. kant-en-klaar
+   * element, zodat `NavShell` per plek de juiste `align` aan `NotificationsBell`
+   * kan doorgeven: "right" in de mobiele topstrook (rechtsboven), "left" in de
+   * drawer- en zijbalk-footer (die allebei tegen de linkerrand zitten) — zonder
+   * dat zou het paneel daar naar rechts open klappen en buiten het smalle
+   * paneel/de rail uitsteken.
+   */
+  utility: (align: "left" | "right") => ReactNode;
   /** Bv. bedrijfsnaam-link + uitlogknop — alleen in de drawer-footer en de volledige (`lg`) zijbalk-footer, niet in de smalle rail. */
   footerExtra?: ReactNode;
 }
@@ -82,7 +90,7 @@ export function NavShell({ items, logo, logoMark, badge, primaryAction, utility,
           <Menu className="size-5" />
         </button>
         {logo}
-        <div className="ml-auto flex items-center gap-1">{utility}</div>
+        <div className="ml-auto flex items-center gap-1">{utility("right")}</div>
       </header>
 
       {/* ── Drawer (< md) ── */}
@@ -125,7 +133,7 @@ export function NavShell({ items, logo, logoMark, badge, primaryAction, utility,
           })}
         </nav>
         <div className="border-t border-line-soft px-5 py-4">
-          <div className="flex items-center gap-2">{utility}</div>
+          <div className="flex items-center gap-2">{utility("left")}</div>
           {footerExtra && <div className="mt-3">{footerExtra}</div>}
         </div>
       </Drawer>
@@ -171,7 +179,7 @@ export function NavShell({ items, logo, logoMark, badge, primaryAction, utility,
           })}
         </nav>
         <div className="border-t border-line-soft px-2 py-3 lg:px-4">
-          <div className="flex flex-col items-center gap-2 lg:flex-row lg:justify-start sidebar-utility-row">{utility}</div>
+          <div className="flex flex-col items-center gap-2 lg:flex-row lg:justify-start sidebar-utility-row">{utility("left")}</div>
           {footerExtra && <div className="mt-2 hidden lg:block sidebar-full-block">{footerExtra}</div>}
         </div>
       </aside>

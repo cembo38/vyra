@@ -64,13 +64,17 @@ export async function HeaderAuthArea() {
   if (user) {
     return (
       <div className="flex items-center gap-2 sm:gap-3">
-        <SearchSuppliersButton />
-        <LinkButton href="/events" size="sm" iconRight={<span aria-hidden>→</span>}>
+        {/* Onder `sm` (telefoon) is er te weinig breedte voor logo + deze knop + de
+            hierna volgende knop + het menu-icoon tegelijk — dat gaf overlappende
+            knoppen. Beide acties (Mijn Vyra, Leveranciers zoeken) blijven op mobiel
+            gewoon bereikbaar via het uitklapmenu hiernaast. */}
+        <span className="hidden md:inline-flex"><SearchSuppliersButton /></span>
+        <LinkButton href="/events" size="sm" iconRight={<span aria-hidden>→</span>} className="hidden md:inline-flex">
           {user.firstName ? `${user.firstName}'s Vyra` : "Mijn Vyra"}
         </LinkButton>
         {/* Uitloggen i.p.v. een link naar het profiel — dat blijft bereikbaar via het
             uitklapmenu hieronder ("Mijn profiel") en via de avatar in de ingelogde app zelf. */}
-        <form action={logoutAction} className="hidden sm:block">
+        <form action={logoutAction} className="hidden md:block">
           <button
             type="submit"
             aria-label="Uitloggen"
@@ -87,6 +91,9 @@ export async function HeaderAuthArea() {
                 <UserAvatar firstName={user.firstName || "?"} lastName={user.lastName} color={user.avatarColor} size={28} />
                 Mijn profiel
               </Link>
+              <Link href="/events" className="block text-sm font-medium text-ink-soft hover:text-ink">
+                {user.firstName ? `${user.firstName}'s Vyra` : "Mijn Vyra"}
+              </Link>
               <Link href="/leveranciers" className="block text-sm font-medium text-ink-soft hover:text-ink">
                 Leveranciers zoeken
               </Link>
@@ -99,9 +106,9 @@ export async function HeaderAuthArea() {
 
   return (
     <div className="flex items-center gap-2 sm:gap-3">
-      <SearchSuppliersButton />
-      <StartEventButton />
-      <Link href="/login" className="nav-link hidden text-sm font-medium text-ink-soft hover:text-ink sm:block">
+      <span className="hidden md:inline-flex"><SearchSuppliersButton /></span>
+      <span className="hidden md:inline-flex"><StartEventButton /></span>
+      <Link href="/login" className="nav-link hidden text-sm font-medium text-ink-soft hover:text-ink md:block">
         Inloggen
       </Link>
       <MarketingNavDrawer
@@ -113,6 +120,9 @@ export async function HeaderAuthArea() {
             </Link>
             <Link href="/events/new" className="block text-sm font-medium text-clay hover:text-clay-dark">
               Start mijn evenement
+            </Link>
+            <Link href="/leveranciers" className="block text-sm font-medium text-ink-soft hover:text-ink">
+              Leveranciers zoeken
             </Link>
           </>
         }
@@ -125,9 +135,9 @@ export async function HeaderAuthArea() {
 export function HeaderAuthAreaFallback() {
   return (
     <div className="flex items-center gap-2 sm:gap-3">
-      <SearchSuppliersButton />
-      <StartEventButton />
-      <Link href="/login" className="nav-link hidden text-sm font-medium text-ink-soft hover:text-ink sm:block">
+      <span className="hidden md:inline-flex"><SearchSuppliersButton /></span>
+      <span className="hidden md:inline-flex"><StartEventButton /></span>
+      <Link href="/login" className="nav-link hidden text-sm font-medium text-ink-soft hover:text-ink md:block">
         Inloggen
       </Link>
       <MarketingNavDrawer
@@ -139,6 +149,9 @@ export function HeaderAuthAreaFallback() {
             </Link>
             <Link href="/events/new" className="block text-sm font-medium text-clay hover:text-clay-dark">
               Start mijn evenement
+            </Link>
+            <Link href="/leveranciers" className="block text-sm font-medium text-ink-soft hover:text-ink">
+              Leveranciers zoeken
             </Link>
           </>
         }

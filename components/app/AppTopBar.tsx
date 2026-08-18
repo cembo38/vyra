@@ -28,14 +28,14 @@ export async function AppTopBar() {
       logo={<Logo />}
       logoMark={<LogoMark />}
       primaryAction={{ href: "/events/new", label: "Nieuw evenement", icon: <Plus className="size-4" /> }}
-      utility={
+      utility={(align) => (
         <>
-          <NotificationsBell userId={user.id} notifications={notifications} />
+          <NotificationsBell userId={user.id} notifications={notifications} align={align} />
           <Link href="/profile" aria-label="Profiel" className="icon-pop inline-block rounded-full">
             <UserAvatar firstName={user.firstName || "?"} lastName={user.lastName} color={user.avatarColor} />
           </Link>
         </>
-      }
+      )}
     />
   );
 }

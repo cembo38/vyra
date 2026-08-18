@@ -1,7 +1,37 @@
 import { EventCore, EventType, RequirementCategory, RequirementPriority, SupplierCategory, SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
+import { SUPPLIERS } from "@/lib/data/suppliers";
 import { uid } from "@/lib/utils";
 
 export const ALL_SUPPLIER_CATEGORIES = Object.keys(SUPPLIER_CATEGORY_LABELS) as SupplierCategory[];
+
+/**
+ * Typische Nederlandse marktprijs per categorie, in centen — het gemiddelde
+ * van de demo-leveranciers' `avgPriceCents` per categorie (representatieve
+ * richtprijzen, niet gekoppeld aan hoeveel échte leveranciers er op dit
+ * moment al zijn aangemeld). Dit is bewust losgekoppeld van de live
+ * `supplier_accounts`-tabel: in een jonge marktplaats met nog maar een
+ * handvol echte aanmeldingen zou een gemiddelde daarvan voor de meeste
+ * categorieën gewoon leeg/onbetrouwbaar zijn. Gebruikt als vangnet zodat
+ * elke categorie altijd een realistische budgetschatting krijgt, ook
+ * wanneer de organisator (nog) geen totaalbudget heeft opgegeven — eerder
+ * gaf het ontbreken van een totaalbudget stilzwijgend "geen schatting"
+ * (`null`) voor élke categorie, wat het budgetoverzicht altijd op €0 liet
+ * staan totdat iemand zelf een totaalbudget had ingevuld.
+ */
+export const TYPICAL_CATEGORY_COST_CENTS: Partial<Record<SupplierCategory, number>> = (() => {
+  const sums: Partial<Record<SupplierCategory, { total: number; count: number }>> = {};
+  for (const supplier of SUPPLIERS) {
+    const entry = sums[supplier.category] ?? { total: 0, count: 0 };
+    entry.total += supplier.avgPriceCents;
+    entry.count += 1;
+    sums[supplier.category] = entry;
+  }
+  const result: Partial<Record<SupplierCategory, number>> = {};
+  for (const [category, { total, count }] of Object.entries(sums) as [SupplierCategory, { total: number; count: number }][]) {
+    result[category] = Math.round(total / count);
+  }
+  return result;
+})();
 
 interface Template {
   categoryKey: SupplierCategory;
@@ -179,7 +209,14 @@ export function buildDefaultRequirements(event: EventCore): RequirementCategory[
     priority: t.priority,
     aiRationale: t.rationale,
     selected: t.priority !== "optional",
-    estimatedBudgetCents: totalBudget ? Math.round((t.weight / totalWeight) * totalBudget) : null,
+    // Met een bekend totaalbudget: verdeel dat naar verhouding over de
+    // categorieën. Zonder totaalbudget: val terug op de typische
+    // marktprijs voor die categorie i.p.v. simpelweg `null` — zo heeft het
+    // budgetoverzicht altijd een realistische schatting, ook vóórdat de
+    // organisator zelf een totaalbudget heeft opgegeven.
+    estimatedBudgetCents: totalBudget
+      ? Math.round((t.weight / totalWeight) * totalBudget)
+      : TYPICAL_CATEGORY_COST_CENTS[t.categoryKey] ?? null,
     draftMessage: null,
     status: "suggested",
   }));
