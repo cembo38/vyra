@@ -5,6 +5,7 @@ import { Bell } from "lucide-react";
 import Link from "next/link";
 import { AppNotification } from "@/lib/types";
 import { markNotificationReadAction } from "@/lib/actions/misc-actions";
+import { RealtimeRefresh } from "@/components/app/RealtimeRefresh";
 import { cn } from "@/lib/utils";
 
 function timeAgo(iso: string) {
@@ -54,6 +55,7 @@ export function NotificationsBell({
 
   return (
     <div className="relative" ref={ref}>
+      <RealtimeRefresh table="notifications" filter={`user_id=eq.${userId}`} event="INSERT" />
       <button
         onClick={() => setOpen((v) => !v)}
         aria-label="Notificaties"

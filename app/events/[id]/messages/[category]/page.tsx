@@ -4,6 +4,7 @@ import { getEvent, getMessages, getRequestsForEvent, resolveSupplierDisplay } fr
 import { SupplierAvatar } from "@/components/ui/Avatar";
 import { BackLink } from "@/components/ui/BackLink";
 import { MessageComposer } from "@/components/app/MessageComposer";
+import { RealtimeRefresh } from "@/components/app/RealtimeRefresh";
 import { SUPPLIER_CATEGORY_LABELS, SupplierCategory } from "@/lib/types";
 import { cn, formatDateNL } from "@/lib/utils";
 
@@ -24,6 +25,14 @@ export default async function MessageThreadPage(props: PageProps<"/events/[id]/m
 
   return (
     <div className="mx-auto max-w-2xl">
+      <RealtimeRefresh
+        table="messages"
+        filter={`event_id=eq.${id}`}
+        guard={(payload) => {
+          const row = (payload.new as Record<string, unknown>) ?? (payload.old as Record<string, unknown>);
+          return row?.category_key === categoryKey;
+        }}
+      />
       <BackLink fallbackHref={`/events/${id}/messages`} label="Alle gesprekken" className="mb-4" />
 
       <div className="mb-6 flex items-center gap-3">

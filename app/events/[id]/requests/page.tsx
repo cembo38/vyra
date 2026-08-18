@@ -4,6 +4,7 @@ import { findMatchingSuppliers, getEvent, getOffersForEvent, getRequestsForEvent
 import { getSupplierById } from "@/lib/data/suppliers";
 import { Card } from "@/components/ui/Card";
 import { RequestCategoryCard } from "@/components/app/RequestCategoryCard";
+import { RealtimeRefresh } from "@/components/app/RealtimeRefresh";
 import { SupplierAvatar } from "@/components/ui/Avatar";
 import { DeadlineCountdown } from "@/components/ui/Countdown";
 import { EmptyState } from "@/components/ui/EmptyState";
@@ -35,6 +36,8 @@ export default async function RequestsPage(props: PageProps<"/events/[id]/reques
 
   return (
     <div className="space-y-10">
+      <RealtimeRefresh table="offers" filter={`event_id=eq.${id}`} />
+      <RealtimeRefresh table="event_requirements" filter={`event_id=eq.${id}`} event="UPDATE" />
       {notRequested.length > 0 && (
         <section>
           <h2 className="mb-1 font-display text-lg text-ink">Klaar om aan te vragen</h2>
