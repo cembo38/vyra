@@ -35,14 +35,21 @@ interface NavShellProps {
   primaryAction?: { href: string; label: string; icon?: ReactNode };
   /**
    * Notificatiebel + avatar, kant-en-klaar meegegeven door de server-parent
-   * (die de gebruiker al heeft opgehaald) — als functie i.p.v. kant-en-klaar
-   * element, zodat `NavShell` per plek de juiste `align` aan `NotificationsBell`
-   * kan doorgeven: "right" in de mobiele topstrook (rechtsboven), "left" in de
-   * drawer- en zijbalk-footer (die allebei tegen de linkerrand zitten) — zonder
-   * dat zou het paneel daar naar rechts open klappen en buiten het smalle
-   * paneel/de rail uitsteken.
+   * (die de gebruiker al heeft opgehaald) — als TWEE losse, al-gerenderde
+   * elementen (niet één functie met een `align`-parameter, zoals dit eerder
+   * was): `NavShell` is een Client Component en de parents (`AppTopBar`,
+   * `SupplierTopBar`) zijn Server Components. Een functie is niet
+   * serialiseerbaar over die grens — Next.js crasht dan de hele pagina met
+   * "Functions cannot be passed directly to Client Components" (precies
+   * zoals hierboven bij `icon` al staat toegelicht). `utilityRight` gaat in
+   * de mobiele topstrook (rechtsboven, paneel klapt naar links open),
+   * `utilityLeft` in de drawer- en zijbalk-footer (die tegen de linkerrand
+   * zitten, paneel klapt naar rechts open) — de server-parent rendert
+   * `<NotificationsBell align="right" .../>` resp. `align="left"` al kant-
+   * en-klaar, dat zijn gewoon gerenderde elementen, geen functies.
    */
-  utility: (align: "left" | "right") => ReactNode;
+  utilityRight: ReactNode;
+  utilityLeft: ReactNode;
   /** Bv. bedrijfsnaam-link + uitlogknop — alleen in de drawer-footer en de volledige (`lg`) zijbalk-footer, niet in de smalle rail. */
   footerExtra?: ReactNode;
 }
@@ -60,7 +67,7 @@ function isActive(href: string, pathname: string) {
  * component en worden puur met Tailwind-responsive-klassen getoond/verborgen
  * — geen client-side media-query-hook nodig.
  */
-export function NavShell({ items, logo, logoMark, badge, primaryAction, utility, footerExtra }: NavShellProps) {
+export function NavShell({ items, logo, logoMark, badge, primaryAction, utilityRight, utilityLeft, footerExtra }: NavShellProps) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
 
@@ -90,7 +97,7 @@ export function NavShell({ items, logo, logoMark, badge, primaryAction, utility,
           <Menu className="size-5" />
         </button>
         {logo}
-        <div className="ml-auto flex items-center gap-1">{utility("right")}</div>
+        <div className="ml-auto flex items-center gap-1">{utilityRight}</div>
       </header>
 
       {/* ── Drawer (< md) ── */}
@@ -133,7 +140,7 @@ export function NavShell({ items, logo, logoMark, badge, primaryAction, utility,
           })}
         </nav>
         <div className="border-t border-line-soft px-5 py-4">
-          <div className="flex items-center gap-2">{utility("left")}</div>
+          <div className="flex items-center gap-2">{utilityLeft}</div>
           {footerExtra && <div className="mt-3">{footerExtra}</div>}
         </div>
       </Drawer>
@@ -179,7 +186,7 @@ export function NavShell({ items, logo, logoMark, badge, primaryAction, utility,
           })}
         </nav>
         <div className="border-t border-line-soft px-2 py-3 lg:px-4">
-          <div className="flex flex-col items-center gap-2 lg:flex-row lg:justify-start sidebar-utility-row">{utility("left")}</div>
+          <div className="flex flex-col items-center gap-2 lg:flex-row lg:justify-start sidebar-utility-row">{utilityLeft}</div>
           {footerExtra && <div className="mt-2 hidden lg:block sidebar-full-block">{footerExtra}</div>}
         </div>
       </aside>
