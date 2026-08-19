@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { Logo, LogoMark } from "@/components/marketing/Logo";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
@@ -21,7 +20,9 @@ const ITEMS: NavShellItem[] = [
   { href: "/events", label: "Mijn evenementen", icon: <CalendarHeart className="size-5 shrink-0" /> },
 ];
 
-export function SupplierTopBar({ user, supplier, notifications }: { user: UserAccount; supplier: SupplierAccount; notifications: AppNotification[] }) {
+// `supplier` wordt hier niet meer gebruikt (zie hieronder), maar blijft in
+// de props zodat de aanroep vanuit de layout ongewijzigd kan blijven.
+export function SupplierTopBar({ user, notifications }: { user: UserAccount; supplier: SupplierAccount; notifications: AppNotification[] }) {
   return (
     <NavShell
       items={ITEMS}
@@ -53,11 +54,6 @@ export function SupplierTopBar({ user, supplier, notifications }: { user: UserAc
             </button>
           </form>
         </>
-      }
-      footerExtra={
-        <Link href="/supplier/profile" className="nav-link block text-sm text-ink-faint hover:text-ink">
-          {supplier.companyName}
-        </Link>
       }
     />
   );
