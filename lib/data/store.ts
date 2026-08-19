@@ -28,6 +28,7 @@ import {
   ServiceRequest,
   SUPPLIER_CATEGORY_LABELS,
   SupplierAccount,
+  SupplierBlockedDate,
   SupplierCategory,
   SupplierLead,
   SupplierOrder,
@@ -258,6 +259,10 @@ function rowToSupplierAccount(r: Row): SupplierAccount {
 
 function rowToRequestTarget(r: Row): RequestTarget {
   return { id: r.id, requestId: r.request_id, supplierId: r.supplier_id, status: r.status, createdAt: r.created_at };
+}
+
+function rowToSupplierBlockedDate(r: Row): SupplierBlockedDate {
+  return { id: r.id, supplierId: r.supplier_id, date: r.date, createdAt: r.created_at };
 }
 
 function rowToGuest(r: Row): EventGuest {
@@ -718,11 +723,82 @@ export async function rejectSupplierVerification(supplierId: string): Promise<Su
   return rowToSupplierAccount(data);
 }
 
-/** Real (DB-backed) suppliers die matchen op categorie, náást de statische demo-catalogus. */
-async function findRealMatchingSuppliers(categoryKey: SupplierCategory, opts: { locationLabel?: string | null; limit?: number }) {
+/* ------------------------------------------------------------------ */
+/* LEVERANCIER — BESCHIKBAARHEID (geblokkeerde datums)                 */
+/* ------------------------------------------------------------------ */
+
+export async function getSupplierBlockedDates(supplierId: string): Promise<SupplierBlockedDate[]> {
   const supabase = await sb();
-  const { data } = await supabase.from("suppliers").select("*").contains("categories", [categoryKey]).limit(opts.limit ?? 10);
+  const { data } = await supabase.from("supplier_blocked_dates").select("*").eq("supplier_id", supplierId).order("date", { ascending: true });
+  return (data ?? []).map(rowToSupplierBlockedDate);
+}
+
+/** RLS-scoped (owner-only via policy) — leverancier blokkeert een datum in zijn eigen kalender. */
+export async function blockSupplierDate(supplierId: string, date: string): Promise<SupplierBlockedDate | null> {
+  const supabase = await sb();
+  const { data, error } = await supabase
+    .from("supplier_blocked_dates")
+    .insert({ supplier_id: supplierId, date })
+    .select()
+    .single();
+  if (error || !data) return null;
+  return rowToSupplierBlockedDate(data);
+}
+
+export async function unblockSupplierDate(supplierId: string, date: string): Promise<void> {
+  const supabase = await sb();
+  await supabase.from("supplier_blocked_dates").delete().eq("supplier_id", supplierId).eq("date", date);
+}
+
+/**
+ * Welke van deze kandidaat-leveranciers zijn NIET beschikbaar op `date`? Dat
+ * is de vereniging van (a) zelf-geblokkeerde datums (`supplier_blocked_dates`)
+ * en (b) leveranciers die op die datum al een BEVESTIGDE boeking hebben
+ * (`offers.status === "accepted"` voor een event met diezelfde datum) — een
+ * leverancier die al ergens anders geboekt is, kan een nieuwe aanvraag voor
+ * dezelfde dag toch niet uitvoeren. Bewust twee losse, simpele queries + een
+ * JS-filter op `event.date` (i.p.v. een PostgREST-embedded-filter) — zelfde
+ * patroon als elders in dit bestand (zie `getSupplierOrders`), en de
+ * kandidaatpool hier is altijd klein genoeg (een paar tientallen) om dat
+ * probleemloos te doen.
+ */
+async function getUnavailableSupplierIds(supplierIds: string[], date: string): Promise<Set<string>> {
+  if (supplierIds.length === 0) return new Set();
+  const supabase = await sb();
+  const [blockedRes, bookedRes] = await Promise.all([
+    supabase.from("supplier_blocked_dates").select("supplier_id").eq("date", date).in("supplier_id", supplierIds),
+    supabase.from("offers").select("supplier_id, event:events(date)").eq("status", "accepted").in("supplier_id", supplierIds),
+  ]);
+  const unavailable = new Set<string>((blockedRes.data ?? []).map((r: Row) => r.supplier_id as string));
+  for (const row of (bookedRes.data ?? []) as Row[]) {
+    if (row.event?.date === date) unavailable.add(row.supplier_id as string);
+  }
+  return unavailable;
+}
+
+/**
+ * Real (DB-backed) suppliers die matchen op categorie, náást de statische
+ * demo-catalogus. `eventDate` (indien bekend — veel evenementen hebben pas
+ * een `monthHint` i.p.v. een vaste datum) laat beschikbaarheid meetellen:
+ * leveranciers die die dag al bevestigd of zelf-geblokkeerd niet beschikbaar
+ * zijn worden zwaar teruggezet in de ranking i.p.v. hard uitgesloten — bij
+ * een kleine leveranciers-pool is een organisator beter geholpen met een
+ * kandidaat die (nog) niet zeker is dan met helemaal niemand.
+ */
+async function findRealMatchingSuppliers(
+  categoryKey: SupplierCategory,
+  opts: { locationLabel?: string | null; limit?: number; eventDate?: string | null }
+) {
+  const supabase = await sb();
+  const limit = opts.limit ?? 2;
+  // Ruimere kandidaatpool dan het uiteindelijke aantal — anders zou een
+  // hard beschikbaarheidsfilter bij een kleine categorie soms niks
+  // overhouden om uit te kiezen.
+  const { data } = await supabase.from("suppliers").select("*").contains("categories", [categoryKey]).limit(Math.max(limit * 4, 10));
   const pool = (data ?? []).map(rowToSupplierAccount);
+
+  const unavailableIds = opts.eventDate ? await getUnavailableSupplierIds(pool.map((s) => s.id), opts.eventDate) : new Set<string>();
+
   const scored = pool.map((sup) => {
     let score = 60;
     if (opts.locationLabel && sup.serviceAreas.some((a) => a.toLowerCase().includes(opts.locationLabel!.toLowerCase()))) {
@@ -730,10 +806,14 @@ async function findRealMatchingSuppliers(categoryKey: SupplierCategory, opts: { 
     }
     score += Math.round(sup.ratingAvg * 4);
     if (sup.verified) score += 5;
-    return { supplier: sup, score: Math.min(99, score) };
+    const unavailableOnDate = unavailableIds.has(sup.id);
+    return { supplier: sup, score: Math.min(99, score), unavailableOnDate };
   });
-  scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, opts.limit ?? 2);
+  scored.sort((a, b) => {
+    if (a.unavailableOnDate !== b.unavailableOnDate) return a.unavailableOnDate ? 1 : -1;
+    return b.score - a.score;
+  });
+  return scored.slice(0, limit);
 }
 
 /* ------------------------------------------------------------------ */
@@ -947,6 +1027,8 @@ export async function createAndSendRequest(params: {
   specialRequests: string;
   budgetCents: number | null;
   locationLabel?: string | null;
+  /** De evenementdatum, indien al bekend — laat leveranciersbeschikbaarheid meetellen bij het matchen van échte accounts (zie `findRealMatchingSuppliers`). */
+  eventDate?: string | null;
 }): Promise<{ request: ServiceRequest; offers: OfferOption[] }> {
   const supabase = await sb();
   const matches = findMatchingSuppliers(params.categoryKey, { locationLabel: params.locationLabel, limit: 4 });
@@ -975,7 +1057,11 @@ export async function createAndSendRequest(params: {
   // leveranciers in deze categorie. Zij krijgen geen automatisch gesimuleerde
   // offerte — zij zien de aanvraag in hun eigen dashboard en dienen zelf een
   // offerte in.
-  const realMatches = await findRealMatchingSuppliers(params.categoryKey, { locationLabel: params.locationLabel, limit: 2 });
+  const realMatches = await findRealMatchingSuppliers(params.categoryKey, {
+    locationLabel: params.locationLabel,
+    limit: 2,
+    eventDate: params.eventDate,
+  });
   if (realMatches.length > 0) {
     await supabase.from("request_targets").insert(
       realMatches.map(({ supplier }) => ({ request_id: request.id, supplier_id: supplier.id, status: "pending" }))

@@ -2,10 +2,11 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
+import { SupplierBlockedDatesManager } from "@/components/app/SupplierBlockedDatesManager";
 import { getCurrentUser } from "@/lib/auth";
-import { getSupplierAccountByOwner, getSupplierLeads, getSupplierOrders } from "@/lib/data/store";
+import { getSupplierAccountByOwner, getSupplierBlockedDates, getSupplierLeads, getSupplierOrders } from "@/lib/data/store";
 import { formatCurrency } from "@/lib/config";
-import { ChevronLeft, ChevronRight, Clock, PartyPopper } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, PartyPopper, CalendarOff } from "lucide-react";
 
 export const metadata = { title: "Kalender — Vyra voor leveranciers" };
 
@@ -27,6 +28,7 @@ type DayEntry = {
   inMonth: boolean;
   bookings: { label: string; amount: number }[];
   deadlines: { label: string; requestId: string }[];
+  blocked: boolean;
 };
 
 export default async function SupplierCalendarPage(props: PageProps<"/supplier/calendar">) {
@@ -54,13 +56,18 @@ export default async function SupplierCalendarPage(props: PageProps<"/supplier/c
   const mondayOffset = (dow + 6) % 7;
   const gridStart = new Date(year, monthIndex, 1 - mondayOffset);
 
-  const [orders, leads] = await Promise.all([getSupplierOrders(supplier.id), getSupplierLeads(supplier.id)]);
+  const [orders, leads, blockedDates] = await Promise.all([
+    getSupplierOrders(supplier.id),
+    getSupplierLeads(supplier.id),
+    getSupplierBlockedDates(supplier.id),
+  ]);
+  const blockedKeys = new Set(blockedDates.map((b) => b.date));
 
   const days: DayEntry[] = [];
   for (let i = 0; i < 42; i++) {
     const d = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i);
     const key = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
-    days.push({ key, day: d.getDate(), inMonth: d.getMonth() === monthIndex, bookings: [], deadlines: [] });
+    days.push({ key, day: d.getDate(), inMonth: d.getMonth() === monthIndex, bookings: [], deadlines: [], blocked: blockedKeys.has(key) });
   }
   const dayByKey = new Map(days.map((d) => [d.key, d]));
 
@@ -81,7 +88,7 @@ export default async function SupplierCalendarPage(props: PageProps<"/supplier/c
   const next = new Date(year, monthIndex + 1, 1);
 
   const agenda = days
-    .filter((d) => d.inMonth && (d.bookings.length > 0 || d.deadlines.length > 0))
+    .filter((d) => d.inMonth && (d.bookings.length > 0 || d.deadlines.length > 0 || d.blocked))
     .sort((a, b) => a.key.localeCompare(b.key));
 
   return (
@@ -104,9 +111,10 @@ export default async function SupplierCalendarPage(props: PageProps<"/supplier/c
         </div>
       </div>
 
-      <div className="mt-6 flex items-center gap-4 text-xs text-ink-faint">
+      <div className="mt-6 flex flex-wrap items-center gap-4 text-xs text-ink-faint">
         <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-sage" /> Boeking</span>
         <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-ochre" /> Aanvraagdeadline</span>
+        <span className="inline-flex items-center gap-1.5"><span className="size-2 rounded-full bg-ink-faint" /> Niet beschikbaar</span>
       </div>
 
       {/* Volle maand-grid: cellen van ~50px op een telefoon van 375px zijn te
@@ -122,10 +130,15 @@ export default async function SupplierCalendarPage(props: PageProps<"/supplier/c
           {days.map((d) => (
             <div
               key={d.key}
-              className={`min-h-24 border-b border-r border-line-soft p-1.5 last:border-r-0 ${d.inMonth ? "" : "bg-paper-dim/40"}`}
+              className={`min-h-24 border-b border-r border-line-soft p-1.5 last:border-r-0 ${d.inMonth ? "" : "bg-paper-dim/40"} ${d.inMonth && d.blocked ? "bg-paper-dim/70" : ""}`}
             >
               <p className={`text-xs ${d.inMonth ? "text-ink" : "text-ink-faint"}`}>{d.day}</p>
               <div className="mt-1 space-y-0.5">
+                {d.blocked && (
+                  <p className="flex items-center gap-1 truncate rounded bg-line-soft px-1 py-0.5 text-[10px] font-medium text-ink-faint">
+                    <CalendarOff className="size-2.5 shrink-0" /> Niet beschikbaar
+                  </p>
+                )}
                 {d.bookings.slice(0, 2).map((b, i) => (
                   <p key={`b-${i}`} className="truncate rounded bg-sage-50 px-1 py-0.5 text-[10px] font-medium text-sage-dark" title={b.label}>
                     {b.label}
@@ -154,6 +167,9 @@ export default async function SupplierCalendarPage(props: PageProps<"/supplier/c
               <Card key={d.key} className="flex flex-wrap items-center justify-between gap-2 p-4">
                 <span className="text-sm font-medium text-ink">{d.key}</span>
                 <div className="flex flex-wrap items-center gap-2">
+                  {d.blocked && (
+                    <Badge tone="neutral" icon={<CalendarOff className="size-3" />}>Niet beschikbaar</Badge>
+                  )}
                   {d.bookings.map((b, i) => (
                     <Badge key={`b-${i}`} tone="sage" icon={<PartyPopper className="size-3" />}>
                       {b.label} · {formatCurrency(b.amount)}
@@ -170,6 +186,10 @@ export default async function SupplierCalendarPage(props: PageProps<"/supplier/c
           </div>
         )}
       </div>
+
+      <Card className="mt-8">
+        <SupplierBlockedDatesManager initialBlockedDates={blockedDates.map((b) => b.date)} />
+      </Card>
     </div>
   );
 }

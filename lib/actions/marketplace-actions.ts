@@ -33,6 +33,7 @@ export async function sendRequestAction(params: {
     specialRequests: params.specialRequests,
     budgetCents: params.budgetCents,
     locationLabel: event.locationLabel,
+    eventDate: event.date,
   });
 
   await updateRequirementStatus(params.eventId, params.categoryKey, offers.length > 0 ? "offers_received" : "awaiting_response");

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { parseSupplierOfferDescription } from "@/lib/ai/supplierOffer";
 import { getCurrentUser } from "@/lib/auth";
 import {
+  blockSupplierDate,
   createSupplierAccount,
   getRequest,
   getSupplierAccountByOwner,
@@ -12,6 +13,7 @@ import {
   requestSupplierVerification,
   sendCustomSupplierRequest,
   submitSupplierOffer,
+  unblockSupplierDate,
   updateSupplierAccount,
   uploadSupplierFile,
 } from "@/lib/data/store";
@@ -178,6 +180,36 @@ export async function requestSupplierVerificationAction() {
 
   revalidatePath("/supplier/profile");
   redirect("/supplier/profile?verifyRequested=1");
+}
+
+/**
+ * Leverancier blokkeert/deblokkeert zelf een datum in zijn kalender (bv.
+ * vakantie, elders volgeboekt) — telt vanaf nu mee bij het matchen van
+ * nieuwe aanvragen op die datum (`findRealMatchingSuppliers` in store.ts).
+ * Geeft een resultaat terug i.p.v. te redirecten: wordt vanuit een client
+ * component aangeroepen die zelf de UI direct bijwerkt.
+ */
+export async function toggleSupplierBlockedDateAction(date: string, blocked: boolean): Promise<{ ok: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Niet ingelogd." };
+  const supplier = await getSupplierAccountByOwner(user.id);
+  if (!supplier) return { ok: false, error: "Geen leveranciersaccount gevonden." };
+
+  // Alleen vandaag en toekomstige datums — een datum in het verleden
+  // blokkeren heeft geen effect op matching (die kijkt alleen naar nieuwe
+  // aanvragen) en is dus zinloos.
+  const today = new Date().toISOString().slice(0, 10);
+  if (date < today) return { ok: false, error: "Je kunt geen datum in het verleden blokkeren." };
+
+  if (blocked) {
+    const result = await blockSupplierDate(supplier.id, date);
+    if (!result) return { ok: false, error: "Kon deze datum niet blokkeren." };
+  } else {
+    await unblockSupplierDate(supplier.id, date);
+  }
+
+  revalidatePath("/supplier/calendar");
+  return { ok: true };
 }
 
 export async function removeSupplierGalleryImageAction(imageUrl: string) {

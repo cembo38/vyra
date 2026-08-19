@@ -324,10 +324,18 @@ export interface SupplierProfile {
   logoUrl?: string | null;
 }
 
-export interface SupplierAvailabilitySlot {
+/**
+ * Een datum die een leverancier zelf heeft geblokkeerd (vakantie, elders
+ * volgeboekt, etc.) — puur "afwezig", geen los `available`-veld nodig: het
+ * ONTBREKEN van een rij voor een datum betekent gewoon beschikbaar. Telt
+ * mee bij matching, samen met bevestigde boekingen (`offers.status ===
+ * "accepted"` op diezelfde datum), zie `findRealMatchingSuppliers`.
+ */
+export interface SupplierBlockedDate {
+  id: string;
   supplierId: string;
   date: string;
-  available: boolean;
+  createdAt: string;
 }
 
 /**
