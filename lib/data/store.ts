@@ -542,6 +542,20 @@ export async function searchSupplierAccounts(filters: {
   return results;
 }
 
+/**
+ * Alleen id + createdAt van elke vindbare ("open") leverancier — precies
+ * genoeg voor de sitemap (spec-item #49), geen reden om daar het hele
+ * profiel voor op te halen. Bewust GEEN limit(60) zoals `searchSupplierAccounts`
+ * (dat is een UI-paginagrens, geen sitemap mag leveranciers overslaan). Een
+ * gesloten leverancier (spec-item #55) hoort hier ook niet in — die is
+ * bewust niet vindbaar, dus ook niet in de sitemap.
+ */
+export async function listOpenSupplierIdsForSitemap(): Promise<{ id: string; createdAt: string }[]> {
+  const supabase = await sb();
+  const { data } = await supabase.from("suppliers").select("id, created_at").eq("store_open", true);
+  return (data ?? []).map((r: Row) => ({ id: r.id, createdAt: r.created_at }));
+}
+
 /** Uploadt een logo/foto naar de "supplier-media"-opslagruimte en geeft de publieke URL terug (of null bij een fout). */
 export async function uploadSupplierFile(ownerId: string, file: File, folder: "logo" | "gallery"): Promise<string | null> {
   if (!file || file.size === 0) return null;

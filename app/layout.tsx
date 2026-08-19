@@ -17,8 +17,14 @@ import "./globals.css";
 import "@fontsource-variable/fraunces/full.css";
 import "@fontsource-variable/fraunces/full-italic.css";
 import "@fontsource-variable/plus-jakarta-sans";
+import { SITE_URL } from "@/lib/config";
 
 export const metadata: Metadata = {
+  // Nodig zodat relatieve URL's in metadata (bv. Open Graph-afbeeldingen)
+  // correct worden omgezet naar absolute URL's — zonder dit geeft Next.js
+  // hier een waarschuwing over. Ook gebruikt door app/sitemap.ts en
+  // app/robots.ts (spec-item #49) voor dezelfde canonieke site-URL.
+  metadataBase: new URL(SITE_URL),
   title: "Vyra — Celebrate. Simplified.",
   description:
     "Vertel wat je wilt organiseren. Onze AI ontdekt welke mensen, diensten en producten je nodig hebt, vraagt automatisch aanbiedingen aan en helpt je in enkele swipes de juiste leveranciers te kiezen.",
