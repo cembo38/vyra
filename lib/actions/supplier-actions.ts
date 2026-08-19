@@ -95,19 +95,28 @@ export async function updateSupplierProfileAction(formData: FormData) {
     redirect("/supplier/profile?error=1");
   }
 
-  // Logo/foto's zijn optioneel — alleen uploaden als er echt een bestand is gekozen.
+  // Logo/foto's zijn optioneel — alleen uploaden als er echt een bestand is
+  // gekozen. `uploadSupplierFile` geeft `null` terug bij een mislukte
+  // upload (bv. de opslagruimte ontbreekt nog) — dat hield deze actie
+  // voorheen stilzwijgend, zonder de gebruiker ooit te laten weten dat er
+  // niets is opgeslagen. `uploadFailed` zorgt dat we dat nu wél melden.
+  let uploadFailed = false;
+
   const logoFile = formData.get("logo");
   let logoUrl: string | undefined;
   if (logoFile instanceof File && logoFile.size > 0) {
     const uploaded = await uploadSupplierFile(user!.id, logoFile, "logo");
     if (uploaded) logoUrl = uploaded;
+    else uploadFailed = true;
   }
 
   const galleryFiles = formData.getAll("gallery").filter((f): f is File => f instanceof File && f.size > 0);
   let galleryUrls: string[] | undefined;
   if (galleryFiles.length > 0) {
     const uploaded = await Promise.all(galleryFiles.map((f) => uploadSupplierFile(user!.id, f, "gallery")));
-    galleryUrls = [...supplier!.galleryUrls, ...uploaded.filter((u): u is string => Boolean(u))];
+    const succeeded = uploaded.filter((u): u is string => Boolean(u));
+    if (succeeded.length < galleryFiles.length) uploadFailed = true;
+    galleryUrls = [...supplier!.galleryUrls, ...succeeded];
   }
 
   await updateSupplierAccount(supplier!.id, {
@@ -131,7 +140,7 @@ export async function updateSupplierProfileAction(formData: FormData) {
 
   revalidatePath("/supplier", "layout");
   revalidatePath(`/leveranciers/${supplier!.id}`);
-  redirect("/supplier/profile?saved=1");
+  redirect(uploadFailed ? "/supplier/profile?saved=1&uploadError=1" : "/supplier/profile?saved=1");
 }
 
 export async function removeSupplierGalleryImageAction(imageUrl: string) {

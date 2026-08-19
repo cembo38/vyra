@@ -14,6 +14,7 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
   const params = await props.searchParams;
   const hasError = params.error === "1";
   const justSaved = params.saved === "1";
+  const uploadFailed = params.uploadError === "1";
 
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -45,6 +46,11 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
       {hasError && (
         <div className="mt-4 rounded-xl border border-warning-50 bg-warning-50 px-3 py-2 text-sm text-warning">
           Vul alle verplichte velden in voordat je opslaat.
+        </div>
+      )}
+      {uploadFailed && (
+        <div className="mt-4 rounded-xl border border-warning-50 bg-warning-50 px-3 py-2 text-sm text-warning">
+          Je overige wijzigingen zijn opgeslagen, maar minstens één foto kon niet worden geüpload. Probeer het opnieuw, of neem contact op als dit blijft gebeuren.
         </div>
       )}
 

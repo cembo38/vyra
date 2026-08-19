@@ -6,7 +6,7 @@ import { NotificationsBell } from "@/components/app/NotificationsBell";
 import { NavShell, type NavShellItem } from "@/components/app/NavShell";
 import { AppNotification, UserAccount, SupplierAccount } from "@/lib/types";
 import { logoutAction } from "@/lib/actions/auth-actions";
-import { LogOut, LayoutDashboard, Inbox, MessageSquare, ShoppingBag, CalendarDays, CalendarHeart } from "lucide-react";
+import { LogOut, LayoutDashboard, Inbox, MessageSquare, ShoppingBag, CalendarDays, CalendarHeart, User } from "lucide-react";
 
 const ITEMS: NavShellItem[] = [
   { href: "/supplier/dashboard", label: "Dashboard", icon: <LayoutDashboard className="size-5 shrink-0" /> },
@@ -14,6 +14,10 @@ const ITEMS: NavShellItem[] = [
   { href: "/supplier/messages", label: "Berichten", icon: <MessageSquare className="size-5 shrink-0" /> },
   { href: "/supplier/orders", label: "Orders", icon: <ShoppingBag className="size-5 shrink-0" /> },
   { href: "/supplier/calendar", label: "Kalender", icon: <CalendarDays className="size-5 shrink-0" /> },
+  // Stond voorheen alleen als klein tekstlinkje (bedrijfsnaam) onderaan de
+  // footer — makkelijk over het hoofd te zien. Nu ook als volwaardig
+  // navigatie-item, net als de rest.
+  { href: "/supplier/profile", label: "Bedrijfsprofiel", icon: <User className="size-5 shrink-0" /> },
   { href: "/events", label: "Mijn evenementen", icon: <CalendarHeart className="size-5 shrink-0" /> },
 ];
 
