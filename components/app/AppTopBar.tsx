@@ -5,7 +5,7 @@ import { NotificationsBell } from "@/components/app/NotificationsBell";
 import { NavShell, type NavShellItem } from "@/components/app/NavShell";
 import { getCurrentUser } from "@/lib/auth";
 import { getNotifications, getSupplierAccountByOwner } from "@/lib/data/store";
-import { Plus, Search, Store, CalendarHeart } from "lucide-react";
+import { Plus, Search, Store, CalendarHeart, Bell } from "lucide-react";
 
 export async function AppTopBar() {
   const user = await getCurrentUser();
@@ -20,6 +20,11 @@ export async function AppTopBar() {
       label: supplier ? "Leveranciersportaal" : "Ook leverancier worden?",
       icon: <Store className="size-5 shrink-0" />,
     },
+    // Het belletje opende een uitklappaneel dat door een positioneringsbug
+    // (deels) buiten beeld viel — zie NotificationsBell.tsx. Ook los daarvan
+    // is een volwaardige pagina prettiger om oudere notificaties in terug te
+    // vinden dan het korte paneel.
+    { href: "/notifications", label: "Notificaties", icon: <Bell className="size-5 shrink-0" /> },
   ];
 
   return (
@@ -30,7 +35,7 @@ export async function AppTopBar() {
       primaryAction={{ href: "/events/new", label: "Nieuw evenement", icon: <Plus className="size-4" /> }}
       utilityRight={
         <>
-          <NotificationsBell userId={user.id} notifications={notifications} align="right" />
+          <NotificationsBell userId={user.id} notifications={notifications} align="right" viewAllHref="/notifications" />
           <Link href="/profile" aria-label="Profiel" className="icon-pop inline-block rounded-full">
             <UserAvatar firstName={user.firstName || "?"} lastName={user.lastName} color={user.avatarColor} />
           </Link>
@@ -38,7 +43,11 @@ export async function AppTopBar() {
       }
       utilityLeft={
         <>
-          <NotificationsBell userId={user.id} notifications={notifications} align="left" />
+          {/* direction="up": deze knop zit onderaan de drawer-/zijbalk-footer
+              — het paneel moet dus omhoog openklappen, anders valt het
+              (deels) buiten de viewport. Zie de toelichting bij `direction`
+              in NotificationsBell.tsx. */}
+          <NotificationsBell userId={user.id} notifications={notifications} align="left" direction="up" viewAllHref="/notifications" />
           <Link href="/profile" aria-label="Profiel" className="icon-pop inline-block rounded-full">
             <UserAvatar firstName={user.firstName || "?"} lastName={user.lastName} color={user.avatarColor} />
           </Link>

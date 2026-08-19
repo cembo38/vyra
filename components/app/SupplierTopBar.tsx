@@ -5,10 +5,15 @@ import { NotificationsBell } from "@/components/app/NotificationsBell";
 import { NavShell, type NavShellItem } from "@/components/app/NavShell";
 import { AppNotification, UserAccount, SupplierAccount } from "@/lib/types";
 import { logoutAction } from "@/lib/actions/auth-actions";
-import { LogOut, LayoutDashboard, Inbox, MessageSquare, ShoppingBag, CalendarDays, CalendarHeart, User } from "lucide-react";
+import { LogOut, LayoutDashboard, Inbox, MessageSquare, ShoppingBag, CalendarDays, CalendarHeart, User, Bell } from "lucide-react";
 
 const ITEMS: NavShellItem[] = [
   { href: "/supplier/dashboard", label: "Dashboard", icon: <LayoutDashboard className="size-5 shrink-0" /> },
+  // Het belletje rechtsboven/onderin opende een uitklappaneel dat door een
+  // positioneringsbug (deels) buiten beeld viel — zie NotificationsBell.tsx.
+  // Ook los daarvan is een volwaardige pagina prettiger om oudere
+  // notificaties in terug te vinden dan het korte paneel.
+  { href: "/supplier/notifications", label: "Notificaties", icon: <Bell className="size-5 shrink-0" /> },
   { href: "/supplier/requests", label: "Aanvragen", icon: <Inbox className="size-5 shrink-0" /> },
   { href: "/supplier/messages", label: "Berichten", icon: <MessageSquare className="size-5 shrink-0" /> },
   { href: "/supplier/orders", label: "Orders", icon: <ShoppingBag className="size-5 shrink-0" /> },
@@ -31,7 +36,7 @@ export function SupplierTopBar({ user, notifications }: { user: UserAccount; sup
       badge={<Badge tone="sage">Leveranciersportaal</Badge>}
       utilityRight={
         <>
-          <NotificationsBell userId={user.id} notifications={notifications} align="right" />
+          <NotificationsBell userId={user.id} notifications={notifications} align="right" viewAllHref="/supplier/notifications" />
           <span className="icon-pop inline-block rounded-full">
             <UserAvatar firstName={user.firstName || "?"} lastName={user.lastName} color={user.avatarColor} />
           </span>
@@ -44,7 +49,7 @@ export function SupplierTopBar({ user, notifications }: { user: UserAccount; sup
       }
       utilityLeft={
         <>
-          <NotificationsBell userId={user.id} notifications={notifications} align="left" />
+          <NotificationsBell userId={user.id} notifications={notifications} align="left" direction="up" viewAllHref="/supplier/notifications" />
           <span className="icon-pop inline-block rounded-full">
             <UserAvatar firstName={user.firstName || "?"} lastName={user.lastName} color={user.avatarColor} />
           </span>

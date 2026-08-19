@@ -1,0 +1,31 @@
+import { redirect } from "next/navigation";
+import { AppTopBar } from "@/components/app/AppTopBar";
+import { Card } from "@/components/ui/Card";
+import { NotificationsList } from "@/components/app/NotificationsList";
+import { getCurrentUser } from "@/lib/auth";
+import { getNotifications } from "@/lib/data/store";
+import { SIDEBAR_OFFSET_CLASS } from "@/lib/nav-constants";
+import { cn } from "@/lib/utils";
+
+export const metadata = { title: "Notificaties — Vyra" };
+
+export default async function NotificationsPage() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const notifications = await getNotifications(user.id);
+
+  return (
+    <div className={cn("min-h-screen bg-paper", SIDEBAR_OFFSET_CLASS)}>
+      <AppTopBar />
+      <div className="mx-auto max-w-lg px-6 py-10">
+        <h1 className="font-display text-3xl text-ink">Notificaties</h1>
+        <p className="mt-1 text-ink-soft">Alles wat er is gebeurd rond je evenementen en aanvragen.</p>
+
+        <Card className="mt-6">
+          <NotificationsList userId={user.id} notifications={notifications} />
+        </Card>
+      </div>
+    </div>
+  );
+}

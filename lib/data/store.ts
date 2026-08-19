@@ -1895,6 +1895,12 @@ export async function markNotificationRead(userId: string, notificationId: strin
   return getNotifications(userId);
 }
 
+export async function markAllNotificationsRead(userId: string): Promise<AppNotification[]> {
+  const supabase = await sb();
+  await supabase.from("notifications").update({ read: true }).eq("user_id", userId).eq("read", false);
+  return getNotifications(userId);
+}
+
 export function allSuppliers() {
   return SUPPLIERS;
 }

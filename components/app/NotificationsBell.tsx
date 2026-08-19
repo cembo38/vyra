@@ -23,11 +23,23 @@ export function NotificationsBell({
   userId,
   notifications,
   align = "right",
+  direction = "down",
+  viewAllHref,
 }: {
   userId: string;
   notifications: AppNotification[];
   /** Aan welke kant het paneel opent — "left" voor gebruik in een zijbalk-footer die tegen de linkerrand van het scherm zit. */
   align?: "left" | "right";
+  /**
+   * Aan welke kant (verticaal) het paneel opent. Bug tot nu toe: de knop in
+   * de zijbalk-/drawer-footer zit onderaan het scherm, maar het paneel klapte
+   * altijd naar BENEDEN open (`mt-2`) — waardoor het grotendeels of volledig
+   * buiten de viewport viel en dus onklikbaar/onzichtbaar leek. "up" klapt
+   * het paneel in plaats daarvan omhoog open, boven de knop.
+   */
+  direction?: "up" | "down";
+  /** Link naar de volledige notificatiepagina, getoond onderaan het paneel. */
+  viewAllHref?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [, startTransition] = useTransition();
@@ -70,7 +82,8 @@ export function NotificationsBell({
       {open && (
         <div
           className={cn(
-            "absolute z-50 mt-2 w-[min(20rem,calc(100vw-1.5rem))] rounded-2xl border border-line bg-white p-2 [box-shadow:var(--shadow-pop)]",
+            "absolute z-50 flex max-h-[min(28rem,80vh)] w-[min(20rem,calc(100vw-1.5rem))] flex-col rounded-2xl border border-line bg-white p-2 [box-shadow:var(--shadow-pop)]",
+            direction === "up" ? "bottom-full mb-2" : "top-full mt-2",
             align === "right" ? "right-0" : "left-0"
           )}
         >
@@ -78,7 +91,7 @@ export function NotificationsBell({
             <span className="text-sm font-medium text-ink">Notificaties</span>
             {unread > 0 && <span className="text-xs text-ink-faint">{unread} ongelezen</span>}
           </div>
-          <div className="max-h-[min(20rem,70vh)] overflow-y-auto no-scrollbar">
+          <div className="min-h-0 flex-1 overflow-y-auto no-scrollbar">
             {notifications.length === 0 && <p className="px-2 py-6 text-center text-sm text-ink-faint">Nog geen notificaties.</p>}
             {notifications.slice(0, 8).map((n) => (
               <Link
@@ -99,6 +112,15 @@ export function NotificationsBell({
               </Link>
             ))}
           </div>
+          {viewAllHref && (
+            <Link
+              href={viewAllHref}
+              onClick={() => setOpen(false)}
+              className="mt-1 block rounded-xl px-2.5 py-2 text-center text-xs font-medium text-sage hover:bg-paper-dim hover:underline"
+            >
+              Alle notificaties bekijken
+            </Link>
+          )}
         </div>
       )}
     </div>
