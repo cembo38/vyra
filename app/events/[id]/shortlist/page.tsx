@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ReactNode } from "react";
 import { notFound } from "next/navigation";
-import { getEvent, getOffersForEvent, getRequirements, resolveSupplierDisplay } from "@/lib/data/store";
+import { getEvent, getOffersForEvent, getPaymentsForOffer, getRequirements, resolveSupplierDisplay } from "@/lib/data/store";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkButton } from "@/components/ui/Button";
@@ -43,7 +43,15 @@ export default async function ShortlistPage(props: PageProps<"/events/[id]/short
 
           if (accepted) {
             const s = await resolveSupplierDisplay(accepted.supplierId);
-            rows.push({ icon: <CheckCircle2 className="size-5 text-success" />, label: s?.companyName ?? "Leverancier", sub: `Geselecteerd · ${formatCurrency(accepted.totalPriceCents)}`, href: `/events/${id}/offers/${r.categoryKey}` });
+            // Zodra er een betaling voor deze boeking bestaat, is de
+            // checkout-/betaalpagina de nuttigere bestemming (daar staat de
+            // betaalstatus én, sinds spec-item #50, een link om een
+            // geschil te melden) — anders is er nog niets te betalen en
+            // blijft de offertepagina de juiste plek.
+            const payments = await getPaymentsForOffer(accepted.id);
+            const primaryPayment = payments.find((p) => p.installment !== "balance") ?? payments[0];
+            const href = primaryPayment ? `/events/${id}/checkout/${primaryPayment.id}` : `/events/${id}/offers/${r.categoryKey}`;
+            rows.push({ icon: <CheckCircle2 className="size-5 text-success" />, label: s?.companyName ?? "Leverancier", sub: `Geselecteerd · ${formatCurrency(accepted.totalPriceCents)}`, href });
           } else if (shortlisted.length > 0) {
             rows = await Promise.all(shortlisted.map(async (o) => {
               const s = await resolveSupplierDisplay(o.supplierId);

@@ -1,0 +1,65 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { CheckCircle2, Loader2, X } from "lucide-react";
+import { Textarea } from "@/components/ui/Form";
+import { resolveDisputeAction, dismissDisputeAction } from "@/lib/actions/admin-actions";
+
+/** Zelfde inline-actie-patroon als `AdminSupplierVerificationActions`, met een verplichte toelichting — die gaat naar beide betrokken partijen. */
+export function AdminDisputeActions({ disputeId }: { disputeId: string }) {
+  const [response, setResponse] = useState("");
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  function run(action: (formData: FormData) => Promise<void>) {
+    if (!response.trim()) {
+      setError("Geef een toelichting op je beslissing — die zien beide partijen.");
+      return;
+    }
+    setError(null);
+    const formData = new FormData();
+    formData.set("disputeId", disputeId);
+    formData.set("adminResponse", response.trim());
+    startTransition(async () => {
+      try {
+        await action(formData);
+        setResponse("");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Dit is niet gelukt.");
+      }
+    });
+  }
+
+  return (
+    <div className="mt-2.5 space-y-2">
+      <Textarea
+        rows={2}
+        placeholder="Toelichting op je beslissing (verplicht, zichtbaar voor beide partijen)..."
+        value={response}
+        onChange={(e) => setResponse(e.target.value)}
+        className="!py-2 text-sm"
+      />
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => run(resolveDisputeAction)}
+          className="chip-hover inline-flex items-center gap-1.5 rounded-full bg-success px-3 py-1.5 text-xs font-medium text-white disabled:opacity-40 disabled:pointer-events-none"
+        >
+          {pending ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
+          Oplossen
+        </button>
+        <button
+          type="button"
+          disabled={pending}
+          onClick={() => run(dismissDisputeAction)}
+          className="chip-hover inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium text-ink-soft hover:border-danger/50 hover:text-danger disabled:opacity-40 disabled:pointer-events-none"
+        >
+          {pending ? <Loader2 className="size-3.5 animate-spin" /> : <X className="size-3.5" />}
+          Afwijzen
+        </button>
+      </div>
+      {error && <p className="text-xs text-danger">{error}</p>}
+    </div>
+  );
+}

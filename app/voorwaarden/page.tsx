@@ -96,6 +96,11 @@ export default function TermsPage() {
 
             <Article title="Artikel 12 — Toepasselijk recht en geschillen">
               <p>Op deze voorwaarden is Nederlands recht van toepassing. Geschillen worden bij voorkeur in onderling overleg opgelost.</p>
+              <p className="mt-2">
+                Is een boeking betaald en loopt er onverhoopt iets mis — de leverancier komt niet opdagen, de geleverde dienst wijkt sterk af van de offerte, of er ontstaat onenigheid over een betaling —
+                dan kunnen zowel de organisator als de leverancier dit rechtstreeks bij de betreffende boeking melden. Vyra beoordeelt de melding, neemt indien nodig contact op met beide partijen en
+                deelt een schriftelijke uitkomst. Dit interne meldproces staat los van het recht van beide partijen om de zaak alsnog aan de rechter voor te leggen.
+              </p>
             </Article>
           </div>
         </Card>

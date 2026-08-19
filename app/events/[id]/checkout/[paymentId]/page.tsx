@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
-import { getEvent, getOffer, getPaymentsForOffer, getPayment, resolveSupplierDisplay } from "@/lib/data/store";
+import { getDisputesForPayment, getEvent, getOffer, getPaymentsForOffer, getPayment, resolveSupplierDisplay } from "@/lib/data/store";
 import { Card } from "@/components/ui/Card";
 import { SupplierAvatar } from "@/components/ui/Avatar";
 import { formatCurrency, PAYMENTS_ENABLED } from "@/lib/config";
 import { confirmPaymentAction } from "@/lib/actions/marketplace-actions";
+import { DisputeReporter } from "@/components/app/DisputeReporter";
 import { SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
 import { CheckCircle2, Clock, Lock, ShieldCheck } from "lucide-react";
 
@@ -15,6 +16,7 @@ export default async function CheckoutPage(props: PageProps<"/events/[id]/checko
 
   const offer = await getOffer(payment.offerId);
   const supplier = offer ? await resolveSupplierDisplay(offer.supplierId) : null;
+  const disputes = payment.status === "paid" ? await getDisputesForPayment(payment.id) : [];
   const siblings = payment.installment !== "full" ? await getPaymentsForOffer(payment.offerId) : [];
   const otherInstallment = siblings.find((p) => p.id !== payment.id);
   const installmentLabel = payment.installment === "deposit" ? "Aanbetaling" : payment.installment === "balance" ? "Restbedrag" : null;
@@ -94,6 +96,10 @@ export default async function CheckoutPage(props: PageProps<"/events/[id]/checko
           </form>
         )}
       </Card>
+
+      {payment.status === "paid" && offer && (
+        <DisputeReporter paymentId={payment.id} eventId={event.id} offerId={offer.id} supplierId={offer.supplierId} disputes={disputes} />
+      )}
     </div>
   );
 }

@@ -540,12 +540,59 @@ export interface AppNotification {
     | "event_info_changed"
     | "verification_requested"
     | "verification_approved"
-    | "verification_rejected";
+    | "verification_rejected"
+    | "dispute_filed"
+    | "dispute_resolved"
+    | "dispute_dismissed";
   title: string;
   body: string;
   read: boolean;
   createdAt: string;
   href: string | null;
+}
+
+/* ------------------------------------------------------------------ */
+/* DISPUTES (spec-item #50)                                            */
+/* ------------------------------------------------------------------ */
+
+export type DisputeStatus = "open" | "resolved" | "dismissed";
+export type DisputeFiledByRole = "customer" | "supplier";
+export type DisputeCategory = "no_show" | "quality" | "payment" | "communication" | "other";
+
+export const DISPUTE_CATEGORY_LABELS: Record<DisputeCategory, string> = {
+  no_show: "Niet komen opdagen",
+  quality: "Kwaliteit van de dienst",
+  payment: "Betalingsprobleem",
+  communication: "Communicatie",
+  other: "Anders",
+};
+
+export const DISPUTE_STATUS_LABELS: Record<DisputeStatus, string> = {
+  open: "In behandeling",
+  resolved: "Opgelost",
+  dismissed: "Afgewezen",
+};
+
+/**
+ * Een geschil dat een organisator of leverancier meldt over een specifieke
+ * betaling/boeking — spec-item #50. Alleen de admin (Cem, via service-role
+ * client) kan een geschil oplossen/afwijzen; beide betrokken partijen kunnen
+ * lezen en melden (zie RLS in supabase/migrations/0020_disputes.sql).
+ */
+export interface Dispute {
+  id: string;
+  paymentId: string;
+  eventId: string;
+  offerId: string;
+  supplierId: string;
+  filedBy: string;
+  filedByRole: DisputeFiledByRole;
+  category: DisputeCategory;
+  description: string;
+  status: DisputeStatus;
+  adminResponse: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
 }
 
 /* ------------------------------------------------------------------ */

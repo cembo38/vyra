@@ -3,10 +3,12 @@ import { redirect } from "next/navigation";
 import { AppTopBar } from "@/components/app/AppTopBar";
 import { AdminUserActions } from "@/components/app/AdminUserActions";
 import { AdminSupplierVerificationActions } from "@/components/app/AdminSupplierVerificationActions";
+import { AdminDisputeActions } from "@/components/app/AdminDisputeActions";
 import { Card } from "@/components/ui/Card";
 import { Badge, StageBadge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import {
+  listAllDisputes,
   listAllEvents,
   listAllOffers,
   listAllPayments,
@@ -18,7 +20,7 @@ import {
 import { isServiceRoleConfigured } from "@/lib/supabase/admin";
 import { formatCurrency, ADMIN_EMAILS } from "@/lib/config";
 import { getCurrentUser } from "@/lib/auth";
-import { EVENT_TYPE_LABELS, UserRole } from "@/lib/types";
+import { DISPUTE_CATEGORY_LABELS, EVENT_TYPE_LABELS, UserRole } from "@/lib/types";
 import { SIDEBAR_OFFSET_CLASS } from "@/lib/nav-constants";
 import { cn, isValidKvkFormat, kvkLookupUrl } from "@/lib/utils";
 import { AlertCircle, AlertTriangle, Ban, BadgeCheck, Building2, CalendarDays, Clock, ExternalLink, LineChart, Percent, ShieldAlert, Sparkles, Star, Users } from "lucide-react";
@@ -37,7 +39,7 @@ export default async function AdminPage() {
   if (!user) redirect("/login");
   if (!ADMIN_EMAILS.includes(user.email.toLowerCase())) redirect("/events");
 
-  const [events, payments, requests, offers, users, suppliers, aiLogs] = await Promise.all([
+  const [events, payments, requests, offers, users, suppliers, aiLogs, disputes] = await Promise.all([
     listAllEvents(),
     listAllPayments(),
     listAllRequests(),
@@ -45,9 +47,18 @@ export default async function AdminPage() {
     listAllUsers(),
     listAllSupplierAccounts(),
     listAiInteractionLogs(50),
+    listAllDisputes(),
   ]);
   const serviceRoleConfigured = isServiceRoleConfigured();
   const pendingVerifications = suppliers.filter((s) => !s.verified && s.verificationRequestedAt);
+
+  // Namen voor de geschillenlijst hieronder oplossen uit al opgehaalde data
+  // (geen extra queries nodig) — spec-item #50.
+  const eventById = new Map(events.map((e) => [e.id, e]));
+  const supplierById = new Map(suppliers.map((s) => [s.id, s]));
+  const userById = new Map(users.map((u) => [u.id, u]));
+  const sortedDisputes = [...disputes].sort((a, b) => (a.status === "open" ? -1 : 0) - (b.status === "open" ? -1 : 0));
+  const openDisputeCount = disputes.filter((d) => d.status === "open").length;
 
   const paidPayments = payments.filter((p) => p.status === "paid");
   const gmv = paidPayments.reduce((sum, p) => sum + p.supplierAmountCents, 0);
@@ -266,8 +277,55 @@ export default async function AdminPage() {
           </Card>
 
           <Card>
-            <h2 className="mb-4 font-display text-lg text-ink">Geschillen</h2>
-            <EmptyState icon={<AlertCircle className="size-6" />} title="Geen openstaande geschillen" description="Gemelde problemen tussen organisatoren en leveranciers verschijnen hier." />
+            <div className="mb-1 flex items-center justify-between">
+              <h2 className="font-display text-lg text-ink">Geschillen</h2>
+              {openDisputeCount > 0 && (
+                <span className="flex items-center gap-1 rounded-full bg-danger-50 px-2.5 py-1 text-xs font-medium text-danger">
+                  <AlertCircle className="size-3.5" /> {openDisputeCount} in behandeling
+                </span>
+              )}
+            </div>
+            <p className="mb-4 text-xs text-ink-faint">Gemelde problemen tussen organisatoren en leveranciers over een specifieke boeking.</p>
+            {!serviceRoleConfigured ? (
+              <p className="text-sm text-ink-faint">Vereist de service-role sleutel (zie melding bovenaan) om geschillen platformbreed te zien en af te handelen.</p>
+            ) : sortedDisputes.length === 0 ? (
+              <EmptyState icon={<AlertCircle className="size-6" />} title="Geen openstaande geschillen" description="Gemelde problemen tussen organisatoren en leveranciers verschijnen hier." />
+            ) : (
+              <div className="max-h-[28rem] space-y-2 overflow-y-auto">
+                {sortedDisputes.map((d) => {
+                  const event = eventById.get(d.eventId);
+                  const supplier = supplierById.get(d.supplierId);
+                  const filer = userById.get(d.filedBy);
+                  return (
+                    <div
+                      key={d.id}
+                      className={cn(
+                        "rounded-xl border px-3.5 py-2.5 text-sm",
+                        d.status === "open" ? "border-danger/30 bg-danger-50/40" : "border-line-soft"
+                      )}
+                    >
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="font-medium text-ink">{event?.name ?? "Onbekend evenement"} · {supplier?.companyName ?? "Onbekende leverancier"}</p>
+                        <Badge tone={d.status === "open" ? "danger" : d.status === "resolved" ? "success" : "neutral"}>
+                          {d.status === "open" ? "In behandeling" : d.status === "resolved" ? "Opgelost" : "Afgewezen"}
+                        </Badge>
+                        <Badge tone="neutral">{DISPUTE_CATEGORY_LABELS[d.category]}</Badge>
+                      </div>
+                      <p className="mt-1 text-xs text-ink-faint">
+                        Gemeld door {filer ? `${filer.firstName} ${filer.lastName}` : "onbekende gebruiker"} ({d.filedByRole === "customer" ? "organisator" : "leverancier"}) op {new Date(d.createdAt).toLocaleDateString("nl-NL")}
+                      </p>
+                      <p className="mt-1.5 text-sm text-ink-soft">{d.description}</p>
+                      {d.adminResponse && (
+                        <p className="mt-1.5 rounded-lg bg-paper-dim px-2.5 py-1.5 text-xs text-ink-soft">
+                          <span className="font-medium text-ink">Reactie:</span> {d.adminResponse}
+                        </p>
+                      )}
+                      {d.status === "open" && <AdminDisputeActions disputeId={d.id} />}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </Card>
         </div>
 

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { ADMIN_EMAILS } from "@/lib/config";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { approveSupplierVerification, rejectSupplierVerification, pushNotification } from "@/lib/data/store";
+import { approveSupplierVerification, rejectSupplierVerification, pushNotification, resolveDispute } from "@/lib/data/store";
 
 /**
  * Elke actie hier raakt ANDERE gebruikers dan de aanroeper — dus altijd
@@ -90,6 +90,39 @@ export async function rejectSupplierVerificationAction(formData: FormData) {
     body: "We konden je bedrijfsgegevens nog niet verifiëren. Controleer je KVK-nummer en bedrijfsgegevens en vraag het opnieuw aan.",
     href: "/supplier/profile",
   });
+
+  revalidatePath("/admin");
+}
+
+/**
+ * Geschillen oplossen/afwijzen (spec-item #50) — mirror van
+ * approve/rejectSupplierVerificationAction hierboven. Een reactie is
+ * verplicht: zowel de organisator als de leverancier moeten begrijpen
+ * waarom Cem tot dit oordeel kwam. resolveDispute() in lib/data/store.ts
+ * notificeert beide partijen zelf.
+ */
+export async function resolveDisputeAction(formData: FormData) {
+  await requireAdmin();
+  const disputeId = String(formData.get("disputeId") ?? "").trim();
+  const adminResponse = String(formData.get("adminResponse") ?? "").trim();
+  if (!disputeId) throw new Error("Geen geschil opgegeven.");
+  if (!adminResponse) throw new Error("Geef een toelichting op je beslissing.");
+
+  const dispute = await resolveDispute(disputeId, "resolved", adminResponse);
+  if (!dispute) throw new Error("Kon geschil niet oplossen (service-role sleutel niet geconfigureerd?).");
+
+  revalidatePath("/admin");
+}
+
+export async function dismissDisputeAction(formData: FormData) {
+  await requireAdmin();
+  const disputeId = String(formData.get("disputeId") ?? "").trim();
+  const adminResponse = String(formData.get("adminResponse") ?? "").trim();
+  if (!disputeId) throw new Error("Geen geschil opgegeven.");
+  if (!adminResponse) throw new Error("Geef een toelichting op je beslissing.");
+
+  const dispute = await resolveDispute(disputeId, "dismissed", adminResponse);
+  if (!dispute) throw new Error("Kon geschil niet afwijzen (service-role sleutel niet geconfigureerd?).");
 
   revalidatePath("/admin");
 }

@@ -15,6 +15,10 @@ import { sendNotificationEmail } from "@/lib/email/send";
 import {
   AiInterviewMessage,
   AppNotification,
+  Dispute,
+  DisputeCategory,
+  DisputeFiledByRole,
+  DisputeStatus,
   EventBudgetSummary,
   EventCore,
   EventGuest,
@@ -279,6 +283,24 @@ function rowToSupplierBlockedDate(r: Row): SupplierBlockedDate {
 
 function rowToSupplierFavorite(r: Row): SupplierFavorite {
   return { id: r.id, userId: r.user_id, supplierId: r.supplier_id, createdAt: r.created_at };
+}
+
+function rowToDispute(r: Row): Dispute {
+  return {
+    id: r.id,
+    paymentId: r.payment_id,
+    eventId: r.event_id,
+    offerId: r.offer_id,
+    supplierId: r.supplier_id,
+    filedBy: r.filed_by,
+    filedByRole: r.filed_by_role,
+    category: r.category,
+    description: r.description,
+    status: r.status,
+    adminResponse: r.admin_response ?? null,
+    resolvedAt: r.resolved_at ?? null,
+    createdAt: r.created_at,
+  };
 }
 
 function rowToGuest(r: Row): EventGuest {
@@ -2215,6 +2237,138 @@ export async function markAllNotificationsRead(userId: string): Promise<AppNotif
   const supabase = await sb();
   await supabase.from("notifications").update({ read: true }).eq("user_id", userId).eq("read", false);
   return getNotifications(userId);
+}
+
+/* ------------------------------------------------------------------ */
+/* GESCHILLEN (spec-item #50: geschillen kunnen melden/escaleren)      */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Meldt een geschil over een specifieke betaling/boeking. Werkt zowel voor
+ * de organisator (filedByRole "customer") als de leverancier (filedByRole
+ * "supplier") — RLS op de `disputes`-tabel controleert al dat de melder
+ * daadwerkelijk bij deze boeking betrokken is (zie 0020_disputes.sql).
+ * Notificeert de ANDERE partij (niet de admin — net als bij
+ * verificatieaanvragen bekijkt Cem de wachtrij zelf op het admin-
+ * dashboard i.p.v. een mail per melding te krijgen). Als de leverancier
+ * geen écht (inlogbaar) account is (statische demo-catalogus-id), is er
+ * niemand om te notificeren — geen fout, gewoon overslaan.
+ */
+export async function fileDispute(params: {
+  paymentId: string;
+  eventId: string;
+  offerId: string;
+  supplierId: string;
+  filedBy: string;
+  filedByRole: DisputeFiledByRole;
+  category: DisputeCategory;
+  description: string;
+}): Promise<Dispute | null> {
+  const supabase = await sb();
+  const { data, error } = await supabase
+    .from("disputes")
+    .insert({
+      payment_id: params.paymentId,
+      event_id: params.eventId,
+      offer_id: params.offerId,
+      supplier_id: params.supplierId,
+      filed_by: params.filedBy,
+      filed_by_role: params.filedByRole,
+      category: params.category,
+      description: params.description,
+    })
+    .select()
+    .single();
+  if (error || !data) throw new Error(error?.message ?? "Kon geschil niet melden");
+
+  const [event, supplier] = await Promise.all([getEvent(params.eventId), getSupplierAccount(params.supplierId)]);
+  const notifyBody = "Er is een geschil gemeld over een boeking. Bekijk de details en reageer.";
+  if (params.filedByRole === "customer" && supplier) {
+    await pushNotification({
+      userId: supplier.ownerId,
+      eventId: params.eventId,
+      type: "dispute_filed",
+      title: "Geschil gemeld",
+      body: notifyBody,
+      href: `/supplier/orders`,
+    });
+  } else if (params.filedByRole === "supplier" && event) {
+    await pushNotification({
+      userId: event.ownerId,
+      eventId: params.eventId,
+      type: "dispute_filed",
+      title: "Geschil gemeld",
+      body: notifyBody,
+      href: `/events/${event.id}/checkout/${params.paymentId}`,
+    });
+  }
+
+  return rowToDispute(data);
+}
+
+export async function getDisputesForPayment(paymentId: string): Promise<Dispute[]> {
+  const supabase = await sb();
+  const { data } = await supabase.from("disputes").select("*").eq("payment_id", paymentId).order("created_at", { ascending: false });
+  return (data ?? []).map(rowToDispute);
+}
+
+/**
+ * Alle geschillen over boekingen van deze leverancier, in één query i.p.v.
+ * per order apart (N+1) — gebruikt door de bestellingenpagina, die de
+ * resultaten zelf per `paymentId` groepeert. RLS beperkt dit al tot de
+ * ingelogde leverancier zelf.
+ */
+export async function getDisputesForSupplier(supplierId: string): Promise<Dispute[]> {
+  const supabase = await sb();
+  const { data } = await supabase.from("disputes").select("*").eq("supplier_id", supplierId).order("created_at", { ascending: false });
+  return (data ?? []).map(rowToDispute);
+}
+
+/**
+ * Oplossen of afwijzen door een admin — uitsluitend via de service-role
+ * client (bypassing RLS, want er is bewust geen UPDATE-policy voor gewone
+ * gebruikers). Notificeert BEIDE betrokken partijen. Zie
+ * requireAdmin()/approveSupplierVerificationAction in
+ * lib/actions/admin-actions.ts voor het aanroeppatroon.
+ */
+export async function resolveDispute(
+  disputeId: string,
+  status: Exclude<DisputeStatus, "open">,
+  adminResponse: string
+): Promise<Dispute | null> {
+  const admin = createSupabaseAdminClient();
+  const supabase = admin ?? (await sb());
+  const { data, error } = await supabase
+    .from("disputes")
+    .update({ status, admin_response: adminResponse, resolved_at: new Date().toISOString() })
+    .eq("id", disputeId)
+    .select()
+    .single();
+  if (error || !data) return null;
+  const dispute = rowToDispute(data);
+
+  const [event, supplier] = await Promise.all([getEvent(dispute.eventId), getSupplierAccount(dispute.supplierId)]);
+  const title = status === "resolved" ? "Geschil opgelost" : "Geschil afgewezen";
+  const type: AppNotification["type"] = status === "resolved" ? "dispute_resolved" : "dispute_dismissed";
+  const recipients = [event?.ownerId, supplier?.ownerId].filter((id): id is string => !!id);
+  for (const userId of recipients) {
+    await pushNotification({
+      userId,
+      eventId: dispute.eventId,
+      type,
+      title,
+      body: adminResponse,
+      href: `/events/${dispute.eventId}/checkout/${dispute.paymentId}`,
+    });
+  }
+
+  return dispute;
+}
+
+export async function listAllDisputes(): Promise<Dispute[]> {
+  const supabase = createSupabaseAdminClient() ?? (await sb());
+  const { data } = await supabase.from("disputes").select("*").order("created_at", { ascending: false });
+  return (data ?? []).map(rowToDispute);
 }
 
 export function allSuppliers() {

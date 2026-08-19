@@ -2,9 +2,10 @@ import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { DisputeReporter } from "@/components/app/DisputeReporter";
 import { getCurrentUser } from "@/lib/auth";
-import { getSupplierAccountByOwner, getSupplierOrders } from "@/lib/data/store";
-import { EVENT_TYPE_LABELS } from "@/lib/types";
+import { getDisputesForSupplier, getSupplierAccountByOwner, getSupplierOrders } from "@/lib/data/store";
+import { Dispute, EVENT_TYPE_LABELS } from "@/lib/types";
 import { formatCurrency } from "@/lib/config";
 import { CalendarCheck } from "lucide-react";
 
@@ -16,7 +17,11 @@ export default async function SupplierOrdersPage() {
   const supplier = await getSupplierAccountByOwner(user.id);
   if (!supplier) redirect("/supplier/onboarding");
 
-  const orders = await getSupplierOrders(supplier.id);
+  const [orders, disputes] = await Promise.all([getSupplierOrders(supplier.id), getDisputesForSupplier(supplier.id)]);
+  const disputesByPayment = new Map<string, Dispute[]>();
+  for (const d of disputes) {
+    disputesByPayment.set(d.paymentId, [...(disputesByPayment.get(d.paymentId) ?? []), d]);
+  }
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -51,36 +56,55 @@ export default async function SupplierOrdersPage() {
       {upcoming.length === 0 ? (
         <EmptyState icon={<CalendarCheck className="size-6" />} title="Nog geen boekingen" description="Zodra een organisator jouw offerte accepteert, verschijnt de boeking hier." />
       ) : (
-        <OrderTable orders={upcoming} />
+        <OrderTable orders={upcoming} supplierId={supplier.id} disputesByPayment={disputesByPayment} />
       )}
 
       {past.length > 0 && (
         <>
           <h2 className="mb-3 mt-10 font-display text-lg text-ink">Afgerond ({past.length})</h2>
-          <OrderTable orders={past} />
+          <OrderTable orders={past} supplierId={supplier.id} disputesByPayment={disputesByPayment} />
         </>
       )}
     </div>
   );
 }
 
-function OrderTable({ orders }: { orders: Awaited<ReturnType<typeof getSupplierOrders>> }) {
+function OrderTable({
+  orders,
+  supplierId,
+  disputesByPayment,
+}: {
+  orders: Awaited<ReturnType<typeof getSupplierOrders>>;
+  supplierId: string;
+  disputesByPayment: Map<string, Dispute[]>;
+}) {
   return (
     <div className="space-y-2">
       {orders.map(({ offer, event, payment }) => (
-        <Card key={offer.id} className="flex flex-wrap items-center justify-between gap-3 p-4">
-          <div>
-            <p className="font-medium text-ink">{event?.name ?? "Evenement"}</p>
-            <p className="text-xs text-ink-faint">
-              {event ? EVENT_TYPE_LABELS[event.type] : ""} {event?.date ? `· ${event.date}` : ""} {event?.locationLabel ? `· ${event.locationLabel}` : ""}
-            </p>
+        <Card key={offer.id} className="p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="font-medium text-ink">{event?.name ?? "Evenement"}</p>
+              <p className="text-xs text-ink-faint">
+                {event ? EVENT_TYPE_LABELS[event.type] : ""} {event?.date ? `· ${event.date}` : ""} {event?.locationLabel ? `· ${event.locationLabel}` : ""}
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="font-medium text-ink">{formatCurrency(payment?.supplierAmountCents ?? offer.totalPriceCents)}</p>
+              <Badge tone={payment?.status === "paid" ? "success" : "ochre"}>
+                {payment?.status === "paid" ? "Uitbetaald" : payment ? "Wacht op uitbetaling" : "Betaling nog niet gestart"}
+              </Badge>
+            </div>
           </div>
-          <div className="text-right">
-            <p className="font-medium text-ink">{formatCurrency(payment?.supplierAmountCents ?? offer.totalPriceCents)}</p>
-            <Badge tone={payment?.status === "paid" ? "success" : "ochre"}>
-              {payment?.status === "paid" ? "Uitbetaald" : payment ? "Wacht op uitbetaling" : "Betaling nog niet gestart"}
-            </Badge>
-          </div>
+          {payment && event && payment.status === "paid" && (
+            <DisputeReporter
+              paymentId={payment.id}
+              eventId={event.id}
+              offerId={offer.id}
+              supplierId={supplierId}
+              disputes={disputesByPayment.get(payment.id) ?? []}
+            />
+          )}
         </Card>
       ))}
     </div>
