@@ -390,6 +390,8 @@ export interface SupplierAccount {
   /** Vyra Pro-abonnement actief? (spec-item #53, laag 3) — vast maandbedrag i.p.v. commissie per boeking. */
   proSubscribed: boolean;
   proSubscribedAt: string | null;
+  /** "Winkel open/gesloten" — zet de leverancier zelf uit als hij tijdelijk geen nieuwe aanvragen kan aannemen (spec-item #55). Gesloten = niet zichtbaar in zoeken/matching. */
+  storeOpen: boolean;
   createdAt: string;
 }
 

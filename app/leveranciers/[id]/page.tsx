@@ -15,7 +15,7 @@ import { formatCurrency } from "@/lib/config";
 import { SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
 import { SIDEBAR_OFFSET_CLASS } from "@/lib/nav-constants";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, Clock, ExternalLink, Link2, Lock, MapPin, ShieldCheck, Star } from "lucide-react";
+import { CheckCircle2, Clock, ExternalLink, Link2, Lock, MapPin, MoonStar, ShieldCheck, Star } from "lucide-react";
 
 export const metadata = { title: "Leveranciersprofiel — Vyra" };
 
@@ -24,6 +24,7 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
   const params = await props.searchParams;
   const requestSent = params.requestSent === "1";
   const hasError = params.error === "1";
+  const closedError = params.closedError === "1";
 
   const supplier = await getSupplierAccount(id);
   if (!supplier) notFound();
@@ -62,6 +63,9 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
               {supplier.categoryOther && <Badge tone="neutral">{supplier.categoryOther}</Badge>}
               {supplier.verified && (
                 <Badge tone="success" icon={<ShieldCheck className="size-3" />}>Geverifieerd</Badge>
+              )}
+              {!supplier.storeOpen && (
+                <Badge tone="neutral" icon={<MoonStar className="size-3" />}>Tijdelijk gesloten</Badge>
               )}
             </div>
 
@@ -148,8 +152,20 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
             Vul een evenement en een omschrijving in voordat je verstuurt.
           </div>
         )}
+        {closedError && (
+          <div className="mt-4 rounded-xl border border-warning-50 bg-warning-50 px-3 py-2 text-sm text-warning">
+            Deze leverancier staat momenteel op gesloten en kan geen nieuwe aanvragen aannemen.
+          </div>
+        )}
 
-        {!user ? (
+        {!supplier.storeOpen ? (
+          <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-line-soft bg-paper-dim px-4 py-3 text-sm text-ink-soft">
+            <MoonStar className="size-4.5 shrink-0 text-ink-faint" />
+            {supplier.companyName} staat momenteel op gesloten en neemt geen nieuwe aanvragen aan. Kijk later nog eens terug, of{" "}
+            {favorited ? "je vindt ze terug via " : "sla ze op als favoriet via "}
+            {favorited ? <Link href="/mijn-leveranciers" className="font-medium text-clay hover:underline">Mijn leveranciers</Link> : "het hartje hierboven"}.
+          </div>
+        ) : !user ? (
           <p className="mt-4 text-sm text-ink-soft">
             <Link href={`/login?redirect=/leveranciers/${supplier.id}`} className="font-medium text-clay hover:underline">Log in</Link> of{" "}
             <Link href={`/signup?intent=organizer`} className="font-medium text-clay hover:underline">maak een account</Link> om een maatwerkaanvraag te sturen.

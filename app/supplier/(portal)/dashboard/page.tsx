@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { DeadlineCountdown } from "@/components/ui/Countdown";
+import { StoreOpenToggle } from "@/components/app/StoreOpenToggle";
 import { getCurrentUser } from "@/lib/auth";
 import { getSupplierAccountByOwner, getSupplierEarningsSummary, getSupplierLeads, getSupplierOrders } from "@/lib/data/store";
 import { formatCurrency } from "@/lib/config";
@@ -34,8 +35,18 @@ export default async function SupplierDashboardPage() {
 
   return (
     <div>
-      <h1 className="font-display text-3xl text-ink">Welkom terug, {supplier.companyName}</h1>
-      <p className="mt-1 text-ink-soft">Overzicht van je aanvragen, boekingen en verdiensten.</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-3xl text-ink">Welkom terug, {supplier.companyName}</h1>
+          <p className="mt-1 text-ink-soft">Overzicht van je aanvragen, boekingen en verdiensten.</p>
+        </div>
+        <StoreOpenToggle open={supplier.storeOpen} />
+      </div>
+      {!supplier.storeOpen && (
+        <p className="mt-3 rounded-xl border border-line-soft bg-paper-dim px-3.5 py-2.5 text-sm text-ink-soft">
+          Je winkel staat op gesloten — organisatoren kunnen je nu niet vinden via zoeken of nieuwe aanvragen. Zet &apos;m weer open zodra je nieuwe boekingen kunt aannemen.
+        </p>
+      )}
 
       <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi icon={<Inbox className="size-4" />} label="Openstaande aanvragen" value={String(summary.openLeadsCount)} href="/supplier/requests" />

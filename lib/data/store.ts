@@ -264,6 +264,7 @@ function rowToSupplierAccount(r: Row): SupplierAccount {
     galleryUrls: r.gallery_urls ?? [],
     proSubscribed: r.pro_subscribed ?? false,
     proSubscribedAt: r.pro_subscribed_at ?? null,
+    storeOpen: r.store_open ?? true,
     createdAt: r.created_at,
   };
 }
@@ -518,7 +519,9 @@ export async function searchSupplierAccounts(filters: {
   query?: string;
 }): Promise<SupplierAccount[]> {
   const supabase = await sb();
-  let dbQuery = supabase.from("suppliers").select("*");
+  // Een leverancier die zichzelf op "gesloten" heeft gezet (spec-item #55)
+  // mag niet gevonden worden — dat is precies het doel van die schakelaar.
+  let dbQuery = supabase.from("suppliers").select("*").eq("store_open", true);
   if (filters.category) dbQuery = dbQuery.contains("categories", [filters.category]);
   if (filters.location) dbQuery = dbQuery.ilike("base_location", `%${filters.location}%`);
   if (filters.minPriceCents != null) dbQuery = dbQuery.gte("avg_price_cents", filters.minPriceCents);
@@ -760,6 +763,47 @@ export async function blockSupplierDate(supplierId: string, date: string): Promi
   return rowToSupplierBlockedDate(data);
 }
 
+/** Bovengrens op het aantal dagen dat in één actie geblokkeerd kan worden — vangt een tikfout in de einddatum op (bv. verkeerd jaar) voordat die honderden rijen aanmaakt. */
+const MAX_BLOCKED_DATE_RANGE_DAYS = 366;
+
+/**
+ * Blokkeer een hele reeks datums in één keer (bv. een vakantie van twee
+ * weken) i.p.v. dag voor dag — spec-item #54-vervolg: Cem gaf aan dat de
+ * losse datumkiezer niet praktisch is voor langere periodes. Inclusief
+ * `startDate` en `endDate`. Rekent in UTC-dagen (i.p.v. lokale tijd +1
+ * dag optellen) om DST-fouten rond de klokomzetting te vermijden. Gebruikt
+ * `upsert`+`ignoreDuplicates` zodat een datum die al geblokkeerd was de
+ * actie niet laat mislukken.
+ */
+export async function blockSupplierDateRange(
+  supplierId: string,
+  startDate: string,
+  endDate: string
+): Promise<{ ok: boolean; error?: string; dates: string[] }> {
+  if (startDate > endDate) return { ok: false, error: "De startdatum moet vóór (of gelijk aan) de einddatum liggen.", dates: [] };
+
+  const dates: string[] = [];
+  let cursor = new Date(`${startDate}T00:00:00Z`);
+  const end = new Date(`${endDate}T00:00:00Z`);
+  while (cursor.getTime() <= end.getTime()) {
+    dates.push(cursor.toISOString().slice(0, 10));
+    cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
+    if (dates.length > MAX_BLOCKED_DATE_RANGE_DAYS) {
+      return { ok: false, error: `Een reeks van meer dan ${MAX_BLOCKED_DATE_RANGE_DAYS} dagen tegelijk wordt niet ondersteund — controleer de datums.`, dates: [] };
+    }
+  }
+
+  const supabase = await sb();
+  const { error } = await supabase
+    .from("supplier_blocked_dates")
+    .upsert(
+      dates.map((date) => ({ supplier_id: supplierId, date })),
+      { onConflict: "supplier_id,date", ignoreDuplicates: true }
+    );
+  if (error) return { ok: false, error: "Kon deze datums niet blokkeren.", dates: [] };
+  return { ok: true, dates };
+}
+
 export async function unblockSupplierDate(supplierId: string, date: string): Promise<void> {
   const supabase = await sb();
   await supabase.from("supplier_blocked_dates").delete().eq("supplier_id", supplierId).eq("date", date);
@@ -892,6 +936,18 @@ export async function setSupplierProSubscription(supplierId: string, active: boo
 }
 
 /**
+ * "Winkel open/gesloten" (spec-item #55) — een leverancier zet zichzelf
+ * tijdelijk onvindbaar (vakantie, te druk, etc.) zonder per se elke datum
+ * apart te hoeven blokkeren. Filtert de leverancier uit zowel de publieke
+ * zoekresultaten (`searchSupplierAccounts`) als de AI-matchingpool
+ * (`findRealMatchingSuppliers`) zolang `storeOpen` false is.
+ */
+export async function setSupplierStoreOpen(supplierId: string, open: boolean): Promise<void> {
+  const supabase = await sb();
+  await supabase.from("suppliers").update({ store_open: open }).eq("id", supplierId);
+}
+
+/**
  * Welke van deze kandidaat-leveranciers zijn NIET beschikbaar op `date`? Dat
  * is de vereniging van (a) zelf-geblokkeerde datums (`supplier_blocked_dates`)
  * en (b) leveranciers die op die datum al een BEVESTIGDE boeking hebben
@@ -935,7 +991,15 @@ async function findRealMatchingSuppliers(
   // Ruimere kandidaatpool dan het uiteindelijke aantal — anders zou een
   // hard beschikbaarheidsfilter bij een kleine categorie soms niks
   // overhouden om uit te kiezen.
-  const { data } = await supabase.from("suppliers").select("*").contains("categories", [categoryKey]).limit(Math.max(limit * 4, 10));
+  // Ook hier geldt: "gesloten" (spec-item #55) betekent niet gevonden kunnen
+  // worden — dus uitgesloten van de kandidatenpool, niet slechts teruggezet
+  // zoals bij een losse geblokkeerde datum hieronder.
+  const { data } = await supabase
+    .from("suppliers")
+    .select("*")
+    .eq("store_open", true)
+    .contains("categories", [categoryKey])
+    .limit(Math.max(limit * 4, 10));
   const pool = (data ?? []).map(rowToSupplierAccount);
 
   const unavailableIds = opts.eventDate ? await getUnavailableSupplierIds(pool.map((s) => s.id), opts.eventDate) : new Set<string>();

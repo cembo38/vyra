@@ -6,13 +6,16 @@ import { parseSupplierOfferDescription } from "@/lib/ai/supplierOffer";
 import { getCurrentUser } from "@/lib/auth";
 import {
   blockSupplierDate,
+  blockSupplierDateRange,
   createSupplierAccount,
   getRequest,
+  getSupplierAccount,
   getSupplierAccountByOwner,
   pushNotification,
   requestSupplierVerification,
   sendCustomSupplierRequest,
   setSupplierProSubscription,
+  setSupplierStoreOpen,
   submitSupplierOffer,
   unblockSupplierDate,
   updateSupplierAccount,
@@ -214,6 +217,43 @@ export async function toggleSupplierBlockedDateAction(date: string, blocked: boo
 }
 
 /**
+ * Blokkeert een hele reeks datums in één keer (bv. een vakantie van twee
+ * weken) — spec-item #54-vervolg. Zelfde vorm/validatie als
+ * `toggleSupplierBlockedDateAction`, maar dan voor een periode i.p.v. één dag.
+ */
+export async function blockSupplierDateRangeAction(startDate: string, endDate: string): Promise<{ ok: boolean; error?: string; dates?: string[] }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Niet ingelogd." };
+  const supplier = await getSupplierAccountByOwner(user.id);
+  if (!supplier) return { ok: false, error: "Geen leveranciersaccount gevonden." };
+
+  const today = new Date().toISOString().slice(0, 10);
+  if (startDate < today) return { ok: false, error: "Je kunt geen datum in het verleden blokkeren." };
+
+  const result = await blockSupplierDateRange(supplier.id, startDate, endDate || startDate);
+  if (!result.ok) return { ok: false, error: result.error };
+
+  revalidatePath("/supplier/calendar");
+  return { ok: true, dates: result.dates };
+}
+
+/**
+ * "Winkel open/gesloten" (spec-item #55) — leverancier zet zichzelf
+ * tijdelijk onvindbaar in zoeken en matching.
+ */
+export async function toggleStoreOpenAction(open: boolean): Promise<{ ok: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Niet ingelogd." };
+  const supplier = await getSupplierAccountByOwner(user.id);
+  if (!supplier) return { ok: false, error: "Geen leveranciersaccount gevonden." };
+
+  await setSupplierStoreOpen(supplier.id, open);
+  revalidatePath("/supplier/dashboard");
+  revalidatePath(`/leveranciers/${supplier.id}`);
+  return { ok: true };
+}
+
+/**
  * Vyra Pro aan/uit (spec-item #53, laag 3) — vast maandbedrag i.p.v.
  * commissie per boeking, plus een bescheiden voorrangsboost in de matching.
  * Zelfde vorm als `toggleSupplierBlockedDateAction`.
@@ -253,6 +293,14 @@ export async function submitCustomSupplierRequestAction(formData: FormData) {
 
   if (!supplierId || !eventId || !categoryKey || !desiredService) {
     redirect(`/leveranciers/${supplierId}?error=1`);
+  }
+
+  // Verdediging in de diepte: de knop staat al niet op de pagina als de
+  // leverancier "gesloten" is (spec-item #55), maar een verlopen/gecachte
+  // pagina zou de form toch nog kunnen tonen — dus hier nogmaals checken.
+  const targetSupplier = await getSupplierAccount(supplierId);
+  if (!targetSupplier || !targetSupplier.storeOpen) {
+    redirect(`/leveranciers/${supplierId}?closedError=1`);
   }
 
   await sendCustomSupplierRequest({
