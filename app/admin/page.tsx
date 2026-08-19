@@ -16,7 +16,7 @@ import {
   listAiInteractionLogs,
 } from "@/lib/data/store";
 import { isServiceRoleConfigured } from "@/lib/supabase/admin";
-import { formatCurrency, PLATFORM_COMMISSION_RATE, ADMIN_EMAILS } from "@/lib/config";
+import { formatCurrency, ADMIN_EMAILS } from "@/lib/config";
 import { getCurrentUser } from "@/lib/auth";
 import { EVENT_TYPE_LABELS, UserRole } from "@/lib/types";
 import { SIDEBAR_OFFSET_CLASS } from "@/lib/nav-constants";
@@ -52,6 +52,12 @@ export default async function AdminPage() {
   const paidPayments = payments.filter((p) => p.status === "paid");
   const gmv = paidPayments.reduce((sum, p) => sum + p.supplierAmountCents, 0);
   const revenue = paidPayments.reduce((sum, p) => sum + p.platformFeeCents, 0);
+  // Sinds het gestaffelde commissiemodel (spec-item #53) bestaat er geen
+  // enkel vast percentage meer — hier het werkelijke, blended tarief over
+  // alle betaalde boekingen, i.p.v. een hardcoded constante die niet meer
+  // overal hetzelfde is.
+  const blendedCommissionRate = gmv > 0 ? (revenue / gmv) * 100 : 0;
+  const proSupplierCount = suppliers.filter((s) => s.proSubscribed).length;
   const eventsWithBudget = events.filter((e) => e.budget);
   const avgEventValue = eventsWithBudget.length ? eventsWithBudget.reduce((s, e) => s + (e.budget?.totalCents ?? 0), 0) / eventsWithBudget.length : 0;
   const avgResponseHours = suppliers.length ? suppliers.reduce((s, sup) => s + sup.avgResponseHours, 0) / suppliers.length : 0;
@@ -79,7 +85,8 @@ export default async function AdminPage() {
 
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Kpi icon={<LineChart className="size-4" />} label="GMV" value={formatCurrency(gmv)} />
-          <Kpi icon={<Percent className="size-4" />} label="Platform revenue" value={formatCurrency(revenue)} sub={`${(PLATFORM_COMMISSION_RATE * 100).toFixed(1)}% commissie`} />
+          <Kpi icon={<Percent className="size-4" />} label="Platform revenue" value={formatCurrency(revenue)} sub={gmv > 0 ? `${blendedCommissionRate.toFixed(1)}% blended (instap+gestaffeld+Pro)` : "Nog geen betaalde boekingen"} />
+          <Kpi icon={<Sparkles className="size-4" />} label="Vyra Pro" value={String(proSupplierCount)} sub={`van ${suppliers.length} leveranciers`} />
           <Kpi icon={<CalendarDays className="size-4" />} label="Evenementen" value={String(events.length)} />
           <Kpi icon={<Building2 className="size-4" />} label="Leveranciers" value={String(suppliers.length)} />
           <Kpi icon={<Users className="size-4" />} label="Gebruikers" value={String(users.length)} />

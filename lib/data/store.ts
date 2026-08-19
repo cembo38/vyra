@@ -1,6 +1,13 @@
 import "server-only";
 import { uid } from "@/lib/utils";
-import { DEFAULT_DEPOSIT_PERCENT, EMAIL_ENABLED, PLATFORM_COMMISSION_RATE, SUPPLIER_RESPONSE_WINDOW_HOURS, calculateCommission } from "@/lib/config";
+import {
+  CommissionTier,
+  DEFAULT_DEPOSIT_PERCENT,
+  EMAIL_ENABLED,
+  INTRO_BOOKING_COUNT,
+  SUPPLIER_RESPONSE_WINDOW_HOURS,
+  calculateCommission,
+} from "@/lib/config";
 import { SUPPLIERS, suppliersByCategory, getSupplierById } from "@/lib/data/suppliers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -205,6 +212,7 @@ function rowToPayment(r: Row): Payment {
     platformFeeCents: r.platform_fee_cents,
     totalCents: r.total_cents,
     commissionRate: Number(r.commission_rate),
+    commissionTier: r.commission_tier ?? "tiered",
     status: r.status,
     createdAt: r.created_at,
     paidAt: r.paid_at,
@@ -254,6 +262,8 @@ function rowToSupplierAccount(r: Row): SupplierAccount {
     socialTiktok: r.social_tiktok ?? null,
     logoUrl: r.logo_url ?? null,
     galleryUrls: r.gallery_urls ?? [],
+    proSubscribed: r.pro_subscribed ?? false,
+    proSubscribedAt: r.pro_subscribed_at ?? null,
     createdAt: r.created_at,
   };
 }
@@ -817,6 +827,70 @@ export async function hasOrganizerContactedSupplier(supplierId: string): Promise
   return (data?.length ?? 0) > 0;
 }
 
+/* ------------------------------------------------------------------ */
+/* COMMISSIEMODEL (spec-item #53: instaptarief / gestaffeld / Pro)     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Aantal succesvol AFGERONDE boekingen van deze leverancier tot nu toe —
+ * bepaalt of hij nog in zijn instapperiode zit (zie `INTRO_BOOKING_COUNT`
+ * in lib/config.ts). Telt op `offers.status === "accepted"`, want dat is
+ * precies het moment waarop `createPaymentForOffer` ook al een boeking
+ * beschouwt (zie ook `getSupplierOrders` hierboven, dat dezelfde telling
+ * gebruikt voor het bestelloverzicht). `excludeOfferId` laat de boeking die
+ * je op dit moment aan het afrekenen bent buiten de telling — anders zou
+ * boeking 5 zichzelf al als "boeking 6" meetellen.
+ */
+async function countAcceptedOffersForSupplier(supplierId: string, excludeOfferId?: string): Promise<number> {
+  const supabase = await sb();
+  let query = supabase.from("offers").select("id", { count: "exact", head: true }).eq("supplier_id", supplierId).eq("status", "accepted");
+  if (excludeOfferId) query = query.neq("id", excludeOfferId);
+  const { count } = await query;
+  return count ?? 0;
+}
+
+/**
+ * Welke commissielaag geldt op dit moment voor deze leverancier? Pro gaat
+ * voor (een Pro-leverancier betaalt nooit ook nog het instaptarief), daarna
+ * de instapperiode, daarna het gestaffelde tarief. Gebruikt zowel bij het
+ * daadwerkelijk aanmaken van een betaling (`createPaymentForOffer`) als
+ * puur informatief op het leveranciersprofiel (`getSupplierCommissionStatus`).
+ */
+export async function resolveSupplierCommissionTier(supplierId: string, excludeOfferId?: string): Promise<CommissionTier> {
+  const supplier = await getSupplierAccount(supplierId);
+  if (supplier?.proSubscribed) return "pro";
+  const priorBookings = await countAcceptedOffersForSupplier(supplierId, excludeOfferId);
+  return priorBookings < INTRO_BOOKING_COUNT ? "intro" : "tiered";
+}
+
+/** Voor weergave op het leveranciersprofiel: huidige laag + hoeveel instapboekingen er nog over zijn. */
+export async function getSupplierCommissionStatus(supplierId: string): Promise<{
+  tier: CommissionTier;
+  acceptedBookingsCount: number;
+  introBookingsRemaining: number;
+}> {
+  const [tier, acceptedBookingsCount] = await Promise.all([
+    resolveSupplierCommissionTier(supplierId),
+    countAcceptedOffersForSupplier(supplierId),
+  ]);
+  return { tier, acceptedBookingsCount, introBookingsRemaining: Math.max(0, INTRO_BOOKING_COUNT - acceptedBookingsCount) };
+}
+
+/**
+ * Vyra Pro aan/uit — vast maandbedrag i.p.v. commissie per boeking (spec-item
+ * #53, laag 3). Nog een zelfbedienings-toggle zonder automatische incasso —
+ * zelfde "mock"-aanpak als de rest van de betaalflow in deze app (zie
+ * `provider: "mock"` bij `createPaymentForOffer`), dus geen halve/misleidende
+ * facturatie voordat er een echte Stripe-koppeling voor abonnementen is.
+ */
+export async function setSupplierProSubscription(supplierId: string, active: boolean): Promise<void> {
+  const supabase = await sb();
+  await supabase
+    .from("suppliers")
+    .update({ pro_subscribed: active, pro_subscribed_at: active ? new Date().toISOString() : null })
+    .eq("id", supplierId);
+}
+
 /**
  * Welke van deze kandidaat-leveranciers zijn NIET beschikbaar op `date`? Dat
  * is de vereniging van (a) zelf-geblokkeerde datums (`supplier_blocked_dates`)
@@ -873,6 +947,10 @@ async function findRealMatchingSuppliers(
     }
     score += Math.round(sup.ratingAvg * 4);
     if (sup.verified) score += 5;
+    // Eén van de Vyra Pro-perks (spec-item #53, laag 3): een bescheiden
+    // voorrangsboost in de matching — vergelijkbaar met de "geverifieerd"-
+    // boost hierboven, net iets hoger omdat dit een betaald voordeel is.
+    if (sup.proSubscribed) score += 8;
     const unavailableOnDate = unavailableIds.has(sup.id);
     return { supplier: sup, score: Math.min(99, score), unavailableOnDate };
   });
@@ -1556,7 +1634,11 @@ export async function createPaymentForOffer(offerId: string, plan: "full" | "dep
   const supabase = await sb();
   const o = await getOffer(offerId);
   if (!o) return null;
-  const commission = calculateCommission(o.totalPriceCents, PLATFORM_COMMISSION_RATE);
+  // Welke commissielaag geldt NU voor deze leverancier (instap/gestaffeld/Pro)
+  // — deze offerte zelf wordt uitgesloten van de boekingentelling, anders
+  // telt boeking 5 zichzelf al mee als boeking 6 (zie resolveSupplierCommissionTier).
+  const tier = await resolveSupplierCommissionTier(o.supplierId, o.id);
+  const commission = calculateCommission(o.totalPriceCents, tier);
 
   if (plan === "full") {
     const { data, error } = await supabase
@@ -1569,6 +1651,7 @@ export async function createPaymentForOffer(offerId: string, plan: "full" | "dep
         platform_fee_cents: commission.platformFee,
         total_cents: commission.total,
         commission_rate: commission.rate,
+        commission_tier: commission.tier,
         status: "pending",
         provider: "mock",
         installment: "full",
@@ -1593,6 +1676,7 @@ export async function createPaymentForOffer(offerId: string, plan: "full" | "dep
       platform_fee_cents: depositFee,
       total_cents: depositTotal,
       commission_rate: commission.rate,
+      commission_tier: commission.tier,
       status: "pending",
       provider: "mock",
       installment: "deposit",
@@ -1610,6 +1694,7 @@ export async function createPaymentForOffer(offerId: string, plan: "full" | "dep
     platform_fee_cents: commission.platformFee - depositFee,
     total_cents: commission.total - depositTotal,
     commission_rate: commission.rate,
+    commission_tier: commission.tier,
     status: "pending",
     provider: "mock",
     installment: "balance",

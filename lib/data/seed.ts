@@ -1,4 +1,5 @@
 import { uid } from "@/lib/utils";
+import { calculateCommission } from "@/lib/config";
 import {
   AiInterviewMessage,
   EventCore,
@@ -291,8 +292,28 @@ function buildWeddingEvent(ownerId: string): EventBundle {
   requests.push(request({ eventId, categoryKey: "lighting_sound", supplierIds: ["sup_light_01"], desiredService: "Sfeerverlichting binnen en buiten", specialRequests: "Uplighting in pastel tinten", budgetCents: 90_000, status: "awaiting_response", sentHoursAgo: 24 }));
   requests.push(request({ eventId, categoryKey: "cleaning", supplierIds: ["sup_clean_01"], desiredService: "Eindschoonmaak locatie", specialRequests: "Oplevering vóór 10:00 de volgende ochtend", budgetCents: 35_000, status: "awaiting_response", sentHoursAgo: 20 }));
 
+  // Demo-boeking gebruikt het gestaffelde tarief (spec-item #53) — een
+  // realistische venue-boeking van deze omvang zou allang voorbij de
+  // instapperiode van een leverancier zijn.
+  const demoCommission = calculateCommission(520_000, "tiered");
   const payments: Payment[] = [
-    { id: uid("pay"), eventId, offerId: venueOfferAccepted.id, categoryKey: "venue", supplierAmountCents: 520_000, platformFeeCents: Math.round(520_000 * 0.095), totalCents: 520_000 + Math.round(520_000 * 0.095), commissionRate: 0.095, status: "paid", createdAt: new Date(now.getTime() - 400 * 60 * 60 * 1000).toISOString(), paidAt: new Date(now.getTime() - 399 * 60 * 60 * 1000).toISOString(), provider: "mock", installment: "full", parentPaymentId: null },
+    {
+      id: uid("pay"),
+      eventId,
+      offerId: venueOfferAccepted.id,
+      categoryKey: "venue",
+      supplierAmountCents: demoCommission.supplierAmount,
+      platformFeeCents: demoCommission.platformFee,
+      totalCents: demoCommission.total,
+      commissionRate: demoCommission.rate,
+      commissionTier: demoCommission.tier,
+      status: "paid",
+      createdAt: new Date(now.getTime() - 400 * 60 * 60 * 1000).toISOString(),
+      paidAt: new Date(now.getTime() - 399 * 60 * 60 * 1000).toISOString(),
+      provider: "mock",
+      installment: "full",
+      parentPaymentId: null,
+    },
   ];
 
   const timeline: EventTimelineItem[] = [

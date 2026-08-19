@@ -1,7 +1,7 @@
 import { MarketingHeader } from "@/components/marketing/MarketingHeader";
 import { Footer } from "@/components/marketing/Footer";
 import { Card } from "@/components/ui/Card";
-import { PLATFORM_COMMISSION_RATE } from "@/lib/config";
+import { COMMISSION_TIERS, INTRO_BOOKING_COUNT, INTRO_COMMISSION_RATE, PRO_SUBSCRIPTION_PRICE_CENTS, formatCurrency } from "@/lib/config";
 
 export const metadata = { title: "Algemene voorwaarden — Vyra" };
 
@@ -55,9 +55,12 @@ export default function TermsPage() {
 
             <Article title="Artikel 5 — Commissie en betalingen">
               <p>
-                Vyra rekent een platformcommissie van {(PLATFORM_COMMISSION_RATE * 100).toFixed(1)}% over het totaalbedrag van elke
-                succesvol geboekte dienst. Dit percentage is vooraf zichtbaar bij het afrekenen, zonder verborgen kosten.
-                Betalingen worden verwerkt via Stripe; Vyra ontvangt de betaling en keert het leveranciersdeel uit conform de
+                Vyra rekent platformkosten per succesvol geboekte dienst, bovenop de leveranciersprijs. Een nieuwe leverancier
+                betaalt voor zijn eerste {INTRO_BOOKING_COUNT} boekingen een verlaagd instaptarief van {(INTRO_COMMISSION_RATE * 100).toFixed(0)}%.
+                Daarna geldt een gestaffeld tarief, afhankelijk van het boekingsbedrag: {COMMISSION_TIERS.map((t) => `${(t.rate * 100).toFixed(1)}%${t.uptoCents ? ` tot ${formatCurrency(t.uptoCents)}` : " daarboven"}`).join(", ")}.
+                Leveranciers kunnen er ook voor kiezen een vast Vyra Pro-abonnement van {formatCurrency(PRO_SUBSCRIPTION_PRICE_CENTS)} per maand af te
+                sluiten in plaats van commissie per boeking te betalen. Het geldende tarief is vooraf zichtbaar bij het afrekenen, zonder
+                verborgen kosten. Betalingen worden verwerkt via Stripe; Vyra ontvangt de betaling en keert het leveranciersdeel uit conform de
                 overeengekomen voorwaarden.
               </p>
             </Article>

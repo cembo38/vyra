@@ -387,6 +387,9 @@ export interface SupplierAccount {
   socialTiktok: string | null;
   logoUrl: string | null;
   galleryUrls: string[];
+  /** Vyra Pro-abonnement actief? (spec-item #53, laag 3) — vast maandbedrag i.p.v. commissie per boeking. */
+  proSubscribed: boolean;
+  proSubscribedAt: string | null;
   createdAt: string;
 }
 
@@ -505,6 +508,8 @@ export interface Payment {
   platformFeeCents: number;
   totalCents: number;
   commissionRate: number;
+  /** Welke commissielaag gold bij het aanmaken van deze betaling — zie lib/config.ts. */
+  commissionTier: "intro" | "tiered" | "pro";
   status: PaymentStatus;
   createdAt: string;
   paidAt: string | null;

@@ -1,14 +1,63 @@
 /**
  * Centrale platformconfiguratie.
  *
- * Belangrijk: bedrijfsregels zoals het commissiepercentage staan hier op
- * één plek. Nergens anders in de applicatie mag 0.095 hardcoded worden.
- * Dit maakt het later triviaal om het percentage te wijzigen, per
+ * Belangrijk: bedrijfsregels zoals het commissiemodel staan hier op één
+ * plek. Nergens anders in de applicatie mag een percentage hardcoded
+ * worden. Dit maakt het later triviaal om tarieven te wijzigen, per
  * leverancierscategorie te differentiëren, of A/B te testen — zonder de
  * rest van de applicatie aan te raken.
  */
 
-export const PLATFORM_COMMISSION_RATE = 0.095; // 9,5% platformcommissie
+/**
+ * Commissiemodel (spec-item #53) — bewust NIET meer één vlak percentage.
+ * Doel: eerst leveranciers/traffic laten groeien vóórdat er commissie wordt
+ * verzilverd, en daarna een tarief dat grote boekingen niet onevenredig
+ * hard raakt. Drie lagen, in volgorde van toepassing (zie
+ * `resolveSupplierCommissionTier` in lib/data/store.ts):
+ *
+ * 1. "intro"  — een leverancier zijn eerste `INTRO_BOOKING_COUNT` succesvolle
+ *    boekingen tellen tegen een laag, vast instaptarief. Dit is per
+ *    leverancier (niet platformbreed), dus het schaalt vanzelf mee met elke
+ *    nieuwe aanmelding — geen handmatig "omschakelmoment" nodig.
+ * 2. "tiered" — ná de instapperiode: een gestaffeld tarief afhankelijk van
+ *    het boekingsbedrag (net als belastingschijven — elk deel van het
+ *    bedrag valt in zijn eigen schijf), met een maximum bedrag per boeking
+ *    zodat een grote boeking nooit een onevenredig hoge fee oplevert.
+ * 3. "pro"    — een leverancier die het Vyra Pro-abonnement heeft
+ *    geactiveerd betaalt in plaats daarvan een vast maandbedrag en geen
+ *    commissie per boeking meer (0%).
+ */
+
+/** Aantal succesvolle boekingen waarvoor een NIEUWE leverancier het lage instaptarief krijgt. */
+export const INTRO_BOOKING_COUNT = 5;
+export const INTRO_COMMISSION_RATE = 0.03; // 3%
+
+/**
+ * Gestaffelde tarieven ná de instapperiode. `uptoCents: null` betekent "en
+ * hoger" — de laatste, open schijf. Elke schijf geldt alleen over het deel
+ * van het bedrag dát in die schijf valt (progressief, zoals belastingschijven).
+ */
+export const COMMISSION_TIERS: { uptoCents: number | null; rate: number }[] = [
+  { uptoCents: 50_000, rate: 0.06 }, // €0 – €500: 6%
+  { uptoCents: 200_000, rate: 0.045 }, // €500 – €2.000: 4,5%
+  { uptoCents: 1_000_000, rate: 0.03 }, // €2.000 – €10.000: 3%
+  { uptoCents: null, rate: 0.02 }, // > €10.000: 2%
+];
+
+/** Maximumbedrag aan platformkosten per boeking, ongeacht het gestaffelde tarief hierboven. */
+export const COMMISSION_FEE_CAP_CENTS = 40_000; // €400
+
+/** Vyra Pro: vast maandbedrag i.p.v. commissie per boeking (indicatief — nog geen automatische incasso, zie lib/actions/supplier-actions.ts). */
+export const PRO_SUBSCRIPTION_PRICE_CENTS = 7_900; // €79/maand
+export const PRO_COMMISSION_RATE = 0;
+
+export type CommissionTier = "intro" | "tiered" | "pro";
+
+export const COMMISSION_TIER_LABELS: Record<CommissionTier, string> = {
+  intro: "Instaptarief",
+  tiered: "Gestaffeld tarief",
+  pro: "Vyra Pro",
+};
 
 export const SUPPLIER_RESPONSE_WINDOW_HOURS = 48;
 
@@ -76,8 +125,41 @@ export function formatCurrency(
   }).format(amountInCents / 100);
 }
 
-export function calculateCommission(supplierAmountInCents: number, rate: number = PLATFORM_COMMISSION_RATE) {
-  const platformFee = Math.round(supplierAmountInCents * rate);
-  const total = supplierAmountInCents + platformFee;
-  return { supplierAmount: supplierAmountInCents, platformFee, total, rate };
+/**
+ * Berekent de platformkosten voor een boeking, volgens het lagenmodel
+ * hierboven. `tier` bepaalt welke laag van toepassing is voor déze
+ * leverancier op dít moment — zie `resolveSupplierCommissionTier` in
+ * lib/data/store.ts, dat per leverancier bepaalt of hij nog in zijn
+ * instapperiode zit, het gestaffelde tarief betaalt, of Pro-abonnee is.
+ *
+ * `rate` in het resultaat is het EFFECTIEVE (gemiddelde) percentage over
+ * het hele bedrag — bij "tiered" dus niet gelijk aan één van de
+ * schijfpercentages, maar de blend ervan (handig voor weergave, bv.
+ * "Platformkosten (4,1%)" op de afrekenpagina).
+ */
+export function calculateCommission(supplierAmountInCents: number, tier: CommissionTier = "tiered") {
+  if (tier === "pro") {
+    return { supplierAmount: supplierAmountInCents, platformFee: 0, total: supplierAmountInCents, rate: PRO_COMMISSION_RATE, tier };
+  }
+
+  if (tier === "intro") {
+    const platformFee = Math.round(supplierAmountInCents * INTRO_COMMISSION_RATE);
+    return { supplierAmount: supplierAmountInCents, platformFee, total: supplierAmountInCents + platformFee, rate: INTRO_COMMISSION_RATE, tier };
+  }
+
+  // "tiered" — elk deel van het bedrag valt in zijn eigen schijf (progressief).
+  let remaining = supplierAmountInCents;
+  let lowerBoundCents = 0;
+  let feeCents = 0;
+  for (const bracket of COMMISSION_TIERS) {
+    const upperBoundCents = bracket.uptoCents ?? Infinity;
+    const amountInBracket = Math.max(0, Math.min(remaining, upperBoundCents - lowerBoundCents));
+    feeCents += amountInBracket * bracket.rate;
+    remaining -= amountInBracket;
+    lowerBoundCents = upperBoundCents;
+    if (remaining <= 0) break;
+  }
+  const platformFee = Math.min(Math.round(feeCents), COMMISSION_FEE_CAP_CENTS);
+  const rate = supplierAmountInCents > 0 ? platformFee / supplierAmountInCents : 0;
+  return { supplierAmount: supplierAmountInCents, platformFee, total: supplierAmountInCents + platformFee, rate, tier };
 }

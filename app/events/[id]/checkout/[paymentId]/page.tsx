@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getEvent, getOffer, getPaymentsForOffer, getPayment, resolveSupplierDisplay } from "@/lib/data/store";
 import { Card } from "@/components/ui/Card";
 import { SupplierAvatar } from "@/components/ui/Avatar";
-import { formatCurrency, PLATFORM_COMMISSION_RATE, PAYMENTS_ENABLED } from "@/lib/config";
+import { formatCurrency, PAYMENTS_ENABLED } from "@/lib/config";
 import { confirmPaymentAction } from "@/lib/actions/marketplace-actions";
 import { SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
 import { CheckCircle2, Clock, Lock, ShieldCheck } from "lucide-react";
@@ -53,7 +53,9 @@ export default async function CheckoutPage(props: PageProps<"/events/[id]/checko
         </div>
 
         <p className="mt-4 rounded-xl bg-paper-dim px-3.5 py-2.5 text-xs text-ink-faint">
-          Vyra rekent {(PLATFORM_COMMISSION_RATE * 100).toFixed(1)}% platformkosten over elke transactie. Dit bedrag is vooraf zichtbaar, zonder verrassingen achteraf.
+          {payment.platformFeeCents === 0
+            ? "Deze leverancier is Vyra Pro-abonnee — geen platformkosten over deze boeking. Dit bedrag is vooraf zichtbaar, zonder verrassingen achteraf."
+            : "Vyra rekent platformkosten per boeking — het percentage hangt af van het bedrag en hoe lang deze leverancier al actief is op Vyra. Dit bedrag is vooraf zichtbaar, zonder verrassingen achteraf."}
         </p>
 
         {otherInstallment && (

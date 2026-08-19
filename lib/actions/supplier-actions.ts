@@ -12,6 +12,7 @@ import {
   pushNotification,
   requestSupplierVerification,
   sendCustomSupplierRequest,
+  setSupplierProSubscription,
   submitSupplierOffer,
   unblockSupplierDate,
   updateSupplierAccount,
@@ -209,6 +210,22 @@ export async function toggleSupplierBlockedDateAction(date: string, blocked: boo
   }
 
   revalidatePath("/supplier/calendar");
+  return { ok: true };
+}
+
+/**
+ * Vyra Pro aan/uit (spec-item #53, laag 3) — vast maandbedrag i.p.v.
+ * commissie per boeking, plus een bescheiden voorrangsboost in de matching.
+ * Zelfde vorm als `toggleSupplierBlockedDateAction`.
+ */
+export async function toggleProSubscriptionAction(active: boolean): Promise<{ ok: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Niet ingelogd." };
+  const supplier = await getSupplierAccountByOwner(user.id);
+  if (!supplier) return { ok: false, error: "Geen leveranciersaccount gevonden." };
+
+  await setSupplierProSubscription(supplier.id, active);
+  revalidatePath("/supplier/profile");
   return { ok: true };
 }
 

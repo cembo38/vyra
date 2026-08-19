@@ -3,11 +3,13 @@ import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Field, Input, Textarea } from "@/components/ui/Form";
+import { ProSubscriptionToggle } from "@/components/app/ProSubscriptionToggle";
 import { getCurrentUser } from "@/lib/auth";
-import { getSupplierAccountByOwner } from "@/lib/data/store";
+import { getSupplierAccountByOwner, getSupplierCommissionStatus } from "@/lib/data/store";
 import { updateSupplierProfileAction, removeSupplierGalleryImageAction, requestSupplierVerificationAction } from "@/lib/actions/supplier-actions";
+import { COMMISSION_FEE_CAP_CENTS, COMMISSION_TIER_LABELS, INTRO_COMMISSION_RATE, PRO_SUBSCRIPTION_PRICE_CENTS, formatCurrency } from "@/lib/config";
 import { SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
-import { BadgeCheck, CheckCircle2, Clock, ExternalLink, ImagePlus, X } from "lucide-react";
+import { BadgeCheck, CheckCircle2, Clock, ExternalLink, ImagePlus, Percent, X } from "lucide-react";
 
 export const metadata = { title: "Bedrijfsprofiel — Vyra voor leveranciers" };
 
@@ -23,6 +25,7 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
   if (!user) redirect("/login");
   const supplier = await getSupplierAccountByOwner(user.id);
   if (!supplier) redirect("/supplier/onboarding");
+  const commissionStatus = await getSupplierCommissionStatus(supplier.id);
 
   return (
     <div className="mx-auto max-w-lg">
@@ -75,6 +78,45 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
             <CheckCircle2 className="size-4" /> Verificatie aangevraagd — we laten je weten zodra deze is behandeld.
           </p>
         )}
+      </Card>
+
+      <Card className="mt-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-medium uppercase tracking-wide text-ink-faint">Commissietarief</h2>
+            <p className="mt-1 text-sm text-ink-soft">Wat Vyra van je vraagt over een succesvolle boeking — hangt af van je fase en het bedrag.</p>
+          </div>
+          <Badge tone={commissionStatus.tier === "pro" ? "success" : commissionStatus.tier === "intro" ? "ochre" : "neutral"} icon={<Percent className="size-3.5" />}>
+            {COMMISSION_TIER_LABELS[commissionStatus.tier]}
+          </Badge>
+        </div>
+
+        {commissionStatus.tier === "intro" && (
+          <p className="mt-3 text-sm text-ink-soft">
+            Je zit nog in je instapperiode: <strong className="text-ink">{(INTRO_COMMISSION_RATE * 100).toFixed(0)}%</strong> platformkosten
+            i.p.v. het normale gestaffelde tarief. Nog <strong className="text-ink">{commissionStatus.introBookingsRemaining}</strong> boeking
+            {commissionStatus.introBookingsRemaining !== 1 ? "en" : ""} tegen dit tarief ({commissionStatus.acceptedBookingsCount} tot nu toe afgerond).
+          </p>
+        )}
+        {commissionStatus.tier === "tiered" && (
+          <p className="mt-3 text-sm text-ink-soft">
+            Je instapperiode zit erop ({commissionStatus.acceptedBookingsCount} boekingen afgerond) — je betaalt nu het gestaffelde tarief:
+            hoe hoger het boekingsbedrag, hoe lager het percentage, met een maximum van {formatCurrency(COMMISSION_FEE_CAP_CENTS)} per boeking.
+          </p>
+        )}
+        {commissionStatus.tier === "pro" && (
+          <p className="mt-3 text-sm text-ink-soft">Je bent Vyra Pro-abonnee: geen commissie per boeking meer, plus voorrang in de matching.</p>
+        )}
+
+        <div className="mt-4 border-t border-line-soft pt-4">
+          <p className="text-sm font-medium text-ink">Vyra Pro</p>
+          <p className="mt-1 text-sm text-ink-soft">
+            Vast maandbedrag i.p.v. commissie per boeking — plus voorrang in de matching, ongeacht hoeveel je al hebt geboekt.
+          </p>
+          <div className="mt-3">
+            <ProSubscriptionToggle active={supplier.proSubscribed} priceCents={PRO_SUBSCRIPTION_PRICE_CENTS} />
+          </div>
+        </div>
       </Card>
 
       {justSaved && (
