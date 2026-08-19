@@ -357,6 +357,8 @@ export interface SupplierAccount {
   ratingAvg: number;
   ratingCount: number;
   verified: boolean;
+  /** Wanneer verificatie is aangevraagd — null als er nooit een aanvraag is gedaan (of nadat een admin 'm heeft afgehandeld). */
+  verificationRequestedAt: string | null;
   avgResponseHours: number;
   acceptedOfferRate: number;
   tags: string[];
@@ -512,7 +514,9 @@ export interface AppNotification {
     | "new_ai_recommendation"
     | "new_shortlist_candidate"
     | "supplier_question"
-    | "event_info_changed";
+    | "event_info_changed"
+    | "verification_approved"
+    | "verification_rejected";
   title: string;
   body: string;
   read: boolean;

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { ADMIN_EMAILS } from "@/lib/config";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { approveSupplierVerification, rejectSupplierVerification, pushNotification } from "@/lib/data/store";
 
 /**
  * Elke actie hier raakt ANDERE gebruikers dan de aanroeper — dus altijd
@@ -49,6 +50,46 @@ export async function unbanUserAction(formData: FormData) {
 
   const { error } = await supabase.from("profiles").update({ banned_at: null, ban_reason: null }).eq("id", userId);
   if (error) throw new Error(error.message);
+
+  revalidatePath("/admin");
+}
+
+export async function approveSupplierVerificationAction(formData: FormData) {
+  await requireAdmin();
+  const supplierId = String(formData.get("supplierId") ?? "").trim();
+  if (!supplierId) throw new Error("Geen leverancier opgegeven.");
+
+  const supplier = await approveSupplierVerification(supplierId);
+  if (!supplier) throw new Error("Kon leverancier niet verifiëren (service-role sleutel niet geconfigureerd?).");
+
+  await pushNotification({
+    userId: supplier.ownerId,
+    eventId: null,
+    type: "verification_approved",
+    title: "Je bent geverifieerd!",
+    body: "Vyra heeft je bedrijfsgegevens gecontroleerd — je profiel toont nu een verificatiebadge, wat vertrouwen wekt bij organisatoren.",
+    href: "/supplier/profile",
+  });
+
+  revalidatePath("/admin");
+}
+
+export async function rejectSupplierVerificationAction(formData: FormData) {
+  await requireAdmin();
+  const supplierId = String(formData.get("supplierId") ?? "").trim();
+  if (!supplierId) throw new Error("Geen leverancier opgegeven.");
+
+  const supplier = await rejectSupplierVerification(supplierId);
+  if (!supplier) throw new Error("Kon verificatieaanvraag niet afwijzen (service-role sleutel niet geconfigureerd?).");
+
+  await pushNotification({
+    userId: supplier.ownerId,
+    eventId: null,
+    type: "verification_rejected",
+    title: "Verificatieaanvraag afgewezen",
+    body: "We konden je bedrijfsgegevens nog niet verifiëren. Controleer je KVK-nummer en bedrijfsgegevens en vraag het opnieuw aan.",
+    href: "/supplier/profile",
+  });
 
   revalidatePath("/admin");
 }

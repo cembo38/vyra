@@ -239,6 +239,7 @@ function rowToSupplierAccount(r: Row): SupplierAccount {
     ratingAvg: Number(r.rating_avg ?? 0),
     ratingCount: r.rating_count ?? 0,
     verified: r.verified ?? false,
+    verificationRequestedAt: r.verification_requested_at ?? null,
     avgResponseHours: r.avg_response_hours ?? 24,
     acceptedOfferRate: Number(r.accepted_offer_rate ?? 0),
     tags: r.tags ?? [],
@@ -667,6 +668,52 @@ export async function updateSupplierAccount(
   if (patch.logoUrl !== undefined) update.logo_url = patch.logoUrl;
   if (patch.galleryUrls !== undefined) update.gallery_urls = patch.galleryUrls;
   const { data, error } = await supabase.from("suppliers").update(update).eq("id", supplierId).select().single();
+  if (error || !data) return null;
+  return rowToSupplierAccount(data);
+}
+
+// Bewust een eigen, smal-scoped functie i.p.v. `verified`/`verificationRequestedAt`
+// toevoegen aan `updateSupplierAccount`'s patch-whitelist: die functie wordt
+// vanuit leverancier-eigen Server Actions aangeroepen (RLS-scoped, alleen
+// eigen rij), en `verified` mag NOOIT via een pad instelbaar zijn dat een
+// leverancier zelf kan aanroepen. Hier zetten we alleen het aanvraag-
+// tijdstip; de daadwerkelijke goedkeuring loopt via de admin-only acties
+// hieronder (`approveSupplierVerification`/`rejectSupplierVerification`),
+// die de service-role client gebruiken.
+export async function requestSupplierVerification(supplierId: string): Promise<SupplierAccount | null> {
+  const supabase = await sb();
+  const { data, error } = await supabase
+    .from("suppliers")
+    .update({ verification_requested_at: new Date().toISOString() })
+    .eq("id", supplierId)
+    .select()
+    .single();
+  if (error || !data) return null;
+  return rowToSupplierAccount(data);
+}
+
+/** Admin-only: keurt een verificatieaanvraag goed — zet `verified = true`. Vereist service-role. */
+export async function approveSupplierVerification(supplierId: string): Promise<SupplierAccount | null> {
+  const supabase = createSupabaseAdminClient() ?? (await sb());
+  const { data, error } = await supabase
+    .from("suppliers")
+    .update({ verified: true, verification_requested_at: null })
+    .eq("id", supplierId)
+    .select()
+    .single();
+  if (error || !data) return null;
+  return rowToSupplierAccount(data);
+}
+
+/** Admin-only: wijst een verificatieaanvraag af — laat `verified` ongemoeid, wist de aanvraag. Vereist service-role. */
+export async function rejectSupplierVerification(supplierId: string): Promise<SupplierAccount | null> {
+  const supabase = createSupabaseAdminClient() ?? (await sb());
+  const { data, error } = await supabase
+    .from("suppliers")
+    .update({ verification_requested_at: null })
+    .eq("id", supplierId)
+    .select()
+    .single();
   if (error || !data) return null;
   return rowToSupplierAccount(data);
 }
@@ -1891,6 +1938,18 @@ export async function listAllUsers(): Promise<UserAccount[]> {
   const supabase = createSupabaseAdminClient() ?? (await sb());
   const { data } = await supabase.from("profiles").select("*");
   return (data ?? []).map(rowToUser);
+}
+
+// Bugfix: het admin-dashboard toonde tot nu toe bij "Leveranciers"/"Top
+// leveranciers" de statische demo-catalogus (`allSuppliers()`, uit
+// lib/data/suppliers.ts) i.p.v. echte, geregistreerde leveranciersaccounts.
+// Daardoor waren nieuwe verificatieaanvragen (en leveranciers in het
+// algemeen) nooit zichtbaar voor de beheerder. Deze functie haalt de échte
+// `suppliers`-tabel op, net als de andere admin-aggregaten hierboven.
+export async function listAllSupplierAccounts(): Promise<SupplierAccount[]> {
+  const supabase = createSupabaseAdminClient() ?? (await sb());
+  const { data } = await supabase.from("suppliers").select("*");
+  return (data ?? []).map(rowToSupplierAccount);
 }
 
 // `uid()` blijft beschikbaar voor eventuele client-side tijdelijke ids

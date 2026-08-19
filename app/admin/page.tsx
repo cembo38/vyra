@@ -2,15 +2,16 @@ import { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { AppTopBar } from "@/components/app/AppTopBar";
 import { AdminUserActions } from "@/components/app/AdminUserActions";
+import { AdminSupplierVerificationActions } from "@/components/app/AdminSupplierVerificationActions";
 import { Card } from "@/components/ui/Card";
 import { Badge, StageBadge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import {
-  allSuppliers,
   listAllEvents,
   listAllOffers,
   listAllPayments,
   listAllRequests,
+  listAllSupplierAccounts,
   listAllUsers,
   listAiInteractionLogs,
 } from "@/lib/data/store";
@@ -20,7 +21,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { EVENT_TYPE_LABELS, UserRole } from "@/lib/types";
 import { SIDEBAR_OFFSET_CLASS } from "@/lib/nav-constants";
 import { cn } from "@/lib/utils";
-import { AlertCircle, AlertTriangle, Ban, Building2, CalendarDays, LineChart, Percent, ShieldAlert, Sparkles, Star, Users } from "lucide-react";
+import { AlertCircle, AlertTriangle, Ban, BadgeCheck, Building2, CalendarDays, Clock, LineChart, Percent, ShieldAlert, Sparkles, Star, Users } from "lucide-react";
 
 const ROLE_LABELS: Record<UserRole, string> = {
   customer: "Organisator",
@@ -36,16 +37,17 @@ export default async function AdminPage() {
   if (!user) redirect("/login");
   if (!ADMIN_EMAILS.includes(user.email.toLowerCase())) redirect("/events");
 
-  const [events, payments, requests, offers, users, aiLogs] = await Promise.all([
+  const [events, payments, requests, offers, users, suppliers, aiLogs] = await Promise.all([
     listAllEvents(),
     listAllPayments(),
     listAllRequests(),
     listAllOffers(),
     listAllUsers(),
+    listAllSupplierAccounts(),
     listAiInteractionLogs(50),
   ]);
-  const suppliers = allSuppliers();
   const serviceRoleConfigured = isServiceRoleConfigured();
+  const pendingVerifications = suppliers.filter((s) => !s.verified && s.verificationRequestedAt);
 
   const paidPayments = payments.filter((p) => p.status === "paid");
   const gmv = paidPayments.reduce((sum, p) => sum + p.supplierAmountCents, 0);
@@ -132,6 +134,42 @@ export default async function AdminPage() {
           </Card>
         </div>
 
+        <div className="mt-6">
+          <Card>
+            <div className="mb-1 flex items-center justify-between">
+              <h2 className="font-display text-lg text-ink">Leveranciersverificatie</h2>
+              {pendingVerifications.length > 0 && (
+                <span className="flex items-center gap-1 rounded-full bg-ochre-50 px-2.5 py-1 text-xs font-medium text-ochre">
+                  <Clock className="size-3.5" /> {pendingVerifications.length} in behandeling
+                </span>
+              )}
+            </div>
+            <p className="mb-4 text-xs text-ink-faint">
+              Leveranciers die verificatie hebben aangevraagd (via hun bedrijfsprofiel, na het invullen van een KVK-nummer). Controleer het KVK-nummer en de bedrijfsgegevens voordat je goedkeurt.
+            </p>
+            {!serviceRoleConfigured ? (
+              <p className="text-sm text-ink-faint">Vereist de service-role sleutel (zie melding bovenaan) om verificaties te kunnen goed- of afkeuren.</p>
+            ) : pendingVerifications.length === 0 ? (
+              <p className="text-sm text-ink-faint">Geen openstaande verificatieaanvragen.</p>
+            ) : (
+              <div className="max-h-[28rem] space-y-2 overflow-y-auto">
+                {pendingVerifications.map((s) => (
+                  <div key={s.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line-soft px-3.5 py-2.5 text-sm">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-ink">{s.companyName}</p>
+                        <Badge tone="ochre" icon={<Clock className="size-3.5" />}>Aangevraagd</Badge>
+                      </div>
+                      <p className="text-xs text-ink-faint">KVK: {s.kvkNumber ?? "onbekend"} · {s.contactPerson} · {s.baseLocation}</p>
+                    </div>
+                    <AdminSupplierVerificationActions supplierId={s.id} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
           <Card>
             <h2 className="mb-4 font-display text-lg text-ink">Recente evenementen</h2>
@@ -150,6 +188,9 @@ export default async function AdminPage() {
 
           <Card>
             <h2 className="mb-4 font-display text-lg text-ink">Top leveranciers</h2>
+            {suppliers.length === 0 ? (
+              <p className="text-sm text-ink-faint">Nog geen geregistreerde leveranciers.</p>
+            ) : (
             <div className="space-y-2">
               {[...suppliers]
                 .sort((a, b) => b.ratingAvg - a.ratingAvg)
@@ -157,7 +198,10 @@ export default async function AdminPage() {
                 .map((s) => (
                   <div key={s.id} className="flex items-center justify-between rounded-xl border border-line-soft px-3.5 py-2.5 text-sm">
                     <div>
-                      <p className="font-medium text-ink">{s.companyName}</p>
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-medium text-ink">{s.companyName}</p>
+                        {s.verified && <BadgeCheck className="size-3.5 text-sage" />}
+                      </div>
                       <p className="text-xs text-ink-faint">{s.serviceAreas.join(", ")}</p>
                     </div>
                     <span className="flex items-center gap-1 text-xs text-ink-faint">
@@ -166,6 +210,7 @@ export default async function AdminPage() {
                   </div>
                 ))}
             </div>
+            )}
           </Card>
         </div>
 

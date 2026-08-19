@@ -8,6 +8,7 @@ import {
   createSupplierAccount,
   getRequest,
   getSupplierAccountByOwner,
+  requestSupplierVerification,
   sendCustomSupplierRequest,
   submitSupplierOffer,
   updateSupplierAccount,
@@ -141,6 +142,24 @@ export async function updateSupplierProfileAction(formData: FormData) {
   revalidatePath("/supplier", "layout");
   revalidatePath(`/leveranciers/${supplier!.id}`);
   redirect(uploadFailed ? "/supplier/profile?saved=1&uploadError=1" : "/supplier/profile?saved=1");
+}
+
+export async function requestSupplierVerificationAction() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const supplier = await getSupplierAccountByOwner(user!.id);
+  if (!supplier) redirect("/supplier/onboarding");
+
+  // Zonder KVK-nummer heeft een admin niets om te controleren — vraag dat
+  // eerst op via het gewone profielformulier.
+  if (!supplier!.kvkNumber) redirect("/supplier/profile?verifyError=1");
+  if (supplier!.verified || supplier!.verificationRequestedAt) redirect("/supplier/profile");
+
+  await requestSupplierVerification(supplier!.id);
+
+  revalidatePath("/supplier/profile");
+  redirect("/supplier/profile?verifyRequested=1");
 }
 
 export async function removeSupplierGalleryImageAction(imageUrl: string) {

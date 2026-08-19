@@ -1,12 +1,13 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
 import { Field, Input, Textarea } from "@/components/ui/Form";
 import { getCurrentUser } from "@/lib/auth";
 import { getSupplierAccountByOwner } from "@/lib/data/store";
-import { updateSupplierProfileAction, removeSupplierGalleryImageAction } from "@/lib/actions/supplier-actions";
+import { updateSupplierProfileAction, removeSupplierGalleryImageAction, requestSupplierVerificationAction } from "@/lib/actions/supplier-actions";
 import { SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
-import { CheckCircle2, ExternalLink, ImagePlus, X } from "lucide-react";
+import { BadgeCheck, CheckCircle2, Clock, ExternalLink, ImagePlus, X } from "lucide-react";
 
 export const metadata = { title: "Bedrijfsprofiel — Vyra voor leveranciers" };
 
@@ -15,6 +16,8 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
   const hasError = params.error === "1";
   const justSaved = params.saved === "1";
   const uploadFailed = params.uploadError === "1";
+  const verifyError = params.verifyError === "1";
+  const verifyRequested = params.verifyRequested === "1";
 
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -37,6 +40,42 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
       >
         Bekijk je openbare profiel <ExternalLink className="size-3.5" />
       </Link>
+
+      <Card className="mt-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-medium uppercase tracking-wide text-ink-faint">Verificatie</h2>
+            <p className="mt-1 text-sm text-ink-soft">
+              Een geverifieerd profiel wekt vertrouwen bij organisatoren: we controleren je bedrijfsgegevens handmatig.
+            </p>
+          </div>
+          {supplier.verified ? (
+            <Badge tone="success" icon={<BadgeCheck className="size-3.5" />}>Geverifieerd</Badge>
+          ) : supplier.verificationRequestedAt ? (
+            <Badge tone="ochre" icon={<Clock className="size-3.5" />}>Aanvraag in behandeling</Badge>
+          ) : (
+            <Badge tone="neutral">Nog niet geverifieerd</Badge>
+          )}
+        </div>
+        {!supplier.verified && !supplier.verificationRequestedAt && (
+          <form action={requestSupplierVerificationAction} className="mt-3">
+            <button type="submit" className="lift-hover rounded-xl bg-ink px-4 py-2.5 text-sm font-medium text-white hover:bg-ink/90">
+              Verificatie aanvragen
+            </button>
+            <p className="mt-1.5 text-xs text-ink-faint">Vul eerst je KVK-nummer hieronder in — dat heeft een admin nodig om je te kunnen verifiëren.</p>
+          </form>
+        )}
+        {verifyError && (
+          <p className="mt-3 rounded-xl border border-warning-50 bg-warning-50 px-3 py-2 text-sm text-warning">
+            Vul eerst je KVK-nummer in bij Basisgegevens voordat je verificatie kunt aanvragen.
+          </p>
+        )}
+        {verifyRequested && (
+          <p className="mt-3 flex items-center gap-2 rounded-xl border border-success-50 bg-success-50 px-3 py-2 text-sm text-success">
+            <CheckCircle2 className="size-4" /> Verificatie aangevraagd — we laten je weten zodra deze is behandeld.
+          </p>
+        )}
+      </Card>
 
       {justSaved && (
         <div className="mt-4 flex items-center gap-2 rounded-xl border border-success-50 bg-success-50 px-4 py-3 text-sm text-success">
