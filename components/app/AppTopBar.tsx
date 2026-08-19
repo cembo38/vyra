@@ -5,7 +5,7 @@ import { NotificationsBell } from "@/components/app/NotificationsBell";
 import { NavShell, type NavShellItem } from "@/components/app/NavShell";
 import { getCurrentUser } from "@/lib/auth";
 import { getNotifications, getSupplierAccountByOwner } from "@/lib/data/store";
-import { Plus, Search, Store, CalendarHeart, Bell } from "lucide-react";
+import { Plus, Search, Store, CalendarHeart, Bell, Heart } from "lucide-react";
 
 export async function AppTopBar() {
   const user = await getCurrentUser();
@@ -15,6 +15,7 @@ export async function AppTopBar() {
   const items: NavShellItem[] = [
     { href: "/events", label: "Mijn evenementen", icon: <CalendarHeart className="size-5 shrink-0" /> },
     { href: "/leveranciers", label: "Leveranciers zoeken", icon: <Search className="size-5 shrink-0" /> },
+    { href: "/mijn-leveranciers", label: "Mijn leveranciers", icon: <Heart className="size-5 shrink-0" /> },
     {
       href: supplier ? "/supplier/dashboard" : "/supplier/onboarding",
       label: supplier ? "Leveranciersportaal" : "Ook leverancier worden?",

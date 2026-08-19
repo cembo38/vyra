@@ -338,6 +338,14 @@ export interface SupplierBlockedDate {
   createdAt: string;
 }
 
+/** Een leverancier die een organisator heeft opgeslagen om later makkelijk terug te vinden/opnieuw te boeken. */
+export interface SupplierFavorite {
+  id: string;
+  userId: string;
+  supplierId: string;
+  createdAt: string;
+}
+
 /**
  * Een écht, inlogbaar leveranciersaccount (i.t.t. `SupplierProfile`, dat de
  * statische demo-catalogus beschrijft). Gekoppeld 1-op-1 aan een Supabase

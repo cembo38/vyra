@@ -30,6 +30,7 @@ import {
   SupplierAccount,
   SupplierBlockedDate,
   SupplierCategory,
+  SupplierFavorite,
   SupplierLead,
   SupplierOrder,
   SupplierProfile,
@@ -263,6 +264,10 @@ function rowToRequestTarget(r: Row): RequestTarget {
 
 function rowToSupplierBlockedDate(r: Row): SupplierBlockedDate {
   return { id: r.id, supplierId: r.supplier_id, date: r.date, createdAt: r.created_at };
+}
+
+function rowToSupplierFavorite(r: Row): SupplierFavorite {
+  return { id: r.id, userId: r.user_id, supplierId: r.supplier_id, createdAt: r.created_at };
 }
 
 function rowToGuest(r: Row): EventGuest {
@@ -748,6 +753,68 @@ export async function blockSupplierDate(supplierId: string, date: string): Promi
 export async function unblockSupplierDate(supplierId: string, date: string): Promise<void> {
   const supabase = await sb();
   await supabase.from("supplier_blocked_dates").delete().eq("supplier_id", supplierId).eq("date", date);
+}
+
+/* ------------------------------------------------------------------ */
+/* ORGANISATOR — FAVORIETE LEVERANCIERS (spec-item #54: terugkeer)     */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Alle op dit moment RLS-scoped (eigen `user_id`) opgeslagen favorieten,
+ * inclusief het volledige leveranciersprofiel — zodat de overzichtspagina
+ * geen aparte N+1-lookups hoeft te doen. Bewust `!inner`-embedding i.p.v.
+ * een losse tweede query: hier is er precies één relatie (favorite → zijn
+ * eigen leverancier) en geen event-datumfilter nodig, dus levert de
+ * PostgREST-embed hier geen risico op zoals bij `getUnavailableSupplierIds`.
+ */
+export async function listFavoriteSuppliers(userId: string): Promise<{ favorite: SupplierFavorite; supplier: SupplierAccount }[]> {
+  const supabase = await sb();
+  const { data } = await supabase
+    .from("supplier_favorites")
+    .select("*, supplier:suppliers!inner(*)")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  return (data ?? [])
+    .filter((r: Row) => r.supplier)
+    .map((r: Row) => ({ favorite: rowToSupplierFavorite(r), supplier: rowToSupplierAccount(r.supplier) }));
+}
+
+/** RLS beperkt dit al tot de huidige gebruiker — geen expliciete userId-check nodig. */
+export async function isSupplierFavorited(supplierId: string): Promise<boolean> {
+  const supabase = await sb();
+  const { data } = await supabase.from("supplier_favorites").select("id").eq("supplier_id", supplierId).limit(1);
+  return (data?.length ?? 0) > 0;
+}
+
+export async function addSupplierFavorite(userId: string, supplierId: string): Promise<void> {
+  const supabase = await sb();
+  // upsert met `ignoreDuplicates` i.p.v. eerst controleren + dan pas
+  // invoegen: voorkomt een race (dubbelklik) en de unique-constraint
+  // gooit hierdoor nooit een fout.
+  await supabase.from("supplier_favorites").upsert(
+    { user_id: userId, supplier_id: supplierId },
+    { onConflict: "user_id,supplier_id", ignoreDuplicates: true }
+  );
+}
+
+export async function removeSupplierFavorite(supplierId: string): Promise<void> {
+  const supabase = await sb();
+  await supabase.from("supplier_favorites").delete().eq("supplier_id", supplierId);
+}
+
+/**
+ * Heeft de huidige (ingelogde) organisator deze leverancier al ergens benaderd
+ * — via een gematchte of rechtstreekse aanvraag? Gebruikt om de directe
+ * contactlinks (website/social media) op het publieke profiel pas te tonen
+ * ná het eerste contact via Vyra, i.p.v. dat iedere bezoeker er meteen
+ * omheen kan (spec-item #54). RLS op `request_targets` scopet dit al tot
+ * aanvragen van events die van de ingelogde gebruiker zijn — vandaar geen
+ * expliciete userId-parameter nodig, zelfde patroon als `isSupplierFavorited`.
+ */
+export async function hasOrganizerContactedSupplier(supplierId: string): Promise<boolean> {
+  const supabase = await sb();
+  const { data } = await supabase.from("request_targets").select("id").eq("supplier_id", supplierId).limit(1);
+  return (data?.length ?? 0) > 0;
 }
 
 /**

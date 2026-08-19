@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
-import { getSupplierAccount, listEventsForUser } from "@/lib/data/store";
+import { getSupplierAccount, hasOrganizerContactedSupplier, isSupplierFavorited, listEventsForUser } from "@/lib/data/store";
 import { submitCustomSupplierRequestAction } from "@/lib/actions/supplier-actions";
 import { MarketingHeader } from "@/components/marketing/MarketingHeader";
 import { Footer } from "@/components/marketing/Footer";
@@ -10,11 +10,12 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { SupplierAvatar } from "@/components/ui/Avatar";
 import { Field, Input, Select, Textarea } from "@/components/ui/Form";
+import { FavoriteSupplierButton } from "@/components/app/FavoriteSupplierButton";
 import { formatCurrency } from "@/lib/config";
 import { SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
 import { SIDEBAR_OFFSET_CLASS } from "@/lib/nav-constants";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, Clock, ExternalLink, Link2, MapPin, ShieldCheck, Star } from "lucide-react";
+import { CheckCircle2, Clock, ExternalLink, Link2, Lock, MapPin, ShieldCheck, Star } from "lucide-react";
 
 export const metadata = { title: "Leveranciersprofiel — Vyra" };
 
@@ -28,7 +29,16 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
   if (!supplier) notFound();
 
   const user = await getCurrentUser();
-  const events = user ? await listEventsForUser(user.id) : [];
+  let events: Awaited<ReturnType<typeof listEventsForUser>> = [];
+  let favorited = false;
+  let alreadyContacted = false;
+  if (user) {
+    [events, favorited, alreadyContacted] = await Promise.all([
+      listEventsForUser(user.id),
+      isSupplierFavorited(supplier.id),
+      hasOrganizerContactedSupplier(supplier.id),
+    ]);
+  }
 
   const categories = supplier.categories.length > 0 ? supplier.categories : [supplier.category];
 
@@ -66,34 +76,47 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
             </div>
 
             {(supplier.website || supplier.socialFacebook || supplier.socialInstagram || supplier.socialTiktok) && (
-              <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
-                {supplier.website && (
-                  <a href={supplier.website} target="_blank" className="flex items-center gap-1 text-sage hover:underline">
-                    <ExternalLink className="size-3.5" /> Website
-                  </a>
-                )}
-                {supplier.socialFacebook && (
-                  <a href={supplier.socialFacebook} target="_blank" className="flex items-center gap-1 text-sage hover:underline">
-                    <Link2 className="size-3.5" /> Facebook
-                  </a>
-                )}
-                {supplier.socialInstagram && (
-                  <a href={supplier.socialInstagram} target="_blank" className="flex items-center gap-1 text-sage hover:underline">
-                    <Link2 className="size-3.5" /> Instagram
-                  </a>
-                )}
-                {supplier.socialTiktok && (
-                  <a href={supplier.socialTiktok} target="_blank" className="flex items-center gap-1 text-sage hover:underline">
-                    <Link2 className="size-3.5" /> TikTok
-                  </a>
-                )}
-                {supplier.kvkNumber && <span className="text-ink-faint">KVK {supplier.kvkNumber}</span>}
-              </div>
+              alreadyContacted ? (
+                <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+                  {supplier.website && (
+                    <a href={supplier.website} target="_blank" className="flex items-center gap-1 text-sage hover:underline">
+                      <ExternalLink className="size-3.5" /> Website
+                    </a>
+                  )}
+                  {supplier.socialFacebook && (
+                    <a href={supplier.socialFacebook} target="_blank" className="flex items-center gap-1 text-sage hover:underline">
+                      <Link2 className="size-3.5" /> Facebook
+                    </a>
+                  )}
+                  {supplier.socialInstagram && (
+                    <a href={supplier.socialInstagram} target="_blank" className="flex items-center gap-1 text-sage hover:underline">
+                      <Link2 className="size-3.5" /> Instagram
+                    </a>
+                  )}
+                  {supplier.socialTiktok && (
+                    <a href={supplier.socialTiktok} target="_blank" className="flex items-center gap-1 text-sage hover:underline">
+                      <Link2 className="size-3.5" /> TikTok
+                    </a>
+                  )}
+                  {supplier.kvkNumber && <span className="text-ink-faint">KVK {supplier.kvkNumber}</span>}
+                </div>
+              ) : (
+                // Website/social media pas tonen ná het eerste contact via Vyra
+                // (spec-item #54) — voorkomt dat elke bezoeker deze leverancier
+                // meteen buiten het platform om kan benaderen, nog vóórdat Vyra
+                // iets heeft kunnen bijdragen aan de match.
+                <p className="mt-3 flex items-center gap-1.5 text-sm text-ink-faint">
+                  <Lock className="size-3.5" /> Website &amp; social media zichtbaar na je eerste bericht aan {supplier.companyName}
+                </p>
+              )
             )}
           </div>
-          <div className="text-right">
-            <p className="text-xs text-ink-faint">Vanaf</p>
-            <p className="font-display text-xl text-ink">{formatCurrency(supplier.minPriceCents)}</p>
+          <div className="flex flex-col items-end gap-2">
+            {user && <FavoriteSupplierButton supplierId={supplier.id} initialFavorited={favorited} />}
+            <div className="text-right">
+              <p className="text-xs text-ink-faint">Vanaf</p>
+              <p className="font-display text-xl text-ink">{formatCurrency(supplier.minPriceCents)}</p>
+            </div>
           </div>
         </div>
 
