@@ -36,3 +36,21 @@ export function clamp(n: number, min: number, max: number) {
 export function initials(first: string, last: string) {
   return `${first[0] ?? ""}${last[0] ?? ""}`.toUpperCase();
 }
+
+/**
+ * KVK-nummers zijn precies 8 cijfers. Dit is bewust alleen een formaat-
+ * check, geen echte koppeling met het KVK-handelsregister — dat vereist een
+ * (betaalde) KVK API-registratie op naam van Vyra zelf, wat Cem later apart
+ * moet aanvragen als hij volledige automatische verificatie wil. Deze check
+ * filtert wel meteen overduidelijk foute/verzonnen nummers eruit, als
+ * eerste, geautomatiseerde check vóórdat een admin de aanvraag handmatig
+ * bekijkt.
+ */
+export function isValidKvkFormat(kvk: string | null | undefined): boolean {
+  return /^\d{8}$/.test((kvk ?? "").trim());
+}
+
+/** Directe zoeklink naar het officiële KVK-handelsregister, voor een snelle handmatige cross-check door de admin. */
+export function kvkLookupUrl(kvk: string): string {
+  return `https://www.kvk.nl/zoeken/?source=species&handelsnaam=&straat=&plaats=&kvknummer=${encodeURIComponent(kvk)}`;
+}

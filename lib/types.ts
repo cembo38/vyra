@@ -515,6 +515,7 @@ export interface AppNotification {
     | "new_shortlist_candidate"
     | "supplier_question"
     | "event_info_changed"
+    | "verification_requested"
     | "verification_approved"
     | "verification_rejected";
   title: string;

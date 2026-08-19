@@ -62,12 +62,12 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
             <button type="submit" className="lift-hover rounded-xl bg-ink px-4 py-2.5 text-sm font-medium text-white hover:bg-ink/90">
               Verificatie aanvragen
             </button>
-            <p className="mt-1.5 text-xs text-ink-faint">Vul eerst je KVK-nummer hieronder in — dat heeft een admin nodig om je te kunnen verifiëren.</p>
+            <p className="mt-1.5 text-xs text-ink-faint">Vul eerst een geldig KVK-nummer (8 cijfers) in bij Basisgegevens — dat heeft een admin nodig om je te kunnen verifiëren.</p>
           </form>
         )}
         {verifyError && (
           <p className="mt-3 rounded-xl border border-warning-50 bg-warning-50 px-3 py-2 text-sm text-warning">
-            Vul eerst je KVK-nummer in bij Basisgegevens voordat je verificatie kunt aanvragen.
+            Vul eerst een geldig KVK-nummer (precies 8 cijfers) in bij Basisgegevens voordat je verificatie kunt aanvragen.
           </p>
         )}
         {verifyRequested && (

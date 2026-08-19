@@ -20,8 +20,8 @@ import { formatCurrency, PLATFORM_COMMISSION_RATE, ADMIN_EMAILS } from "@/lib/co
 import { getCurrentUser } from "@/lib/auth";
 import { EVENT_TYPE_LABELS, UserRole } from "@/lib/types";
 import { SIDEBAR_OFFSET_CLASS } from "@/lib/nav-constants";
-import { cn } from "@/lib/utils";
-import { AlertCircle, AlertTriangle, Ban, BadgeCheck, Building2, CalendarDays, Clock, LineChart, Percent, ShieldAlert, Sparkles, Star, Users } from "lucide-react";
+import { cn, isValidKvkFormat, kvkLookupUrl } from "@/lib/utils";
+import { AlertCircle, AlertTriangle, Ban, BadgeCheck, Building2, CalendarDays, Clock, ExternalLink, LineChart, Percent, ShieldAlert, Sparkles, Star, Users } from "lucide-react";
 
 const ROLE_LABELS: Record<UserRole, string> = {
   customer: "Organisator",
@@ -145,7 +145,7 @@ export default async function AdminPage() {
               )}
             </div>
             <p className="mb-4 text-xs text-ink-faint">
-              Leveranciers die verificatie hebben aangevraagd (via hun bedrijfsprofiel, na het invullen van een KVK-nummer). Controleer het KVK-nummer en de bedrijfsgegevens voordat je goedkeurt.
+              Leveranciers die verificatie hebben aangevraagd (via hun bedrijfsprofiel, na het invullen van een KVK-nummer). Controleer het KVK-nummer en de bedrijfsgegevens voordat je goedkeurt — het rode label hieronder is alleen een formaat-check (8 cijfers), géén koppeling met het echte handelsregister, dus gebruik de KVK-link om zelf te controleren of de gegevens kloppen.
             </p>
             {!serviceRoleConfigured ? (
               <p className="text-sm text-ink-faint">Vereist de service-role sleutel (zie melding bovenaan) om verificaties te kunnen goed- of afkeuren.</p>
@@ -153,18 +153,37 @@ export default async function AdminPage() {
               <p className="text-sm text-ink-faint">Geen openstaande verificatieaanvragen.</p>
             ) : (
               <div className="max-h-[28rem] space-y-2 overflow-y-auto">
-                {pendingVerifications.map((s) => (
+                {pendingVerifications.map((s) => {
+                  const kvkFormatOk = isValidKvkFormat(s.kvkNumber);
+                  return (
                   <div key={s.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line-soft px-3.5 py-2.5 text-sm">
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-medium text-ink">{s.companyName}</p>
                         <Badge tone="ochre" icon={<Clock className="size-3.5" />}>Aangevraagd</Badge>
+                        {!kvkFormatOk && <Badge tone="danger">Ongeldig KVK-formaat</Badge>}
                       </div>
-                      <p className="text-xs text-ink-faint">KVK: {s.kvkNumber ?? "onbekend"} · {s.contactPerson} · {s.baseLocation}</p>
+                      <p className="text-xs text-ink-faint">
+                        KVK: {s.kvkNumber ?? "onbekend"} · {s.contactPerson} · {s.baseLocation}
+                        {s.kvkNumber && (
+                          <>
+                            {" · "}
+                            <a
+                              href={kvkLookupUrl(s.kvkNumber)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-0.5 font-medium text-sage hover:underline"
+                            >
+                              Controleer bij KVK <ExternalLink className="size-3" />
+                            </a>
+                          </>
+                        )}
+                      </p>
                     </div>
                     <AdminSupplierVerificationActions supplierId={s.id} />
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </Card>

@@ -8,6 +8,7 @@ import {
   createSupplierAccount,
   getRequest,
   getSupplierAccountByOwner,
+  pushNotification,
   requestSupplierVerification,
   sendCustomSupplierRequest,
   submitSupplierOffer,
@@ -15,6 +16,7 @@ import {
   uploadSupplierFile,
 } from "@/lib/data/store";
 import { SupplierCategory } from "@/lib/types";
+import { isValidKvkFormat } from "@/lib/utils";
 
 function optionalTrim(value: FormDataEntryValue | null): string | null {
   const str = String(value ?? "").trim();
@@ -151,12 +153,28 @@ export async function requestSupplierVerificationAction() {
   const supplier = await getSupplierAccountByOwner(user!.id);
   if (!supplier) redirect("/supplier/onboarding");
 
-  // Zonder KVK-nummer heeft een admin niets om te controleren — vraag dat
-  // eerst op via het gewone profielformulier.
-  if (!supplier!.kvkNumber) redirect("/supplier/profile?verifyError=1");
+  // Zonder (geldig) KVK-nummer heeft een admin niets om te controleren —
+  // vraag dat eerst op via het gewone profielformulier. `isValidKvkFormat`
+  // is een eerste, geautomatiseerde check (precies 8 cijfers) die
+  // overduidelijk foute/verzonnen nummers er meteen uitfiltert, vóórdat een
+  // admin er handmatig naar kijkt.
+  if (!isValidKvkFormat(supplier!.kvkNumber)) redirect("/supplier/profile?verifyError=1");
   if (supplier!.verified || supplier!.verificationRequestedAt) redirect("/supplier/profile");
 
   await requestSupplierVerification(supplier!.id);
+
+  // Directe bevestiging als in-app-notificatie (i.p.v. alleen een
+  // banner die verdwijnt na de volgende paginaverversing) — zo blijft
+  // "bedankt, in afwachting van besluit" ook nog terug te vinden in het
+  // notificatiepaneel.
+  await pushNotification({
+    userId: user!.id,
+    eventId: null,
+    type: "verification_requested",
+    title: "Bedankt — je aanvraag is ontvangen",
+    body: "We hebben je verificatieaanvraag ontvangen en controleren je bedrijfsgegevens. Je hoort van ons zodra hierover een besluit is genomen.",
+    href: "/supplier/profile",
+  });
 
   revalidatePath("/supplier/profile");
   redirect("/supplier/profile?verifyRequested=1");
