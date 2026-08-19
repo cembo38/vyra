@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/marketing/Logo";
+import { INTRO_COMMISSION_RATE } from "@/lib/config";
 
 export function Footer() {
   return (
@@ -38,7 +39,8 @@ export function Footer() {
         </div>
         <div className="mt-12 flex flex-col gap-2 border-t border-line-soft pt-6 text-xs text-ink-faint sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} Vyra. Alle rechten voorbehouden.</p>
-          <p>Vyra rekent 9,5% platformkosten over geboekte diensten — altijd vooraf zichtbaar, nooit verborgen.</p>
+          {/* Was hardcoded op de oude vaste 9,5%-commissie — zie de toelichting bij TrustSection.tsx. */}
+          <p>Vyra rekent vanaf {(INTRO_COMMISSION_RATE * 100).toFixed(0)}% platformkosten over geboekte diensten — altijd vooraf zichtbaar, nooit verborgen.</p>
         </div>
       </div>
     </footer>

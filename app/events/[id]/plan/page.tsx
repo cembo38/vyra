@@ -66,7 +66,7 @@ export default async function PlanPage(props: PageProps<"/events/[id]/plan">) {
               <PriorityBadge priority={section.key} />
             </div>
             <p className="mb-3 text-sm text-ink-faint">{section.description}</p>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               {items.map((r) => (
                 <Card key={r.id} className={r.selected ? "" : "opacity-60"}>
                   <div className="flex items-start justify-between gap-3">

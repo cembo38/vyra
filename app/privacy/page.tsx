@@ -42,7 +42,7 @@ export default function PrivacyPage() {
             </Section>
 
             <Section title="3. Waarvoor gebruiken we deze gegevens">
-              <p>Het aanmaken en beheren van je account; het genereren van een eventplan en het matchen met leveranciers via AI; het namens jou versturen van aanvragen naar leveranciers; het verwerken van betalingen en het innen van de platformcommissie (9,5%); en het verbeteren van het platform.</p>
+              <p>Het aanmaken en beheren van je account; het genereren van een eventplan en het matchen met leveranciers via AI; het namens jou versturen van aanvragen naar leveranciers; het verwerken van betalingen en het innen van de platformcommissie (zie de algemene voorwaarden voor de actuele tarieven); en het verbeteren van het platform.</p>
             </Section>
 
             <Section title="4. Rechtsgrond voor de verwerking">

@@ -73,7 +73,7 @@ export default async function RequestsPage(props: PageProps<"/events/[id]/reques
       {awaiting.length > 0 && (
         <section>
           <h2 className="mb-4 font-display text-lg text-ink">Wacht op reactie</h2>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {awaiting.map((r) => {
               const req = requests.find((rq) => rq.categoryKey === r.categoryKey);
               return (
@@ -101,7 +101,7 @@ export default async function RequestsPage(props: PageProps<"/events/[id]/reques
       {resolved.length > 0 && (
         <section>
           <h2 className="mb-4 font-display text-lg text-ink">Offertes ontvangen</h2>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             {resolved.map((r) => {
               const categoryOffers = offers.filter((o) => o.categoryKey === r.categoryKey);
               return (

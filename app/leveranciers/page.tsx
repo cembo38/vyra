@@ -41,7 +41,7 @@ export default async function SupplierDirectoryPage(props: PageProps<"/leveranci
         <p className="mt-1 text-ink-soft">Filter op categorie, prijs en werkgebied — of beschrijf gewoon wat je zoekt.</p>
 
         <Card className="mt-6">
-          <form method="get" action="/leveranciers" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <form method="get" action="/leveranciers" className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <Field label="Wat zoek je?" hint="Bijv. 'live band voor bruiloft'">
               <Input name="q" defaultValue={q} placeholder="Zoekterm..." />
             </Field>
@@ -83,7 +83,7 @@ export default async function SupplierDirectoryPage(props: PageProps<"/leveranci
             Geen leveranciers gevonden met deze filters. Probeer een ruimere zoekopdracht of wis de filters.
           </div>
         ) : (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {suppliers.map((s) => (
               <Link
                 key={s.id}

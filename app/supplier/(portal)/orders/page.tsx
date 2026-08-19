@@ -40,7 +40,7 @@ export default async function SupplierOrdersPage() {
       <h1 className="font-display text-3xl text-ink">Orders</h1>
       <p className="mt-1 text-ink-soft">Al je geaccepteerde boekingen, inclusief uitbetalingsstatus.</p>
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Card className="p-4">
           <p className="text-xs font-medium uppercase tracking-wide text-ink-faint">Totaal uitbetaald</p>
           <p className="mt-1.5 font-display text-2xl text-ink">{formatCurrency(totalPaid)}</p>

@@ -32,12 +32,14 @@ export function AdminDisputeActions({ disputeId }: { disputeId: string }) {
 
   return (
     <div className="mt-2.5 space-y-2">
+      {/* Geen text-sm/py-overschrijving meer — dat forceerde 14px tekst,
+          wat op iOS Safari een ongewenste in-zoom bij focus triggert (zie
+          fieldBase in components/ui/Form.tsx). */}
       <Textarea
         rows={2}
         placeholder="Toelichting op je beslissing (verplicht, zichtbaar voor beide partijen)..."
         value={response}
         onChange={(e) => setResponse(e.target.value)}
-        className="!py-2 text-sm"
       />
       <div className="flex items-center gap-1.5">
         <button

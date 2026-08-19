@@ -46,7 +46,7 @@ export default async function MyFavoriteSuppliersPage() {
             </div>
           </Card>
         ) : (
-          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {favorites.map(({ supplier }) => (
               <div key={supplier.id} className="card-hover relative rounded-2xl border border-line bg-white p-5 hover:border-clay/50 [box-shadow:var(--shadow-card)]">
                 <div className="absolute right-4 top-4">

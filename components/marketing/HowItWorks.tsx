@@ -37,7 +37,7 @@ export function HowItWorks() {
           </p>
         </div>
 
-        <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-14 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {steps.map((step, i) => (
             <div key={step.title} className="relative rounded-2xl border border-line bg-white p-6 [box-shadow:var(--shadow-card)]">
               <span className="font-display text-4xl text-line">{String(i + 1).padStart(2, "0")}</span>

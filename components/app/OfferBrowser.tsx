@@ -30,7 +30,11 @@ export function OfferBrowser({ offers, categoryLabel }: { offers: OfferWithSuppl
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
+      {/* flex-col op mobiel: de 3-knops weergavewissel duwde de tellertekst
+          er bij smalle viewports zo veel onder druk dat elk woord op een
+          eigen regel viel (bv. "3" / "offertes" / "voor" / "catering") —
+          zie de Playwright-screenshots uit de mobiel-verbeterronde. */}
+      <div className="mb-6 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-ink-faint">{offers.length} offerte{offers.length !== 1 ? "s" : ""} voor {categoryLabel.toLowerCase()}</p>
         <div className="flex items-center gap-1 rounded-full border border-line bg-white p-1">
           <button
@@ -334,7 +338,7 @@ function CompareCardList({ offers }: { offers: OfferWithSupplier[] }) {
   const sorted = useMemo(() => [...offers].sort((a, b) => b.matchScore - a.matchScore), [offers]);
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:hidden">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:hidden">
       {sorted.map((offer) => (
         <div key={offer.id} className="rounded-2xl border border-line bg-white p-4 [box-shadow:var(--shadow-card)]">
           <div className="flex items-center gap-2.5">
@@ -422,7 +426,7 @@ function CompareCardList({ offers }: { offers: OfferWithSupplier[] }) {
 
 function OfferList({ offers, compact }: { offers: OfferWithSupplier[]; compact?: boolean }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {offers.map((offer) => (
         <OfferListCard key={offer.id} offer={offer} compact={compact} />
       ))}
@@ -487,7 +491,7 @@ function OfferListCard({ offer, compact }: { offer: OfferWithSupplier; compact?:
         </div>
       )}
 
-      <button onClick={() => setExpanded((v) => !v)} className="mt-3 text-xs font-medium text-ink-faint underline underline-offset-2">
+      <button onClick={() => setExpanded((v) => !v)} className="-ml-1 mt-2 rounded-lg px-1 py-2 text-xs font-medium text-ink-faint underline underline-offset-2">
         {expanded ? "Minder details" : "Meer details"}
       </button>
 

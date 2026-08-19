@@ -94,7 +94,7 @@ export default async function AdminPage() {
           </div>
         )}
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Kpi icon={<LineChart className="size-4" />} label="GMV" value={formatCurrency(gmv)} />
           <Kpi icon={<Percent className="size-4" />} label="Platform revenue" value={formatCurrency(revenue)} sub={gmv > 0 ? `${blendedCommissionRate.toFixed(1)}% blended (instap+gestaffeld+Pro)` : "Nog geen betaalde boekingen"} />
           <Kpi icon={<Sparkles className="size-4" />} label="Vyra Pro" value={String(proSupplierCount)} sub={`van ${suppliers.length} leveranciers`} />
@@ -207,7 +207,7 @@ export default async function AdminPage() {
           </Card>
         </div>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Card>
             <h2 className="mb-4 font-display text-lg text-ink">Recente evenementen</h2>
             <div className="space-y-2">
@@ -251,7 +251,7 @@ export default async function AdminPage() {
           </Card>
         </div>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Card>
             <h2 className="mb-4 font-display text-lg text-ink">Transacties</h2>
             {payments.length === 0 ? (

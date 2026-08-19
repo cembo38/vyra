@@ -7,7 +7,7 @@ export function Hero() {
     <section className="relative overflow-hidden">
       <div className="pointer-events-none absolute -top-24 left-1/2 h-[560px] w-[900px] -translate-x-1/2 rounded-full bg-gradient-to-b from-clay-50 via-sage-50/60 to-transparent blur-3xl" />
 
-      <div className="relative mx-auto grid max-w-6xl gap-14 px-6 pb-16 pt-16 md:grid-cols-[1.05fr_0.95fr] md:items-center md:pb-24 md:pt-24">
+      <div className="relative mx-auto grid grid-cols-1 max-w-6xl gap-14 px-6 pb-16 pt-16 md:grid-cols-[1.05fr_0.95fr] md:items-center md:pb-24 md:pt-24">
         <div className="animate-rise">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-line bg-white px-3.5 py-1.5 text-xs font-medium text-ink-soft shadow-sm">
             <Sparkles className="size-3.5 text-sage" />
@@ -73,8 +73,13 @@ export function Hero() {
             </div>
 
             <div className="mt-5 rounded-2xl border border-line-soft bg-paper p-4">
-              <div className="mb-3 flex items-center justify-between">
-                <span className="text-xs font-medium uppercase tracking-wide text-ink-faint">Jouw AI-eventplan</span>
+              {/* flex-wrap + whitespace-nowrap: op de smalste telefoons
+                  (375px) was er te weinig ruimte naast de AiTag-pil,
+                  waardoor "Jouw AI-eventplan" lelijk middenin afbrak
+                  ("JOUW AI-" / "EVENTPLAN"). Valt de pil nu niet meer
+                  ernaast, dan zakt hij gewoon naar een eigen regel. */}
+              <div className="mb-3 flex flex-wrap items-center justify-between gap-1.5">
+                <span className="whitespace-nowrap text-xs font-medium uppercase tracking-wide text-ink-faint">Jouw AI-eventplan</span>
                 <AiTag />
               </div>
               <div className="space-y-2.5">

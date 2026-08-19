@@ -48,7 +48,7 @@ export default async function SupplierDashboardPage() {
         </p>
       )}
 
-      <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi icon={<Inbox className="size-4" />} label="Openstaande aanvragen" value={String(summary.openLeadsCount)} href="/supplier/requests" />
         <Kpi icon={<CheckCircle2 className="size-4" />} label="Actieve boekingen" value={String(summary.activeOrdersCount)} href="/supplier/orders" />
         <Kpi icon={<CalendarClock className="size-4" />} label="Deze maand" value={String(summary.upcomingThisMonthCount)} sub="Geboekte evenementen" />
@@ -70,7 +70,7 @@ export default async function SupplierDashboardPage() {
         </p>
       </Card>
 
-      <div className="mt-10 grid gap-6 lg:grid-cols-2">
+      <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <div className="mb-4 flex items-center justify-between">
             <h2 className="font-display text-lg text-ink">Nieuwe aanvragen</h2>

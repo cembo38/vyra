@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { LinkButton } from "@/components/ui/Button";
 import { SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
-import { formatCurrency } from "@/lib/config";
+import { formatCurrency, INTRO_COMMISSION_RATE } from "@/lib/config";
 import { CheckCircle2, Clock, Percent, Sparkles, Star } from "lucide-react";
 
 export const metadata = { title: "Voor leveranciers — Vyra" };
@@ -30,9 +30,12 @@ export default function SupplierLandingPage() {
         </section>
 
         <section className="border-y border-line-soft bg-paper-dim/60 py-14">
-          <div className="mx-auto grid max-w-5xl gap-6 px-6 sm:grid-cols-3">
+          <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 px-6 sm:grid-cols-3">
             <Stat icon={<Clock className="size-5" />} title="Duidelijke deadlines" description="Reageer binnen 48 uur op een aanvraag — met automatische herinneringen." />
-            <Stat icon={<Percent className="size-5" />} title="9,5% commissie" description="Alleen bij een succesvolle boeking. Geen abonnement, geen verborgen kosten." />
+            {/* Was hardcoded op de oude vaste 9,5%-commissie — zie de
+                toelichting bij TrustSection.tsx voor waarom dat sinds het
+                gestaffelde model (spec-item #53) niet meer klopt. */}
+            <Stat icon={<Percent className="size-5" />} title={`Vanaf ${(INTRO_COMMISSION_RATE * 100).toFixed(0)}% commissie`} description="Alleen bij een succesvolle boeking. Geen abonnement verplicht, geen verborgen kosten." />
             <Stat icon={<Star className="size-5" />} title="Bouw je reputatie op" description="Reviews, reactiesnelheid en acceptatiegraad verbeteren je positie in de matching." />
           </div>
         </section>

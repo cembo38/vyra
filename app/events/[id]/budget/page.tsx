@@ -42,7 +42,7 @@ export default async function BudgetPage(props: PageProps<"/events/[id]/budget">
       </div>
 
       <Card>
-        <div className="grid gap-6 sm:grid-cols-4">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-4">
           <Stat label="Totaal budget" value={formatCurrency(budget.totalCents)} icon={<Wallet className="size-4" />} />
           <Stat label="Gecommitteerd" value={formatCurrency(budget.committedCents)} tone="text-success" />
           <Stat label="Verwacht" value={formatCurrency(budget.pendingCents)} tone="text-ochre" />

@@ -74,7 +74,7 @@ export function AddGuestForm({ eventId }: { eventId: string }) {
             setMode("closed");
           })
         }
-        className="grid gap-3 sm:grid-cols-2"
+        className="grid grid-cols-1 gap-3 sm:grid-cols-2"
       >
         <Field label="Naam" required>
           <Input name="name" required placeholder="Voor- en achternaam" />

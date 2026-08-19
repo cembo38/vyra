@@ -452,21 +452,26 @@ button {
  * `.scroll-fade-x` is voor stroken op de --color-paper achtergrond,
  * `.scroll-fade-x-white` voor stroken op een witte kaart/balk.
  */
+/* Was 24px/0.1 — bij een live mobiele screenshot-toets (EventSubNav, 9
+   tabbladen op 375px) bleek dat nauwelijks zichtbaar, waardoor niet
+   duidelijk was dat er nog 5 tabbladen buiten beeld stonden. Iets breder
+   en donkerder blijft subtiel maar is nu daadwerkelijk een herkenbare
+   aanwijzing. */
 .scroll-fade-x {
   background:
     linear-gradient(to right, var(--color-paper) 0, transparent 100%) local,
     linear-gradient(to left, var(--color-paper) 0, transparent 100%) 100% 0 local,
-    linear-gradient(to right, rgba(43, 40, 35, 0.1), transparent 100%) scroll,
-    linear-gradient(to left, rgba(43, 40, 35, 0.1), transparent 100%) 100% 0 scroll;
+    linear-gradient(to right, rgba(43, 40, 35, 0.18), transparent 100%) scroll,
+    linear-gradient(to left, rgba(43, 40, 35, 0.18), transparent 100%) 100% 0 scroll;
   background-repeat: no-repeat;
-  background-size: 24px 100%;
+  background-size: 32px 100%;
 }
 .scroll-fade-x-white {
   background:
     linear-gradient(to right, white 0, transparent 100%) local,
     linear-gradient(to left, white 0, transparent 100%) 100% 0 local,
-    linear-gradient(to right, rgba(43, 40, 35, 0.1), transparent 100%) scroll,
-    linear-gradient(to left, rgba(43, 40, 35, 0.1), transparent 100%) 100% 0 scroll;
+    linear-gradient(to right, rgba(43, 40, 35, 0.18), transparent 100%) scroll,
+    linear-gradient(to left, rgba(43, 40, 35, 0.18), transparent 100%) 100% 0 scroll;
   background-repeat: no-repeat;
-  background-size: 24px 100%;
+  background-size: 32px 100%;
 }

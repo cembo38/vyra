@@ -108,7 +108,7 @@ export function DisputeReporter({
             <button
               type="button"
               onClick={() => setFormOpen(true)}
-              className="chip-hover mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-clay hover:underline"
+              className="chip-hover -ml-2 mt-1 inline-flex min-h-11 items-center gap-1.5 rounded-full px-2 text-sm font-medium text-clay hover:underline"
             >
               Meld een geschil <ChevronDown className="size-3.5" />
             </button>
@@ -135,7 +135,7 @@ export function DisputeReporter({
                   {pending ? <Loader2 className="size-3.5 animate-spin" /> : null}
                   Geschil versturen
                 </button>
-                <button type="button" disabled={pending} onClick={() => { setFormOpen(false); setError(null); }} className="text-sm text-ink-faint hover:text-ink-soft">
+                <button type="button" disabled={pending} onClick={() => { setFormOpen(false); setError(null); }} className="min-h-11 rounded-full px-2 text-sm text-ink-faint hover:text-ink-soft">
                   Annuleren
                 </button>
               </div>

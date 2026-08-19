@@ -51,7 +51,7 @@ export default async function SupplierRequestDetailPage(props: PageProps<"/suppl
 
       <Card className="mt-6">
         <h2 className="mb-3 font-display text-lg text-ink">Details van het evenement</h2>
-        <div className="grid gap-3 text-sm sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
           <Detail label="Datum" value={lead.event.date ?? "Nog niet bepaald"} />
           <Detail
             label="Locatie"

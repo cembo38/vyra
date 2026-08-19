@@ -71,6 +71,11 @@ export function SupplierBlockedDatesManager({ initialBlockedDates }: { initialBl
       <div className="mt-4 flex flex-wrap items-end gap-2">
         <div className="flex flex-col gap-1">
           <label htmlFor="block-date-from" className="text-xs font-medium text-ink-faint">Van</label>
+          {/* text-base (16px) i.p.v. de eerdere 14px: onder 16px triggert
+              iOS Safari een automatische in-zoom bij focus — zelfde fix als
+              fieldBase in components/ui/Form.tsx, maar deze twee datumvelden
+              gebruiken bewust ad-hoc opmaak (naast elkaar + knop) i.p.v. de
+              gedeelde <Input/>. */}
           <input
             id="block-date-from"
             type="date"
@@ -80,7 +85,7 @@ export function SupplierBlockedDatesManager({ initialBlockedDates }: { initialBl
               setFromDate(e.target.value);
               if (toDate && toDate < e.target.value) setToDate(e.target.value);
             }}
-            className="rounded-xl border border-line px-3 py-2.5 text-sm text-ink outline-none focus:border-sage"
+            className="rounded-xl border border-line px-4 py-3 text-base text-ink outline-none focus:border-sage"
           />
         </div>
         <div className="flex flex-col gap-1">
@@ -91,14 +96,14 @@ export function SupplierBlockedDatesManager({ initialBlockedDates }: { initialBl
             min={fromDate || today}
             value={toDate}
             onChange={(e) => setToDate(e.target.value)}
-            className="rounded-xl border border-line px-3 py-2.5 text-sm text-ink outline-none focus:border-sage"
+            className="rounded-xl border border-line px-4 py-3 text-base text-ink outline-none focus:border-sage"
           />
         </div>
         <button
           type="button"
           disabled={!fromDate || pending}
           onClick={addRange}
-          className="chip-hover inline-flex h-[42px] items-center gap-1.5 rounded-xl border border-line bg-white px-4 text-sm font-medium text-ink-soft hover:border-sage/50 hover:text-ink disabled:opacity-40 disabled:pointer-events-none"
+          className="chip-hover inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-4 py-3 text-sm font-medium text-ink-soft hover:border-sage/50 hover:text-ink disabled:opacity-40 disabled:pointer-events-none"
         >
           {pending ? <Loader2 className="size-3.5 animate-spin" /> : <CalendarOff className="size-3.5" />}
           Blokkeren
