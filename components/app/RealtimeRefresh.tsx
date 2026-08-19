@@ -55,7 +55,16 @@ export function RealtimeRefresh({
       return;
     }
 
-    const channelName = `realtime:${table}:${filter ?? "all"}:${event}`;
+    // Uniek per gemonteerd exemplaar (niet alleen per tabel/filter/event):
+    // `NotificationsBell` bijvoorbeeld staat gelijktijdig 2-3x in de DOM
+    // (mobiele topstrook + drawer-footer + zijbalk-footer — `NavShell`
+    // rendert alle drie altijd, en toont/verbergt ze puur met CSS). Met een
+    // gedeelde naam geeft Supabase's client hetzelfde, al-`subscribe()`de
+    // kanaalobject terug aan het tweede exemplaar, en dat crasht de hele
+    // pagina met "cannot add postgres_changes callbacks ... after
+    // subscribe()". Math.random() hier is veilig (geen SSR/hydratie-
+    // mismatch mogelijk): deze code draait alleen client-side, in een effect.
+    const channelName = `realtime:${table}:${filter ?? "all"}:${event}:${Math.random().toString(36).slice(2)}`;
     const channel = client
       .channel(channelName)
       .on(
