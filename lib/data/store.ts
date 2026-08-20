@@ -6,6 +6,7 @@ import {
   DEFAULT_DEPOSIT_PERCENT,
   EMAIL_ENABLED,
   INTRO_BOOKING_COUNT,
+  ORGANIZER_STALLED_DAYS,
   SUPPLIER_RESPONSE_WINDOW_HOURS,
   calculateCommission,
   formatCurrency,
@@ -31,6 +32,7 @@ import {
   EventGuest,
   EventNote,
   EventReadiness,
+  EventStage,
   EventTask,
   EventTimelineItem,
   GuestPublicInfo,
@@ -2518,6 +2520,17 @@ export async function markBriefingItemStatus(itemId: string, status: BriefingIte
  * AI-logs) is wél beperkt tot sinds het laatste rapport, anders zou
  * bijvoorbeeld elke leverancier die ooit is aangemeld elke dag opnieuw
  * als "nieuw" verschijnen.
+ *
+ * Twee latere, puur informatieve toevoegingen (geen "requires_approval",
+ * alleen een "Gezien"-knop): leveranciers die de reactietermijn op een
+ * aanvraag hebben laten verlopen ("supplier_unresponsive", via
+ * `request_targets` — de enige plek die per leverancier bijhoudt of hij al
+ * heeft gereageerd) en evenementen die een tijd niet zijn bijgewerkt
+ * ("organizer_stalled", ORGANIZER_STALLED_DAYS in lib/config.ts). Beide
+ * gebruiken dezelfde "alleen de dag dat het gebeurt"-redenering als
+ * hierboven: alleen wat SINDS het vorige rapport de drempel is
+ * gepasseerd, anders zou hetzelfde punt elke dag opnieuw verschijnen
+ * totdat iemand het handmatig wegklikt.
  */
 export async function generateAndStoreDailyBriefing(): Promise<AdminBriefing | null> {
   const admin = createSupabaseAdminClient();
@@ -2527,12 +2540,15 @@ export async function generateAndStoreDailyBriefing(): Promise<AdminBriefing | n
   const since = lastBriefingRow?.created_at ?? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const sinceMs = new Date(since).getTime();
 
-  const [suppliers, disputes, users, payments, aiLogs] = await Promise.all([
+  const [suppliers, disputes, users, payments, aiLogs, requests, events, pendingTargetRows] = await Promise.all([
     listAllSupplierAccounts(),
     listAllDisputes(),
     listAllUsers(),
     listAllPayments(),
     listAiInteractionLogs(200),
+    listAllRequests(),
+    listAllEvents(),
+    admin.from("request_targets").select("*").eq("status", "pending").then((r) => r.data ?? []),
   ]);
 
   const pendingVerifications = suppliers.filter((s) => !s.verified && s.verificationRequestedAt);
@@ -2543,6 +2559,38 @@ export async function generateAndStoreDailyBriefing(): Promise<AdminBriefing | n
   const flaggedLogs = aiLogs.logs.filter((l) => l.flagged && new Date(l.createdAt).getTime() > sinceMs);
   const revenueCents = newPayments.reduce((sum, p) => sum + p.platformFeeCents, 0);
 
+  // "Leverancier heeft de reactietermijn laten verlopen" (puur informatief
+  // — geen "requires_approval"). `request_targets` (niet `requests` zelf)
+  // is de bron van waarheid per leverancier: een aanvraag gaat naar 3-5
+  // leveranciers tegelijk, en alleen déze tussentabel houdt per leverancier
+  // bij of hij al heeft gereageerd (zie submitSupplierOffer() hierboven).
+  // Alleen requests waarvan de deadline SINDS het vorige rapport is
+  // verstreken tellen mee — anders zou dezelfde overschrijding elke dag
+  // opnieuw verschijnen totdat de leverancier alsnog reageert.
+  const requestById = new Map(requests.map((r) => [r.id, r]));
+  const nowMs = Date.now();
+  const unresponsiveCountBySupplier = new Map<string, number>();
+  for (const row of pendingTargetRows) {
+    const target = rowToRequestTarget(row);
+    const request = requestById.get(target.requestId);
+    if (!request) continue;
+    const deadlineMs = new Date(request.deadlineAt).getTime();
+    if (deadlineMs > nowMs || deadlineMs <= sinceMs) continue; // nog niet verlopen, of al eerder gerapporteerd
+    unresponsiveCountBySupplier.set(target.supplierId, (unresponsiveCountBySupplier.get(target.supplierId) ?? 0) + 1);
+  }
+
+  // "Evenement lijkt stilgevallen" (eveneens puur informatief) — alleen
+  // evenementen die de inactiviteitsdrempel PAS SINDS het vorige rapport
+  // zijn gepasseerd (zelfde eenmalige-melding-redenering als hierboven).
+  const activeStages: EventStage[] = ["draft", "planning", "sourcing", "booking"];
+  const stalledThresholdMs = ORGANIZER_STALLED_DAYS * 24 * 60 * 60 * 1000;
+  const newlyStalledEvents = events.filter((e) => {
+    if (!activeStages.includes(e.stage)) return false;
+    const inactiveMs = nowMs - new Date(e.updatedAt).getTime();
+    const inactiveMsAtLastReport = sinceMs - new Date(e.updatedAt).getTime();
+    return inactiveMs >= stalledThresholdMs && inactiveMsAtLastReport < stalledThresholdMs;
+  });
+
   const { narrative, usedAI } = await generateBriefingNarrative({
     pendingVerifications: pendingVerifications.length,
     openDisputes: openDisputes.length,
@@ -2551,6 +2599,8 @@ export async function generateAndStoreDailyBriefing(): Promise<AdminBriefing | n
     flaggedAiCount: flaggedLogs.length,
     paymentsCount: newPayments.length,
     revenueCents,
+    unresponsiveSupplierCount: unresponsiveCountBySupplier.size,
+    stalledEventCount: newlyStalledEvents.length,
   });
 
   type NewItem = Omit<AdminBriefingItem, "id" | "briefingId" | "status" | "createdAt">;
@@ -2626,6 +2676,36 @@ export async function generateAndStoreDailyBriefing(): Promise<AdminBriefing | n
       requiresApproval: false,
       relatedType: null,
       relatedId: null,
+    });
+  }
+
+  // Puur informatief (geen "requires_approval"): een enkele late reactie
+  // is normaal, maar als het patroon zich herhaalt is dat iets waard om
+  // te weten — vandaar per leverancier, niet per losse aanvraag.
+  for (const [supplierId, count] of unresponsiveCountBySupplier) {
+    const supplier = suppliers.find((s) => s.id === supplierId);
+    if (!supplier) continue;
+    items.push({
+      teamMember: BRIEFING_TEAM_MEMBERS.vertrouwen,
+      kind: "supplier_unresponsive",
+      title: `${supplier.companyName}: ${count} aanvraag${count === 1 ? "" : "en"} niet beantwoord binnen ${SUPPLIER_RESPONSE_WINDOW_HOURS} uur`,
+      description: "De reactietermijn is verstreken zonder offerte of afwijzing — kan de moeite waard zijn om even te informeren of alles goed gaat bij deze leverancier.",
+      requiresApproval: false,
+      relatedType: "supplier",
+      relatedId: supplier.id,
+    });
+  }
+
+  for (const e of newlyStalledEvents) {
+    const owner = users.find((u) => u.id === e.ownerId);
+    items.push({
+      teamMember: BRIEFING_TEAM_MEMBERS.groei,
+      kind: "organizer_stalled",
+      title: `"${e.name}" lijkt stilgevallen`,
+      description: `${owner ? `${owner.firstName} ${owner.lastName}` : "Deze organisator"} heeft dit evenement al ${ORGANIZER_STALLED_DAYS}+ dagen niet bijgewerkt (fase: ${e.stage}).`,
+      requiresApproval: false,
+      relatedType: "event",
+      relatedId: e.id,
     });
   }
 

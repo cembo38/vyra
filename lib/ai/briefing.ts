@@ -37,6 +37,10 @@ export interface BriefingSignalBundle {
   flaggedAiCount: number;
   paymentsCount: number;
   revenueCents: number;
+  /** Leveranciers die de reactietermijn op minstens één aanvraag hebben laten verlopen sinds het vorige rapport — puur informatief. */
+  unresponsiveSupplierCount: number;
+  /** Evenementen die net de inactiviteitsdrempel zijn gepasseerd sinds het vorige rapport — puur informatief. */
+  stalledEventCount: number;
 }
 
 export interface BriefingNarrative {
@@ -84,7 +88,14 @@ export async function generateBriefingNarrative(bundle: BriefingSignalBundle): P
 
 function buildMockNarrative(b: BriefingSignalBundle): BriefingNarrative {
   const actionable = b.pendingVerifications + b.openDisputes;
-  const nothingAtAll = actionable === 0 && b.newSuppliers === 0 && b.newUsers === 0 && b.flaggedAiCount === 0 && b.paymentsCount === 0;
+  const nothingAtAll =
+    actionable === 0 &&
+    b.newSuppliers === 0 &&
+    b.newUsers === 0 &&
+    b.flaggedAiCount === 0 &&
+    b.paymentsCount === 0 &&
+    b.unresponsiveSupplierCount === 0 &&
+    b.stalledEventCount === 0;
 
   const coordinatorSummary = nothingAtAll
     ? "Goedemorgen Cem. Niets te melden vandaag — geen nieuwe aanmeldingen, geschillen of verificatieverzoeken sinds het laatste rapport."
@@ -92,6 +103,9 @@ function buildMockNarrative(b: BriefingSignalBundle): BriefingNarrative {
         "Goedemorgen Cem.",
         actionable > 0 ? `${actionable} punt${actionable === 1 ? "" : "en"} hieronder vraagt om jouw goedkeuring.` : null,
         b.newSuppliers > 0 || b.newUsers > 0 ? `Verder ${b.newSuppliers} nieuwe leverancier(s) en ${b.newUsers} nieuwe gebruiker(s) sinds gisteren.` : null,
+        b.unresponsiveSupplierCount > 0 || b.stalledEventCount > 0
+          ? `Ook ${b.unresponsiveSupplierCount} leverancier(s) met een verlopen reactietermijn en ${b.stalledEventCount} evenement(en) die stil lijken te liggen — puur ter info, geen actie vereist.`
+          : null,
       ]
         .filter(Boolean)
         .join(" ");
@@ -103,11 +117,22 @@ function buildMockNarrative(b: BriefingSignalBundle): BriefingNarrative {
         b.pendingVerifications > 0
           ? `${b.pendingVerifications} leverancier${b.pendingVerifications === 1 ? "" : "s"} wacht${b.pendingVerifications === 1 ? "" : "en"} op verificatie.`
           : "Geen openstaande verificatieverzoeken.",
-      vertrouwen: b.openDisputes > 0 ? `${b.openDisputes} openstaand${b.openDisputes === 1 ? "" : "e"} geschil${b.openDisputes === 1 ? "" : "len"}.` : "Geen openstaande geschillen.",
+      vertrouwen:
+        [
+          b.openDisputes > 0 ? `${b.openDisputes} openstaand${b.openDisputes === 1 ? "" : "e"} geschil${b.openDisputes === 1 ? "" : "len"}.` : null,
+          b.unresponsiveSupplierCount > 0
+            ? `${b.unresponsiveSupplierCount} leverancier${b.unresponsiveSupplierCount === 1 ? "" : "s"} met een verlopen reactietermijn.`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" ") || "Geen openstaande geschillen of verlopen reactietermijnen.",
       groei:
-        b.newSuppliers + b.newUsers > 0
-          ? `${b.newSuppliers} nieuwe leverancier(s), ${b.newUsers} nieuwe gebruiker(s) sinds gisteren.`
-          : "Geen nieuwe aanmeldingen sinds gisteren.",
+        [
+          b.newSuppliers + b.newUsers > 0 ? `${b.newSuppliers} nieuwe leverancier(s), ${b.newUsers} nieuwe gebruiker(s) sinds gisteren.` : null,
+          b.stalledEventCount > 0 ? `${b.stalledEventCount} evenement(en) lijken stilgevallen.` : null,
+        ]
+          .filter(Boolean)
+          .join(" ") || "Geen nieuwe aanmeldingen sinds gisteren.",
       financien: b.paymentsCount > 0 ? `${b.paymentsCount} nieuwe betaling(en), samen ${formatCurrency(b.revenueCents)}.` : "Geen nieuwe betalingen sinds gisteren.",
       veiligheid: b.flaggedAiCount > 0 ? `${b.flaggedAiCount} AI-interactie(s) gemarkeerd voor review.` : "Geen gemarkeerde AI-interacties.",
     },

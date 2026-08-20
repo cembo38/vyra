@@ -3,3 +3,9 @@ node_modules
 .env.local
 .DS_Store
 npm-debug.log*
+
+# Playwright (e2e/) — testrapporten, niet de tests zelf
+/test-results
+/playwright-report
+/blob-report
+/playwright/.cache

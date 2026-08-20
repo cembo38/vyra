@@ -62,6 +62,16 @@ export const COMMISSION_TIER_LABELS: Record<CommissionTier, string> = {
 export const SUPPLIER_RESPONSE_WINDOW_HOURS = 48;
 
 /**
+ * Aantal dagen zonder wijziging aan een evenement (nog niet "confirmed",
+ * "completed" of "cancelled") voordat het AI-team dit als "lijkt
+ * stilgevallen" signaleert in het dagrapport (zie
+ * generateAndStoreDailyBriefing() in lib/data/store.ts). Puur
+ * informatief — geen automatische actie, alleen een seintje dat Cem
+ * eventueel zelf even kan navragen bij de organisator.
+ */
+export const ORGANIZER_STALLED_DAYS = 7;
+
+/**
  * Standaardpercentage voor een aanbetaling wanneer een organisator kiest om
  * een offerte in delen te betalen (aanbetaling nu, restbedrag later) in
  * plaats van in één keer. Zie createPaymentForOffer() in lib/data/store.ts.

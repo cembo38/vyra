@@ -612,7 +612,17 @@ export interface Dispute {
 /* verschijnen voor iets dat niet bestaat.                              */
 /* ------------------------------------------------------------------ */
 
-export type BriefingItemKind = "supplier_verification" | "dispute" | "new_supplier" | "new_users" | "flagged_ai" | "financial";
+export type BriefingItemKind =
+  | "supplier_verification"
+  | "dispute"
+  | "new_supplier"
+  | "new_users"
+  | "flagged_ai"
+  | "financial"
+  /** Leverancier die de reactietermijn (SUPPLIER_RESPONSE_WINDOW_HOURS) op een aanvraag heeft laten verlopen — puur informatief, geen knop die iets uitvoert. */
+  | "supplier_unresponsive"
+  /** Evenement dat al ORGANIZER_STALLED_DAYS niet is bijgewerkt en nog niet is afgerond/geannuleerd — puur informatief. */
+  | "organizer_stalled";
 export type BriefingItemStatus = "open" | "approved" | "dismissed";
 
 export interface AdminBriefingItem {
