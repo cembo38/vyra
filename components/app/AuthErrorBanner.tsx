@@ -10,6 +10,9 @@ const MESSAGES: Record<string, string> = {
   send_failed: "Dit is niet gelukt. Probeer het over een paar minuten opnieuw.",
   banned: "Dit account is geblokkeerd. Neem contact met ons op als je denkt dat dit een vergissing is.",
   "1": "Inloggen is niet gelukt. Probeer het opnieuw.",
+  email_missing: "Vul je e-mailadres in.",
+  expired: "Deze link is verlopen of al gebruikt. Vraag hieronder een nieuwe aan.",
+  mismatch: "De wachtwoorden komen niet overeen.",
 };
 
 export function AuthErrorBanner({ code }: { code?: string }) {

@@ -19,6 +19,13 @@ export function OfferBrowser({ offers, categoryLabel }: { offers: OfferWithSuppl
   const [view, setView] = useState<"swipe" | "list" | "compare">("swipe");
   const undecided = useMemo(() => offers.filter((o) => o.swipeDecision === "none" && o.status !== "accepted"), [offers]);
   const decided = useMemo(() => offers.filter((o) => o.swipeDecision !== "none" || o.status === "accepted"), [offers]);
+  // Zodra één offerte in deze categorie is geaccepteerd, mag er geen tweede
+  // meer geaccepteerd worden (dat zou een dubbele boeking/betaling
+  // opleveren — zie de server-side bescherming in createPaymentForOffer()
+  // in lib/data/store.ts). De knoppen hieronder verdwijnen daarom bij de
+  // overige offertes zodra dit het geval is, in plaats van dat een klik
+  // stilzwijgend niets doet.
+  const categoryHasAccepted = useMemo(() => offers.some((o) => o.status === "accepted"), [offers]);
 
   if (offers.length === 0) {
     return (
@@ -59,20 +66,20 @@ export function OfferBrowser({ offers, categoryLabel }: { offers: OfferWithSuppl
       </div>
 
       {view === "swipe" && <SwipeStack offers={undecided} />}
-      {view === "list" && <OfferList offers={offers} />}
+      {view === "list" && <OfferList offers={offers} categoryHasAccepted={categoryHasAccepted} />}
       {view === "compare" && (
         <>
           {/* Volle tabel (8 kolommen, min-w-[820px]) past pas comfortabel vanaf
               `lg` (iPad landscape en groter); daaronder de kaartenlijst. */}
-          <CompareTable offers={offers} />
-          <CompareCardList offers={offers} />
+          <CompareTable offers={offers} categoryHasAccepted={categoryHasAccepted} />
+          <CompareCardList offers={offers} categoryHasAccepted={categoryHasAccepted} />
         </>
       )}
 
       {decided.length > 0 && view === "swipe" && (
         <div className="mt-10">
           <h3 className="mb-3 text-sm font-medium uppercase tracking-wide text-ink-faint">Beslist</h3>
-          <OfferList offers={decided} compact />
+          <OfferList offers={decided} compact categoryHasAccepted={categoryHasAccepted} />
         </div>
       )}
     </div>
@@ -233,7 +240,7 @@ function SwipeCard({ offer, stackIndex, interactive, onDecide }: { offer: OfferW
   );
 }
 
-function CompareTable({ offers }: { offers: OfferWithSupplier[] }) {
+function CompareTable({ offers, categoryHasAccepted }: { offers: OfferWithSupplier[]; categoryHasAccepted: boolean }) {
   const [pending, startTransition] = useTransition();
   const sorted = useMemo(() => [...offers].sort((a, b) => b.matchScore - a.matchScore), [offers]);
 
@@ -286,7 +293,11 @@ function CompareTable({ offers }: { offers: OfferWithSupplier[] }) {
               <td className="px-4 py-3 whitespace-nowrap text-ink-soft">± {offer.supplier.avgResponseHours} uur</td>
               <td className="px-4 py-3"><OfferStatusBadge status={offer.status} /></td>
               <td className="px-4 py-3">
-                {offer.status !== "accepted" ? (
+                {offer.status === "accepted" ? (
+                  <span className="flex items-center justify-end gap-1 text-xs font-medium text-success"><CheckCircle2 className="size-3.5" /> Geaccepteerd</span>
+                ) : categoryHasAccepted ? (
+                  <span className="flex items-center justify-end text-xs text-ink-faint">Andere offerte geaccepteerd</span>
+                ) : (
                   <div className="flex items-center justify-end gap-1.5">
                     <button
                       disabled={pending}
@@ -315,8 +326,6 @@ function CompareTable({ offers }: { offers: OfferWithSupplier[] }) {
                       <PiggyBank className="size-3.5" />
                     </button>
                   </div>
-                ) : (
-                  <span className="flex items-center justify-end gap-1 text-xs font-medium text-success"><CheckCircle2 className="size-3.5" /> Geaccepteerd</span>
                 )}
               </td>
             </tr>
@@ -333,7 +342,7 @@ function CompareTable({ offers }: { offers: OfferWithSupplier[] }) {
  * 2 kolommen vanaf `sm` — op iPad-portret staan er dus al 2 offertes
  * naast elkaar te vergelijken, i.p.v. een enkele, lange lijst.
  */
-function CompareCardList({ offers }: { offers: OfferWithSupplier[] }) {
+function CompareCardList({ offers, categoryHasAccepted }: { offers: OfferWithSupplier[]; categoryHasAccepted: boolean }) {
   const [pending, startTransition] = useTransition();
   const sorted = useMemo(() => [...offers].sort((a, b) => b.matchScore - a.matchScore), [offers]);
 
@@ -384,7 +393,13 @@ function CompareCardList({ offers }: { offers: OfferWithSupplier[] }) {
             ))}
           </div>
 
-          {offer.status !== "accepted" ? (
+          {offer.status === "accepted" ? (
+            <div className="mt-3 flex items-center justify-end gap-1 text-xs font-medium text-success">
+              <CheckCircle2 className="size-3.5" /> Geaccepteerd
+            </div>
+          ) : categoryHasAccepted ? (
+            <div className="mt-3 flex items-center justify-end text-xs text-ink-faint">Andere offerte geaccepteerd</div>
+          ) : (
             <div className="mt-3 flex items-center justify-end gap-2">
               <button
                 disabled={pending}
@@ -413,10 +428,6 @@ function CompareCardList({ offers }: { offers: OfferWithSupplier[] }) {
                 {pending ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
               </button>
             </div>
-          ) : (
-            <div className="mt-3 flex items-center justify-end gap-1 text-xs font-medium text-success">
-              <CheckCircle2 className="size-3.5" /> Geaccepteerd
-            </div>
           )}
         </div>
       ))}
@@ -424,17 +435,17 @@ function CompareCardList({ offers }: { offers: OfferWithSupplier[] }) {
   );
 }
 
-function OfferList({ offers, compact }: { offers: OfferWithSupplier[]; compact?: boolean }) {
+function OfferList({ offers, compact, categoryHasAccepted }: { offers: OfferWithSupplier[]; compact?: boolean; categoryHasAccepted: boolean }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {offers.map((offer) => (
-        <OfferListCard key={offer.id} offer={offer} compact={compact} />
+        <OfferListCard key={offer.id} offer={offer} compact={compact} categoryHasAccepted={categoryHasAccepted} />
       ))}
     </div>
   );
 }
 
-function OfferListCard({ offer, compact }: { offer: OfferWithSupplier; compact?: boolean }) {
+function OfferListCard({ offer, compact, categoryHasAccepted }: { offer: OfferWithSupplier; compact?: boolean; categoryHasAccepted: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const [pending, startTransition] = useTransition();
 
@@ -497,7 +508,7 @@ function OfferListCard({ offer, compact }: { offer: OfferWithSupplier; compact?:
 
       {!compact && (
         <div className="mt-4 flex flex-wrap gap-2">
-          {offer.status !== "accepted" && (
+          {offer.status !== "accepted" && !categoryHasAccepted && (
             <>
               <button
                 disabled={pending}
@@ -534,6 +545,9 @@ function OfferListCard({ offer, compact }: { offer: OfferWithSupplier; compact?:
             <span className="inline-flex items-center gap-1.5 text-xs font-medium text-success">
               <CheckCircle2 className="size-4" /> Geaccepteerd
             </span>
+          )}
+          {offer.status !== "accepted" && categoryHasAccepted && (
+            <span className="text-xs text-ink-faint">Je hebt al een andere offerte in deze categorie geaccepteerd.</span>
           )}
         </div>
       )}

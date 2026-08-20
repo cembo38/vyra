@@ -88,7 +88,16 @@ export default async function AdminSuppliersPage() {
           ) : (
             <div className="space-y-2">
               {[...suppliers]
-                .sort((a, b) => b.ratingAvg - a.ratingAvg)
+                // Leveranciers zonder reviews (ratingAvg staat dan op 0) horen
+                // niet mee te tellen in de sortering op beoordeling — anders
+                // zakken ze onterecht onder leveranciers met een échte lage
+                // beoordeling, in plaats van gewoon "nog onbeoordeeld" te zijn.
+                .sort((a, b) => {
+                  if (a.ratingCount === 0 && b.ratingCount === 0) return 0;
+                  if (a.ratingCount === 0) return 1;
+                  if (b.ratingCount === 0) return -1;
+                  return b.ratingAvg - a.ratingAvg;
+                })
                 .map((s) => (
                   <div key={s.id} className="flex items-center justify-between rounded-xl border border-line-soft px-3.5 py-2.5 text-sm">
                     <div>
@@ -98,9 +107,13 @@ export default async function AdminSuppliersPage() {
                       </div>
                       <p className="text-xs text-ink-faint">{s.serviceAreas.join(", ")}</p>
                     </div>
-                    <span className="flex items-center gap-1 text-xs text-ink-faint">
-                      <Star className="size-3.5 fill-ochre text-ochre" /> {s.ratingAvg.toFixed(1)}
-                    </span>
+                    {s.ratingCount > 0 ? (
+                      <span className="flex items-center gap-1 text-xs text-ink-faint">
+                        <Star className="size-3.5 fill-ochre text-ochre" /> {s.ratingAvg.toFixed(1)}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-ink-faint">Nog geen reviews</span>
+                    )}
                   </div>
                 ))}
             </div>

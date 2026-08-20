@@ -116,7 +116,11 @@ export default async function SupplierDashboardPage() {
                   </div>
                   <div className="text-right">
                     <p className="font-medium text-ink">{formatCurrency(offer.totalPriceCents)}</p>
-                    <Badge tone={payment?.status === "paid" ? "success" : "ochre"}>{payment?.status === "paid" ? "Uitbetaald" : "In behandeling"}</Badge>
+                    {/* "Uitbetaald" was hier onterecht — payment.status "paid"
+                        betekent alleen dat de organisator heeft afgerekend,
+                        niet dat het geld al is uitbetaald aan de leverancier
+                        (zie de kaart hierboven en /supplier/orders). */}
+                    <Badge tone={payment?.status === "paid" ? "success" : "ochre"}>{payment?.status === "paid" ? "Betaald — uitbetaling volgt" : "In behandeling"}</Badge>
                   </div>
                 </div>
               ))}

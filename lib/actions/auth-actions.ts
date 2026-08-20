@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { signUpWithPassword, signInWithPassword, signOut, getCurrentUser } from "@/lib/auth";
+import { signUpWithPassword, signInWithPassword, signOut, getCurrentUser, requestPasswordReset, updatePassword } from "@/lib/auth";
 import { updateUser, getSupplierAccountByOwner } from "@/lib/data/store";
 
 async function siteOrigin() {
@@ -40,6 +40,33 @@ async function redirectAfterAuth(): Promise<never> {
   redirect("/events");
 }
 
+/**
+ * Bouwt de retry-URL voor een mislukte signup-poging, met alle velden
+ * behalve het wachtwoord teruggegeven als queryparams — /signup/page.tsx
+ * gebruikt die als `defaultValue`/`defaultChecked` om het formulier
+ * voorgevuld te tonen. Hiervoor moest de gebruiker bij elke validatiefout
+ * (bv. per ongeluk beide rol-vinkjes uitgelaten, waar geen `required` op
+ * zit) het hele formulier — naam, e-mail, wachtwoord — opnieuw intypen.
+ */
+function signupRetryParams(params: {
+  error: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  asOrganizer: boolean;
+  asSupplier: boolean;
+}): string {
+  const qs = new URLSearchParams({
+    error: params.error,
+    firstName: params.firstName,
+    lastName: params.lastName,
+    email: params.email,
+    asOrganizer: params.asOrganizer ? "1" : "0",
+    asSupplier: params.asSupplier ? "1" : "0",
+  });
+  return `/signup?${qs.toString()}`;
+}
+
 export async function signupAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   const password = String(formData.get("password") ?? "");
@@ -48,10 +75,11 @@ export async function signupAction(formData: FormData) {
   const consent = formData.get("consent");
   const asOrganizer = formData.get("asOrganizer") === "on";
   const asSupplier = formData.get("asSupplier") === "on";
+  const retryParams = (error: string) => signupRetryParams({ error, firstName, lastName, email, asOrganizer, asSupplier });
 
-  if (!asOrganizer && !asSupplier) redirect("/signup?error=role");
-  if (!consent) redirect("/signup?error=consent");
-  if (!email || password.length < 8) redirect("/signup?error=password");
+  if (!asOrganizer && !asSupplier) redirect(retryParams("role"));
+  if (!consent) redirect(retryParams("consent"));
+  if (!email || password.length < 8) redirect(retryParams("password"));
 
   const role = asOrganizer && asSupplier ? "both" : asSupplier ? "supplier" : "customer";
   const origin = await siteOrigin();
@@ -63,7 +91,7 @@ export async function signupAction(formData: FormData) {
     role,
     emailRedirectTo: `${origin}/auth/callback`,
   });
-  if (error) redirect(`/signup?error=${authErrorCode(error)}`);
+  if (error) redirect(retryParams(authErrorCode(error)));
 
   if (!confirmedSession) {
     // "Confirm email" staat nog aan in Supabase — pas na het klikken op de
@@ -85,6 +113,47 @@ export async function loginAction(formData: FormData) {
   if (error) redirect(`/login?error=${authErrorCode(error)}`);
 
   await redirectAfterAuth();
+}
+
+/**
+ * Start de "wachtwoord vergeten"-e-mail. Stuurt ALTIJD naar dezelfde
+ * bevestigingspagina, ongeacht of dit e-mailadres echt bij een account
+ * hoort (zie requestPasswordReset() in lib/auth.ts) — zo kan deze pagina
+ * niet gebruikt worden om te achterhalen welke e-mailadressen een
+ * Vyra-account hebben.
+ */
+export async function requestPasswordResetAction(formData: FormData) {
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) redirect("/wachtwoord-vergeten?error=email_missing");
+
+  const origin = await siteOrigin();
+  await requestPasswordReset(email, `${origin}/auth/callback?next=/wachtwoord-vergeten/nieuw`);
+  redirect(`/wachtwoord-vergeten/verzonden?email=${encodeURIComponent(email)}`);
+}
+
+/**
+ * Zet het nieuwe wachtwoord — vereist een geldige sessie, die alleen tot
+ * stand komt door eerst op de link in de reset-mail te klikken (die de
+ * gebruiker via /auth/callback hier laat landen, al ingelogd). We loggen
+ * bewust weer uit na het opslaan en sturen naar /login, in plaats van de
+ * herstel-sessie stilzwijgend als "gewoon ingelogd" te laten doorlopen —
+ * een korte, verwachte stap die meteen bevestigt dat het nieuwe wachtwoord
+ * ook echt werkt.
+ */
+export async function updatePasswordAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/wachtwoord-vergeten?error=expired");
+
+  const password = String(formData.get("password") ?? "");
+  const passwordRepeat = String(formData.get("passwordRepeat") ?? "");
+  if (password.length < 8) redirect("/wachtwoord-vergeten/nieuw?error=password");
+  if (password !== passwordRepeat) redirect("/wachtwoord-vergeten/nieuw?error=mismatch");
+
+  const { error } = await updatePassword(password);
+  if (error) redirect(`/wachtwoord-vergeten/nieuw?error=${authErrorCode(error)}`);
+
+  await signOut();
+  redirect("/login?resetSuccess=1");
 }
 
 export async function completeOnboardingAction(formData: FormData) {

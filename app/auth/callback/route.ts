@@ -9,12 +9,21 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  // Alleen gebruikt door de "wachtwoord vergeten"-link (zie
+  // requestPasswordResetAction) om na het omwisselen van de code niet de
+  // gewone profiel-gebaseerde redirect hieronder te doorlopen, maar direct
+  // naar de "nieuw wachtwoord instellen"-pagina te gaan. De check op een
+  // leidende "/" voorkomt dat dit param misbruikt wordt voor een redirect
+  // naar een externe site.
+  const next = searchParams.get("next");
 
   if (code) {
     const supabase = await createSupabaseServerClient();
     if (supabase) {
       const { data, error } = await supabase.auth.exchangeCodeForSession(code);
       if (!error && data.user) {
+        if (next && next.startsWith("/")) return NextResponse.redirect(`${origin}${next}`);
+
         const { data: profile } = await supabase.from("profiles").select("first_name, role").eq("id", data.user.id).single();
 
         // Iemand kan zowel organisator als leverancier zijn ("both"). We

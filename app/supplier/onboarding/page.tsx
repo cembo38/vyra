@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { Logo } from "@/components/marketing/Logo";
 import { Field, Input, Textarea } from "@/components/ui/Form";
 import { getCurrentUser } from "@/lib/auth";
+import { logoutAction } from "@/lib/actions/auth-actions";
 import { getSupplierAccountByOwner } from "@/lib/data/store";
 import { createSupplierProfileAction } from "@/lib/actions/supplier-actions";
 import { SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
@@ -11,6 +12,20 @@ export const metadata = { title: "Bedrijfsprofiel — Vyra voor leveranciers" };
 export default async function SupplierOnboardingPage(props: PageProps<"/supplier/onboarding">) {
   const params = await props.searchParams;
   const hasError = params.error === "1";
+
+  // Bij een mislukte poging stuurt createSupplierProfileAction alle
+  // ingevulde velden terug als queryparams, zodat dit (lange, 9-velden)
+  // formulier voorgevuld blijft staan i.p.v. helemaal leeg terug te komen.
+  const str = (v: string | string[] | undefined) => (typeof v === "string" ? v : "");
+  const prevCompanyName = str(params.companyName);
+  const prevContactPerson = str(params.contactPerson);
+  const prevCategoryOther = str(params.categoryOther);
+  const prevBaseLocation = str(params.baseLocation);
+  const prevServiceRadiusKm = str(params.serviceRadiusKm) || "25";
+  const prevDescription = str(params.description);
+  const prevMinPrice = str(params.minPrice);
+  const prevAvgPrice = str(params.avgPrice);
+  const prevCategories = new Set(Array.isArray(params.categories) ? params.categories : params.categories ? [params.categories] : []);
 
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -37,10 +52,10 @@ export default async function SupplierOnboardingPage(props: PageProps<"/supplier
           <form action={createSupplierProfileAction} className="mt-6 space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Bedrijfsnaam" required>
-                <Input name="companyName" required placeholder="Bijv. Bloom & Co." />
+                <Input name="companyName" required placeholder="Bijv. Bloom & Co." defaultValue={prevCompanyName} />
               </Field>
               <Field label="Contactpersoon" required>
-                <Input name="contactPerson" required placeholder="Jouw naam" />
+                <Input name="contactPerson" required placeholder="Jouw naam" defaultValue={prevContactPerson} />
               </Field>
             </div>
 
@@ -49,7 +64,13 @@ export default async function SupplierOnboardingPage(props: PageProps<"/supplier
               <div className="grid max-h-48 grid-cols-2 gap-1.5 overflow-y-auto rounded-xl border border-line p-3">
                 {Object.entries(SUPPLIER_CATEGORY_LABELS).map(([key, label]) => (
                   <label key={key} className="flex items-center gap-2 text-sm text-ink-soft">
-                    <input type="checkbox" name="categories" value={key} className="size-4 rounded border-line text-clay accent-clay" />
+                    <input
+                      type="checkbox"
+                      name="categories"
+                      value={key}
+                      defaultChecked={prevCategories.has(key)}
+                      className="size-4 rounded border-line text-clay accent-clay"
+                    />
                     {label}
                   </label>
                 ))}
@@ -58,28 +79,28 @@ export default async function SupplierOnboardingPage(props: PageProps<"/supplier
             </fieldset>
 
             <Field label="Andere categorie" hint="Optioneel — vul dit in als er geen categorie precies past">
-              <Input name="categoryOther" placeholder="Bijv. Ceremoniemeester" />
+              <Input name="categoryOther" placeholder="Bijv. Ceremoniemeester" defaultValue={prevCategoryOther} />
             </Field>
 
             <div className="grid grid-cols-2 gap-3">
               <Field label="Vestigingsplaats / postcode" required hint="Middelpunt van je werkgebied">
-                <Input name="baseLocation" required placeholder="Utrecht" />
+                <Input name="baseLocation" required placeholder="Utrecht" defaultValue={prevBaseLocation} />
               </Field>
               <Field label="Straal (km)" required hint="Tot hoever wil je rijden?">
-                <Input name="serviceRadiusKm" type="number" min={1} step={1} required defaultValue={25} />
+                <Input name="serviceRadiusKm" type="number" min={1} step={1} required defaultValue={prevServiceRadiusKm} />
               </Field>
             </div>
 
             <Field label="Beschrijving" required hint="Wat maakt jouw bedrijf bijzonder? Dit zien organisatoren bij een aanvraag.">
-              <Textarea name="description" required rows={3} placeholder="Bijv. 'Culinaire catering met seizoensmenu's, gespecialiseerd in bruiloften en premium feesten.'" />
+              <Textarea name="description" required rows={3} placeholder="Bijv. 'Culinaire catering met seizoensmenu's, gespecialiseerd in bruiloften en premium feesten.'" defaultValue={prevDescription} />
             </Field>
 
             <div className="grid grid-cols-2 gap-3">
               <Field label="Startprijs (€)" required hint="Vanaf-prijs">
-                <Input name="minPrice" type="number" min={0} step={1} required placeholder="500" />
+                <Input name="minPrice" type="number" min={0} step={1} required placeholder="500" defaultValue={prevMinPrice} />
               </Field>
               <Field label="Gemiddelde prijs (€)" required hint="Typische orderwaarde">
-                <Input name="avgPrice" type="number" min={0} step={1} required placeholder="850" />
+                <Input name="avgPrice" type="number" min={0} step={1} required placeholder="850" defaultValue={prevAvgPrice} />
               </Field>
             </div>
 
@@ -88,6 +109,16 @@ export default async function SupplierOnboardingPage(props: PageProps<"/supplier
             </button>
           </form>
         </div>
+
+        {/* Voorheen een doodlopend eind: geen navigatie, geen manier om weg
+            te komen als je bijvoorbeeld per ongeluk met het verkeerde
+            account bent ingelogd. */}
+        <form action={logoutAction} className="mt-4 text-center">
+          <p className="text-xs text-ink-faint">
+            Ingelogd als {user.email} ·{" "}
+            <button type="submit" className="font-medium text-clay hover:underline">Uitloggen</button>
+          </p>
+        </form>
       </div>
     </div>
   );

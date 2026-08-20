@@ -35,7 +35,7 @@ export function AdminUserActions({ userId, bannedAt }: { userId: string; bannedA
               if (!result.ok) setError(result.error);
             });
           }}
-          className="chip-hover inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium text-ink-soft hover:border-sage/50 hover:text-ink disabled:opacity-40 disabled:pointer-events-none"
+          className="chip-hover inline-flex items-center gap-1.5 rounded-full border border-line bg-white min-h-9 px-3 text-xs font-medium text-ink-soft hover:border-sage/50 hover:text-ink disabled:opacity-40 disabled:pointer-events-none"
         >
           {pending ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
           Deblokkeren
@@ -69,7 +69,7 @@ export function AdminUserActions({ userId, bannedAt }: { userId: string; bannedA
                 else setError(result.error);
               });
             }}
-            className="chip-hover inline-flex items-center gap-1.5 rounded-full bg-danger px-3 py-1.5 text-xs font-medium text-white disabled:opacity-40 disabled:pointer-events-none"
+            className="chip-hover inline-flex items-center gap-1.5 rounded-full bg-danger min-h-9 px-3 text-xs font-medium text-white disabled:opacity-40 disabled:pointer-events-none"
           >
             {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Ban className="size-3.5" />}
             Ja, blokkeren
@@ -87,7 +87,7 @@ export function AdminUserActions({ userId, bannedAt }: { userId: string; bannedA
     <button
       type="button"
       onClick={() => setConfirming(true)}
-      className="chip-hover inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium text-ink-soft hover:border-danger/50 hover:text-danger"
+      className="chip-hover inline-flex items-center gap-1.5 rounded-full border border-line bg-white min-h-9 px-3 text-xs font-medium text-ink-soft hover:border-danger/50 hover:text-danger"
     >
       <Ban className="size-3.5" /> Blokkeren
     </button>

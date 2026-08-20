@@ -36,6 +36,40 @@ export async function generateSupplierOfferPreviewAction(description: string) {
   return data;
 }
 
+/**
+ * Bouwt de retry-URL na een mislukte onboarding-poging, met alle 9 velden
+ * teruggegeven als queryparams — /supplier/onboarding/page.tsx gebruikt die
+ * om het (lange) formulier voorgevuld te tonen. Hiervoor werden bij een
+ * validatiefout (bv. geen categorie aangevinkt, waar geen `required` op
+ * zit) bedrijfsnaam, beschrijving, prijzen — alles — gewist, en moest de
+ * leverancier het hele formulier opnieuw intypen.
+ */
+function onboardingRetryParams(fields: {
+  companyName: string;
+  contactPerson: string;
+  categories: string[];
+  categoryOther: string | null;
+  baseLocation: string;
+  serviceRadiusKmRaw: string;
+  description: string;
+  minPriceRaw: string;
+  avgPriceRaw: string;
+}): string {
+  const qs = new URLSearchParams({
+    error: "1",
+    companyName: fields.companyName,
+    contactPerson: fields.contactPerson,
+    categoryOther: fields.categoryOther ?? "",
+    baseLocation: fields.baseLocation,
+    serviceRadiusKm: fields.serviceRadiusKmRaw,
+    description: fields.description,
+    minPrice: fields.minPriceRaw,
+    avgPrice: fields.avgPriceRaw,
+  });
+  for (const c of fields.categories) qs.append("categories", c);
+  return `/supplier/onboarding?${qs.toString()}`;
+}
+
 export async function createSupplierProfileAction(formData: FormData) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -48,13 +82,18 @@ export async function createSupplierProfileAction(formData: FormData) {
   const categories = formData.getAll("categories").map(String) as SupplierCategory[];
   const categoryOther = optionalTrim(formData.get("categoryOther"));
   const baseLocation = String(formData.get("baseLocation") ?? "").trim();
-  const serviceRadiusKm = Number(formData.get("serviceRadiusKm") ?? 25);
+  const serviceRadiusKmRaw = String(formData.get("serviceRadiusKm") ?? "25");
   const description = String(formData.get("description") ?? "").trim();
-  const minPriceEuros = Number(formData.get("minPrice") ?? 0);
-  const avgPriceEuros = Number(formData.get("avgPrice") ?? 0);
+  const minPriceRaw = String(formData.get("minPrice") ?? "");
+  const avgPriceRaw = String(formData.get("avgPrice") ?? "");
+  const serviceRadiusKm = Number(serviceRadiusKmRaw);
+  const minPriceEuros = Number(minPriceRaw);
+  const avgPriceEuros = Number(avgPriceRaw);
 
   if (!companyName || !contactPerson || categories.length === 0 || !baseLocation || !description) {
-    redirect("/supplier/onboarding?error=1");
+    redirect(
+      onboardingRetryParams({ companyName, contactPerson, categories, categoryOther, baseLocation, serviceRadiusKmRaw, description, minPriceRaw, avgPriceRaw })
+    );
   }
 
   await createSupplierAccount(user!.id, {
@@ -303,7 +342,7 @@ export async function submitCustomSupplierRequestAction(formData: FormData) {
     redirect(`/leveranciers/${supplierId}?closedError=1`);
   }
 
-  await sendCustomSupplierRequest({
+  const request = await sendCustomSupplierRequest({
     eventId,
     supplierId,
     categoryKey,
@@ -311,6 +350,10 @@ export async function submitCustomSupplierRequestAction(formData: FormData) {
     specialRequests,
     budgetCents: budgetEuros ? Math.round(budgetEuros * 100) : null,
   });
+  // Het aanmaken kan mislukken (bv. een database-fout) — dat werd hiervoor
+  // genegeerd, waardoor de organisator altijd naar de "verstuurd"-melding
+  // werd doorgestuurd, ook als er in werkelijkheid niets is aangemaakt.
+  if (!request) redirect(`/leveranciers/${supplierId}?error=1`);
 
   revalidatePath(`/events/${eventId}`, "layout");
   redirect(`/leveranciers/${supplierId}?requestSent=1`);

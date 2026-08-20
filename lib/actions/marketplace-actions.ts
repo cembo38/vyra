@@ -2,12 +2,14 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { getCurrentUser } from "@/lib/auth";
 import {
   createAndSendRequest,
   createPaymentForOffer,
   decideSwipe,
   getEvent,
   getOffer,
+  getPayment,
   markPaymentPaid,
   pushNotification,
   resolveSupplierDisplay,
@@ -16,6 +18,17 @@ import {
 import { SupplierCategory } from "@/lib/types";
 import { formatCurrency } from "@/lib/config";
 
+/**
+ * Geen van de acties in dit bestand controleerde eerder wie er ingelogd was
+ * of dat diegene de eigenaar van het betrokken evenement is — ze werkten
+ * puur op de meegegeven id's. RLS in Supabase beperkt de meeste losse
+ * lees/schrijf-acties al tot rijen van de ingelogde gebruiker zelf, maar
+ * `banned_at` wordt NERGENS in RLS gecontroleerd (alleen in `getCurrentUser()`
+ * hieronder) — zonder deze check kon een geblokkeerd account, zolang de
+ * sessie nog geldig was, gewoon door blijven boeken en betalen. Deze checks
+ * lossen dat op én sluiten aan bij het patroon dat de rest van de app
+ * (lib/actions/event-actions.ts, guest-actions.ts, ...) al overal gebruikt.
+ */
 export async function sendRequestAction(params: {
   eventId: string;
   categoryKey: SupplierCategory;
@@ -23,8 +36,10 @@ export async function sendRequestAction(params: {
   specialRequests: string;
   budgetCents: number | null;
 }) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
   const event = await getEvent(params.eventId);
-  if (!event) return;
+  if (!event || event.ownerId !== user.id) redirect("/events");
 
   const { request, offers } = await createAndSendRequest({
     eventId: params.eventId,
@@ -54,6 +69,13 @@ export async function sendRequestAction(params: {
 }
 
 export async function swipeOfferAction(offerId: string, decision: "shortlisted" | "rejected" | "none") {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const existingOffer = await getOffer(offerId);
+  if (!existingOffer) return null;
+  const event = await getEvent(existingOffer.eventId);
+  if (!event || event.ownerId !== user.id) redirect("/events");
+
   const offer = await decideSwipe(offerId, decision);
   if (offer) {
     if (decision === "shortlisted") {
@@ -65,8 +87,13 @@ export async function swipeOfferAction(offerId: string, decision: "shortlisted" 
 }
 
 export async function acceptOfferAction(offerId: string, plan: "full" | "deposit" = "full") {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
   const offer = await getOffer(offerId);
   if (!offer) return;
+  const event = await getEvent(offer.eventId);
+  if (!event || event.ownerId !== user.id) redirect("/events");
+
   const payment = await createPaymentForOffer(offerId, plan);
   if (!payment) return;
   revalidatePath(`/events/${offer.eventId}`, "layout");
@@ -74,6 +101,13 @@ export async function acceptOfferAction(offerId: string, plan: "full" | "deposit
 }
 
 export async function confirmPaymentAction(paymentId: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const existingPayment = await getPayment(paymentId);
+  if (!existingPayment) return;
+  const ownerEvent = await getEvent(existingPayment.eventId);
+  if (!ownerEvent || ownerEvent.ownerId !== user.id) redirect("/events");
+
   const payment = await markPaymentPaid(paymentId);
   if (!payment) return;
 

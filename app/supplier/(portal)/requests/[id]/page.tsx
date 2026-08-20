@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { Card } from "@/components/ui/Card";
-import { Badge } from "@/components/ui/Badge";
+import { Badge, OfferStatusBadge } from "@/components/ui/Badge";
 import { DeadlineCountdown } from "@/components/ui/Countdown";
 import { BackLink } from "@/components/ui/BackLink";
 import { SupplierOfferForm } from "@/components/app/SupplierOfferForm";
@@ -90,7 +90,7 @@ export default async function SupplierRequestDetailPage(props: PageProps<"/suppl
             <CheckCircle2 className="size-5 text-success" />
             <div>
               <p className="font-medium text-ink">Je hebt al een offerte ingediend voor deze aanvraag</p>
-              <p className="text-sm text-ink-soft">Verstuurd voor {formatCurrency(existingOffer.totalPriceCents)}. <Badge tone="neutral" className="ml-1">Status: {existingOffer.status}</Badge></p>
+              <p className="text-sm text-ink-soft">Verstuurd voor {formatCurrency(existingOffer.totalPriceCents)}. <OfferStatusBadge status={existingOffer.status} /></p>
             </div>
           </Card>
         ) : (

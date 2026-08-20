@@ -86,3 +86,34 @@ export async function signOut() {
   if (!supabase) return;
   await supabase.auth.signOut();
 }
+
+/**
+ * Start het "wachtwoord vergeten"-e-mailtraject. Geeft bewust ALTIJD
+ * `{ error: null }` terug als er geen harde Supabase-fout optreedt — of het
+ * e-mailadres daadwerkelijk bij een account hoort, laten we in het midden
+ * (zie de aanroepende actie), zodat deze pagina niet gebruikt kan worden om
+ * te achterhalen welke e-mailadressen een Vyra-account hebben.
+ */
+export async function requestPasswordReset(email: string, redirectTo: string): Promise<{ error: string | null }> {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) authFailure();
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+  if (error) return { error: error.message };
+  return { error: null };
+}
+
+/**
+ * Zet een nieuw wachtwoord voor de op dit moment ingelogde gebruiker. Wordt
+ * alleen aangeroepen nadat de reset-link (via /auth/callback) al een echte
+ * sessie heeft opgezet — er is dus altijd al een ingelogde gebruiker
+ * wanneer dit wordt aangeroepen (zie updatePasswordAction).
+ */
+export async function updatePassword(newPassword: string): Promise<{ error: string | null }> {
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) authFailure();
+
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) return { error: error.message };
+  return { error: null };
+}

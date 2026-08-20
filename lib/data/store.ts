@@ -1750,6 +1750,25 @@ export async function createPaymentForOffer(offerId: string, plan: "full" | "dep
   const supabase = await sb();
   const o = await getOffer(offerId);
   if (!o) return null;
+
+  // Voorkomt dubbele betalingen: een dubbele klik op "Accepteren", of een
+  // organisator die na accepteren teruggaat (zonder af te rekenen) en
+  // opnieuw op "Accepteren" klikt, maakte hiervoor telkens een NIEUWE
+  // `payments`-rij aan — als beide later betaald worden, wordt er twee keer
+  // afgerekend voor dezelfde boeking. Is er al een niet-mislukte/
+  // terugbetaalde betaling voor deze offerte, dan hergebruiken we die.
+  const existingPayments = await getPaymentsForOffer(offerId);
+  const reusablePayment = existingPayments.find((p) => p.status === "pending" || p.status === "paid");
+  if (reusablePayment) return reusablePayment;
+
+  // Voorkomt dubbel boeken binnen dezelfde categorie: als de organisator al
+  // een andere offerte in deze categorie heeft geaccepteerd, mag deze
+  // offerte niet ook nog geaccepteerd (en betaald) worden — de UI verbergt
+  // de knop al zodra een offerte is geaccepteerd (zie OfferBrowser.tsx),
+  // maar deze server-side check blijft de laatste, doorslaggevende grens.
+  const categorySiblings = await getOffersForEvent(o.eventId, o.categoryKey);
+  if (categorySiblings.some((sibling) => sibling.id !== o.id && sibling.status === "accepted")) return null;
+
   // Welke commissielaag geldt NU voor deze leverancier (instap/gestaffeld/Pro)
   // — deze offerte zelf wordt uitgesloten van de boekingentelling, anders
   // telt boeking 5 zichzelf al mee als boeking 6 (zie resolveSupplierCommissionTier).

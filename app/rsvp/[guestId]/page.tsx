@@ -19,6 +19,8 @@ export default async function RsvpPage(props: PageProps<"/rsvp/[guestId]">) {
   const guest = await getGuestPublic(guestId);
   if (!guest) notFound();
 
+  const searchParams = await props.searchParams;
+  const hasError = searchParams.error === "1";
   const alreadyResponded = guest.rsvpStatus !== "pending";
 
   return (
@@ -45,6 +47,12 @@ export default async function RsvpPage(props: PageProps<"/rsvp/[guestId]">) {
           )}
 
           <p className="mt-4 text-sm text-ink-faint">Hoi {guest.name}, laat je gastheer/gastvrouw weten of je erbij bent.</p>
+
+          {hasError && (
+            <div className="mt-4 rounded-xl bg-danger-50 px-4 py-2.5 text-sm text-danger">
+              Je antwoord kon niet worden opgeslagen. Probeer het nog eens.
+            </div>
+          )}
 
           {alreadyResponded ? (
             <div className="mt-6 rounded-xl border border-line-soft bg-paper-dim px-4 py-3.5 text-sm text-ink-soft">

@@ -12,11 +12,21 @@ export default async function SignupPage(props: PageProps<"/signup">) {
   const errorCode = typeof params.error === "string" ? params.error : undefined;
   const intent = typeof params.intent === "string" ? params.intent : undefined;
 
+  // Na een mislukte poging (bv. beide rol-vinkjes uitgelaten) stuurt
+  // signupAction de eerder ingevulde velden terug als queryparams — dat
+  // voorkomt dat de gebruiker naam/e-mail/wachtwoord opnieuw moet intypen.
+  // Het wachtwoord zelf zit daar bewust niet bij (nooit in een URL).
+  const prevFirstName = typeof params.firstName === "string" ? params.firstName : "";
+  const prevLastName = typeof params.lastName === "string" ? params.lastName : "";
+  const prevEmail = typeof params.email === "string" ? params.email : "";
+  const hasRetryState = params.asOrganizer !== undefined || params.asSupplier !== undefined;
+
   // Vooraf aangevinkt op basis van waar iemand vandaan komt (bv. de
   // leveranciers-landingspagina), maar altijd nog te wijzigen — één account
-  // kan prima zowel organisator als leverancier zijn.
-  const defaultOrganizer = intent !== "supplier";
-  const defaultSupplier = intent === "supplier" || intent === "both";
+  // kan prima zowel organisator als leverancier zijn. Bij een retry na een
+  // mislukte poging wint de eerder gekozen combinatie van de intent-hint.
+  const defaultOrganizer = hasRetryState ? params.asOrganizer === "1" : intent !== "supplier";
+  const defaultSupplier = hasRetryState ? params.asSupplier === "1" : intent === "supplier" || intent === "both";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-paper-dim px-6 py-12">
@@ -31,14 +41,14 @@ export default async function SignupPage(props: PageProps<"/signup">) {
           <form action={signupAction} className="mt-6 space-y-4">
             <div className="grid grid-cols-2 gap-3">
               <Field label="Voornaam" required>
-                <Input name="firstName" required placeholder="Emma" />
+                <Input name="firstName" required placeholder="Emma" defaultValue={prevFirstName} />
               </Field>
               <Field label="Achternaam" required>
-                <Input name="lastName" required placeholder="de Vries" />
+                <Input name="lastName" required placeholder="de Vries" defaultValue={prevLastName} />
               </Field>
             </div>
             <Field label="E-mailadres" required>
-              <Input type="email" name="email" required placeholder="jij@voorbeeld.nl" />
+              <Input type="email" name="email" required placeholder="jij@voorbeeld.nl" defaultValue={prevEmail} />
             </Field>
             <Field label="Wachtwoord" required hint="Minimaal 8 tekens">
               <PasswordInput name="password" required minLength={8} placeholder="••••••••" autoComplete="new-password" />

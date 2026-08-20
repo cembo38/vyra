@@ -40,15 +40,23 @@ export default async function SupplierOrdersPage() {
       <h1 className="font-display text-3xl text-ink">Orders</h1>
       <p className="mt-1 text-ink-soft">Al je geaccepteerde boekingen, inclusief uitbetalingsstatus.</p>
 
+      {/*
+        "Uitbetaald" was hier onterecht: payment.status "paid" betekent
+        alleen dat de ORGANISATOR heeft afgerekend — het geld staat dan nog
+        bij het platform, de daadwerkelijke uitbetaling aan de leverancier
+        is een apart, nu nog handmatig proces (zie de hint hieronder). Een
+        leverancier kon hierdoor denken dat het bedrag al op zijn rekening
+        stond terwijl dat niet zo was.
+      */}
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Card className="p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-ink-faint">Totaal uitbetaald</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-ink-faint">Totaal betaald door organisatoren</p>
           <p className="mt-1.5 font-display text-2xl text-ink">{formatCurrency(totalPaid)}</p>
+          <p className="mt-0.5 text-xs text-ink-faint">Uitbetaling aan jou volgt automatisch zodra Stripe live is.</p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-ink-faint">In afwachting van uitbetaling</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-ink-faint">Nog niet betaald door organisator</p>
           <p className="mt-1.5 font-display text-2xl text-ink">{formatCurrency(totalPending)}</p>
-          <p className="mt-0.5 text-xs text-ink-faint">Uitbetaling volgt automatisch zodra Stripe live is.</p>
         </Card>
       </div>
 
@@ -92,7 +100,7 @@ function OrderTable({
             <div className="text-right">
               <p className="font-medium text-ink">{formatCurrency(payment?.supplierAmountCents ?? offer.totalPriceCents)}</p>
               <Badge tone={payment?.status === "paid" ? "success" : "ochre"}>
-                {payment?.status === "paid" ? "Uitbetaald" : payment ? "Wacht op uitbetaling" : "Betaling nog niet gestart"}
+                {payment?.status === "paid" ? "Betaald — uitbetaling volgt" : payment ? "Wacht op betaling" : "Betaling nog niet gestart"}
               </Badge>
             </div>
           </div>

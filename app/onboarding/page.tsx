@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { Logo } from "@/components/marketing/Logo";
 import { Field, Input, Select } from "@/components/ui/Form";
 import { getCurrentUser } from "@/lib/auth";
-import { completeOnboardingAction } from "@/lib/actions/auth-actions";
+import { completeOnboardingAction, logoutAction } from "@/lib/actions/auth-actions";
 
 export const metadata = { title: "Welkom — Vyra" };
 
@@ -57,6 +57,16 @@ export default async function OnboardingPage() {
             </button>
           </form>
         </div>
+
+        {/* Deze pagina was tot nu toe een doodlopend eind: geen navigatie,
+            geen manier om weg te komen als je bijvoorbeeld per ongeluk met
+            het verkeerde account bent ingelogd. */}
+        <form action={logoutAction} className="mt-4 text-center">
+          <p className="text-xs text-ink-faint">
+            Ingelogd als {user.email} ·{" "}
+            <button type="submit" className="font-medium text-clay hover:underline">Uitloggen</button>
+          </p>
+        </form>
       </div>
     </div>
   );

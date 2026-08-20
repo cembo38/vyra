@@ -70,13 +70,17 @@ export default async function SupplierRequestsPage(props: PageProps<"/supplier/r
           <h2 className="mb-3 mt-10 font-display text-lg text-ink">Beantwoord ({responded.length})</h2>
           <div className="space-y-2">
             {responded.map((lead) => (
-              <div key={lead.target.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line-soft px-4 py-3.5 text-sm">
+              <Link
+                key={lead.target.id}
+                href={`/supplier/requests/${lead.request.id}`}
+                className="card-hover flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line-soft bg-white px-4 py-3.5 text-sm transition-colors hover:border-sage"
+              >
                 <div>
                   <p className="text-xs font-medium uppercase tracking-wide text-ink-faint">{SUPPLIER_CATEGORY_LABELS[lead.request.categoryKey]}</p>
                   <p className="mt-0.5 font-medium text-ink">{lead.event.name}</p>
                 </div>
                 <Badge tone="success">Offerte verstuurd</Badge>
-              </div>
+              </Link>
             ))}
           </div>
         </>

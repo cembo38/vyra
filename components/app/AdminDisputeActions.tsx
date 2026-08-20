@@ -43,7 +43,7 @@ export function AdminDisputeActions({ disputeId }: { disputeId: string }) {
           type="button"
           disabled={pending}
           onClick={() => run(resolveDisputeAction)}
-          className="chip-hover inline-flex items-center gap-1.5 rounded-full bg-success px-3 py-1.5 text-xs font-medium text-white disabled:opacity-40 disabled:pointer-events-none"
+          className="chip-hover inline-flex items-center gap-1.5 rounded-full bg-success min-h-9 px-3 text-xs font-medium text-white disabled:opacity-40 disabled:pointer-events-none"
         >
           {pending ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
           Oplossen
@@ -52,7 +52,7 @@ export function AdminDisputeActions({ disputeId }: { disputeId: string }) {
           type="button"
           disabled={pending}
           onClick={() => run(dismissDisputeAction)}
-          className="chip-hover inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium text-ink-soft hover:border-danger/50 hover:text-danger disabled:opacity-40 disabled:pointer-events-none"
+          className="chip-hover inline-flex items-center gap-1.5 rounded-full border border-line bg-white min-h-9 px-3 text-xs font-medium text-ink-soft hover:border-danger/50 hover:text-danger disabled:opacity-40 disabled:pointer-events-none"
         >
           {pending ? <Loader2 className="size-3.5 animate-spin" /> : <X className="size-3.5" />}
           Afwijzen

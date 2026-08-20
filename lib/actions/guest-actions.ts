@@ -52,6 +52,12 @@ export async function submitPublicRsvpAction(guestId: string, formData: FormData
   if (status !== "yes" && status !== "no" && status !== "maybe") return;
   const plusOnes = Number(formData.get("plusOnes") ?? 0) || 0;
   const dietaryNotes = String(formData.get("dietaryNotes") ?? "");
-  await submitRsvpPublic(guestId, status, plusOnes, dietaryNotes);
+  const ok = await submitRsvpPublic(guestId, status, plusOnes, dietaryNotes);
+  // submitRsvpPublic() geeft `false` terug bij een RPC-fout (bv. verlopen/
+  // ongeldige guestId) — dat werd hier voorheen genegeerd, waardoor een gast
+  // op "Ik kom" klikte en gewoon hetzelfde formulier terugzag zonder enig
+  // signaal dat er niets is opgeslagen. Stuur nu door met een foutmelding,
+  // net als het bestaande `?error=`-patroon elders in de app (signup/login).
+  if (!ok) redirect(`/rsvp/${guestId}?error=1`);
   revalidatePath(`/rsvp/${guestId}`);
 }

@@ -32,7 +32,14 @@ export function MessageComposer({
         setError(null);
         startTransition(async () => {
           const result = await (sender === "supplier" ? sendSupplierMessageAction : sendMessageAction)(eventId, categoryKey, supplierId, value);
-          if (!result.ok) setError(result.error ?? "Versturen is niet gelukt.");
+          // We wissen het invoerveld optimistisch (hierboven), maar bij een
+          // mislukte verzending was het getypte bericht daarmee kwijt — de
+          // gebruiker moest het uit het hoofd overtypen. Zet het terug zodat
+          // ze het gewoon opnieuw kunnen versturen.
+          if (!result.ok) {
+            setError(result.error ?? "Versturen is niet gelukt.");
+            setText(value);
+          }
         });
       }}
     >

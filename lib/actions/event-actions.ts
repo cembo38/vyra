@@ -75,13 +75,23 @@ export async function startInterviewAction(description: string) {
 }
 
 export async function continueInterviewAction(eventId: string, userMessage: string) {
+  // Deze actie had, anders dan bijna elke andere in dit bestand, geen
+  // login-/eigenaarscheck — wie ook maar een geldige eventId kende kon
+  // daarmee het interview van een ánder account laten doorlopen. Bracht ook
+  // een crash-risico met zich mee: `(await getEvent(eventId))!` hieronder
+  // ging er zonder check van uit dat het event nog bestond.
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const currentEvent = await getEvent(eventId);
+  if (!currentEvent || currentEvent.ownerId !== user.id) redirect("/events");
+
   await addInterviewMessage({ eventId, role: "user", text: userMessage });
 
-  const currentEvent = await getEvent(eventId);
-  const { data: extracted } = await extractEventFields(userMessage, { userId: currentEvent?.ownerId ?? null, eventId });
+  const { data: extracted } = await extractEventFields(userMessage, { userId: currentEvent.ownerId, eventId });
   await applyExtractedFields(eventId, extracted);
 
-  const updatedEvent = (await getEvent(eventId))!;
+  const updatedEvent = await getEvent(eventId);
+  if (!updatedEvent) return { assistantMessage: "Er ging iets mis — probeer het nog eens.", done: false };
   const { data: nextQ } = await generateNextQuestion(updatedEvent, await getInterviewMessages(eventId));
 
   const assistantMessage = nextQ.done
@@ -94,8 +104,10 @@ export async function continueInterviewAction(eventId: string, userMessage: stri
 }
 
 export async function generatePlanAction(eventId: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
   const event = await getEvent(eventId);
-  if (!event) return;
+  if (!event || event.ownerId !== user.id) redirect("/events");
 
   const { categories } = await generateRequirementPlan(event);
 
@@ -140,6 +152,11 @@ export async function generatePlanAction(eventId: string) {
 }
 
 export async function toggleRequirementAction(eventId: string, categoryId: string, selected: boolean) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const event = await getEvent(eventId);
+  if (!event || event.ownerId !== user.id) redirect("/events");
+
   await toggleRequirementSelection(eventId, categoryId, selected);
   revalidatePath(`/events/${eventId}`, "layout");
 }
@@ -160,6 +177,11 @@ export async function updateRequirementDraftAction(eventId: string, categoryId: 
 }
 
 export async function confirmRequirementsAction(eventId: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const event = await getEvent(eventId);
+  if (!event || event.ownerId !== user.id) redirect("/events");
+
   const requirements = await getRequirements(eventId);
   const selected = requirements.filter((c) => c.selected);
   if (selected.length > 0) {
@@ -184,8 +206,11 @@ function mockChangeImpact(text: string): string {
 }
 
 export async function addNoteAction(eventId: string, text: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
   const event = await getEvent(eventId);
-  if (!event || !text.trim()) return;
+  if (!event || event.ownerId !== user.id) redirect("/events");
+  if (!text.trim()) return;
 
   const aiImpact = await detectChangeImpact(text, event);
   const impact = aiImpact ?? mockChangeImpact(text);

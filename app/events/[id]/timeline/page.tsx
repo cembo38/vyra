@@ -13,6 +13,11 @@ export default async function TimelinePage(props: PageProps<"/events/[id]/timeli
 
   const rawTimeline = await getTimeline(id);
   const timeline = rawTimeline.sort((a, b) => {
+    // Items zonder datum onderaan, ongeacht welke van de twee eerst wordt
+    // vergeleken — de oude versie gaf voor twee datumloze items altijd 1
+    // terug (nooit -1 of 0), wat een instabiele/inconsistente volgorde kan
+    // opleveren afhankelijk van de sorteervolgorde van de sortalgoritme.
+    if (!a.dueDate && !b.dueDate) return 0;
     if (!a.dueDate) return 1;
     if (!b.dueDate) return -1;
     return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
