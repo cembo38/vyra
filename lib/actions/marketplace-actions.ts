@@ -115,6 +115,19 @@ export async function acceptOfferAction(offerId: string, plan: "full" | "deposit
   redirect(`/events/${offer.eventId}/checkout/${payment.id}`);
 }
 
+/**
+ * BELANGRIJK: dit verwerkt GEEN echte betaling. Er zit (nog) geen Stripe of
+ * andere betaaldienst achter — `markPaymentPaid()` zet alleen de status in
+ * onze eigen database op "betaald". De checkout-pagina zei hiervoor ten
+ * onrechte "Veilig betalen via Stripe", terwijl er nooit een creditcard/
+ * iDEAL-betaling werd verwerkt, met of zonder STRIPE_SECRET_KEY. Zolang er
+ * geen echte betaaldienst is aangesloten, betaalt de organisator de
+ * leverancier rechtstreeks (zie de toelichting op de checkout-pagina zelf)
+ * — dit bevestigt alleen dát die boeking rondkomt, niet een transactie.
+ * Zodra er wél een betaaldienst wordt aangesloten, hoort hier de
+ * daadwerkelijke betaalbevestiging (bv. een Stripe-webhook) te komen i.p.v.
+ * deze rechtstreekse marking-as-paid door de gebruiker zelf.
+ */
 export async function confirmPaymentAction(paymentId: string) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -129,11 +142,11 @@ export async function confirmPaymentAction(paymentId: string) {
   const offer = await getOffer(payment.offerId);
   const event = await getEvent(payment.eventId);
   const supplier = offer ? await resolveSupplierDisplay(offer.supplierId) : null;
-  // De betaling zelf is al veiliggesteld door markPaymentPaid() hierboven —
-  // als het event onverwacht niet (meer) op te halen is, mag dat de actie
-  // niet laten crashen (de gebruiker zou anders een foutmelding zien
-  // terwijl er al wél is afgeschreven). We slaan dan alleen de notificatie
-  // over en gaan gewoon door naar het scherm van het evenement.
+  // De boeking is al bevestigd door markPaymentPaid() hierboven — als het
+  // event onverwacht niet (meer) op te halen is, mag dat de actie niet
+  // laten crashen (de gebruiker zou anders een foutmelding zien terwijl de
+  // boeking al wél is bevestigd). We slaan dan alleen de notificatie over
+  // en gaan gewoon door naar het scherm van het evenement.
   if (event) {
     const label =
       payment.installment === "deposit" ? "Aanbetaling bevestigd" : payment.installment === "balance" ? "Restbedrag bevestigd" : "Betaling bevestigd";

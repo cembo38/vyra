@@ -206,9 +206,11 @@ test.describe("Kernloop: inloggen en een evenement starten", () => {
     await acceptButton.click();
     await expect(page).toHaveURL(/\/events\/[^/]+\/checkout\/[^/]+$/, { timeout: 15_000 });
 
-    // De knoptekst bevat het te betalen bedrag (bv. "Bevestig & betaal
-    // €1.234,56"), dus matchen op het vaste voorvoegsel.
-    await page.getByRole("button", { name: /^Bevestig & betaal/ }).click();
+    // De knoptekst bevat het bedrag (bv. "Bevestig €1.234,56" — sinds Vyra
+    // zelf nog geen betalingen verwerkt, bevestigt dit de boeking, niet een
+    // daadwerkelijke betaling, zie de checkout-pagina), dus matchen op het
+    // vaste voorvoegsel.
+    await page.getByRole("button", { name: /^Bevestig €/ }).click();
     await expect(page).toHaveURL(/\/events\/[^/]+\?paid=1$/, { timeout: 15_000 });
   });
 });

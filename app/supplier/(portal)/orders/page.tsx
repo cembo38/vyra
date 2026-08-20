@@ -32,30 +32,35 @@ export default async function SupplierOrdersPage() {
     .filter((o) => o.event?.date && new Date(o.event.date) < today)
     .sort((a, b) => (b.event?.date ?? "").localeCompare(a.event?.date ?? ""));
 
-  const totalPaid = orders.filter((o) => o.payment?.status === "paid").reduce((sum, o) => sum + (o.payment?.supplierAmountCents ?? 0), 0);
-  const totalPending = orders.filter((o) => o.payment && o.payment.status !== "paid").reduce((sum, o) => sum + (o.payment?.supplierAmountCents ?? 0), 0);
+  // Het volledige bedrag (totalCents), niet alleen het supplier-deel na
+  // commissie — zolang Vyra zelf geen betalingen verwerkt, ontvangt de
+  // leverancier dit hele bedrag rechtstreeks van de organisator.
+  const totalPaid = orders.filter((o) => o.payment?.status === "paid").reduce((sum, o) => sum + (o.payment?.totalCents ?? 0), 0);
+  const totalPending = orders.filter((o) => o.payment && o.payment.status !== "paid").reduce((sum, o) => sum + (o.payment?.totalCents ?? 0), 0);
 
   return (
     <div>
       <h1 className="font-display text-3xl text-ink">Orders</h1>
-      <p className="mt-1 text-ink-soft">Al je geaccepteerde boekingen, inclusief uitbetalingsstatus.</p>
+      <p className="mt-1 text-ink-soft">Al je geaccepteerde boekingen, inclusief bevestigingsstatus.</p>
 
       {/*
-        "Uitbetaald" was hier onterecht: payment.status "paid" betekent
-        alleen dat de ORGANISATOR heeft afgerekend — het geld staat dan nog
-        bij het platform, de daadwerkelijke uitbetaling aan de leverancier
-        is een apart, nu nog handmatig proces (zie de hint hieronder). Een
-        leverancier kon hierdoor denken dat het bedrag al op zijn rekening
-        stond terwijl dat niet zo was.
+        Vyra verwerkt op dit moment nog geen betalingen zelf — het geld gaat
+        NOOIT via het platform, organisatoren rekenen rechtstreeks met de
+        leverancier af (zie de toelichting op de checkout-pagina). Dit zei
+        voorheen "uitbetaling aan jou volgt automatisch zodra Stripe live
+        is" — die belofte klopte niet: Vyra ontvangt dit geld helemaal niet,
+        dus kan het ook niet "uitbetalen". Voorlopig dus puur een overzicht
+        van bevestigde vs. nog niet bevestigde boekingen, geen geldstroom
+        via Vyra.
       */}
       <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Card className="p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-ink-faint">Totaal betaald door organisatoren</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-ink-faint">Totaal bevestigd (rechtstreeks door organisator te betalen)</p>
           <p className="mt-1.5 font-display text-2xl text-ink">{formatCurrency(totalPaid)}</p>
-          <p className="mt-0.5 text-xs text-ink-faint">Uitbetaling aan jou volgt automatisch zodra Stripe live is.</p>
+          <p className="mt-0.5 text-xs text-ink-faint">Dit reken je rechtstreeks met de organisator af — Vyra houdt hier geen geld voor je vast.</p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-ink-faint">Nog niet betaald door organisator</p>
+          <p className="text-xs font-medium uppercase tracking-wide text-ink-faint">Nog niet bevestigd door organisator</p>
           <p className="mt-1.5 font-display text-2xl text-ink">{formatCurrency(totalPending)}</p>
         </Card>
       </div>
@@ -98,9 +103,13 @@ function OrderTable({
               </p>
             </div>
             <div className="text-right">
-              <p className="font-medium text-ink">{formatCurrency(payment?.supplierAmountCents ?? offer.totalPriceCents)}</p>
+              {/* Het volledige bedrag (niet het supplier-deel na commissie) —
+                  zolang Vyra geen betalingen zelf verwerkt, betaalt de
+                  organisator dit hele bedrag rechtstreeks aan de leverancier,
+                  zonder dat Vyra daar een deel van inhoudt. */}
+              <p className="font-medium text-ink">{formatCurrency(payment?.totalCents ?? offer.totalPriceCents)}</p>
               <Badge tone={payment?.status === "paid" ? "success" : "ochre"}>
-                {payment?.status === "paid" ? "Betaald — uitbetaling volgt" : payment ? "Wacht op betaling" : "Betaling nog niet gestart"}
+                {payment?.status === "paid" ? "Bevestigd door organisator" : payment ? "Wacht op bevestiging" : "Nog niet bevestigd"}
               </Badge>
             </div>
           </div>

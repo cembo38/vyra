@@ -37,7 +37,7 @@ export default function PrivacyPage() {
               <p><strong className="text-ink">Evenementgegevens:</strong> alles wat je invoert over je evenement — type, datum, locatie, aantal gasten, budget, stijl en wensen.</p>
               <p><strong className="text-ink">Gesprekken met de AI:</strong> de tekst die je typt tijdens het AI-interview en in de AI-assistent-chat.</p>
               <p><strong className="text-ink">Aanvraag- en offertegegevens:</strong> welke leveranciers je aanvraagt, ontvangen offertes, en je keuzes (swipes, shortlist, acceptaties).</p>
-              <p><strong className="text-ink">Betaalgegevens:</strong> bedrag en betaalstatus. Gevoelige betaalgegevens zoals kaartnummers slaan wij zelf nooit op — dat verloopt volledig via Stripe.</p>
+              <p><strong className="text-ink">Betaalgegevens:</strong> bedrag en bevestigingsstatus van een boeking. Zolang betalen via het platform nog niet beschikbaar is, verwerkt Vyra zelf geen betalingen en ontvangen of bewaren wij dus ook geen betaalgegevens zoals kaartnummers — de organisator en de leverancier rekenen rechtstreeks met elkaar af. Zodra betalen via het platform beschikbaar komt, verloopt dat via een externe, gecertificeerde betaaldienst die zelf nooit kaartgegevens aan Vyra doorgeeft.</p>
               <p><strong className="text-ink">Technische gegevens:</strong> IP-adres en sessiegegevens via inlogcookies, om je ingelogd te houden en het platform te beveiligen.</p>
             </Section>
 

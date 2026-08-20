@@ -52,21 +52,29 @@ export default async function SupplierDashboardPage() {
         <Kpi icon={<Inbox className="size-4" />} label="Openstaande aanvragen" value={String(summary.openLeadsCount)} href="/supplier/requests" />
         <Kpi icon={<CheckCircle2 className="size-4" />} label="Actieve boekingen" value={String(summary.activeOrdersCount)} href="/supplier/orders" />
         <Kpi icon={<CalendarClock className="size-4" />} label="Deze maand" value={String(summary.upcomingThisMonthCount)} sub="Geboekte evenementen" />
-        <Kpi icon={<TrendingUp className="size-4" />} label="Totaal verdiend" value={formatCurrency(summary.paidCents)} sub="Netto, na commissie" />
+        <Kpi icon={<TrendingUp className="size-4" />} label="Totaal verdiend" value={formatCurrency(summary.paidCents)} sub="Rechtstreeks van organisatoren" />
       </div>
 
+      {/*
+        Vyra verwerkt op dit moment nog geen betalingen zelf — organisatoren
+        rekenen rechtstreeks met de leverancier af (zie de toelichting op de
+        checkout-pagina, app/events/[id]/checkout/[paymentId]/page.tsx).
+        Deze kaart zei voorheen "uitbetaling via Stripe volgt automatisch",
+        wat niet klopte: Vyra houdt hier geen geld van je vast om aan je uit
+        te betalen, dus die belofte kon nooit worden nagekomen.
+      */}
       <Card className="mt-6 flex flex-wrap items-center justify-between gap-4 bg-ink text-paper">
         <div className="flex items-center gap-3">
           <div className="flex size-10 items-center justify-center rounded-full bg-white/10 text-white">
             <Wallet className="size-5" />
           </div>
           <div>
-            <p className="text-sm text-white/70">In afwachting van uitbetaling</p>
+            <p className="text-sm text-white/70">Nog te ontvangen van organisatoren</p>
             <p className="font-display text-2xl">{formatCurrency(summary.pendingCents)}</p>
           </div>
         </div>
         <p className="max-w-sm text-xs text-white/60">
-          Dit bedrag staat klaar zodra de organisator heeft betaald. Uitbetaling via Stripe volgt automatisch zodra deze integratie live gaat — je hoeft hier zelf niets voor te doen.
+          Dit bedrag betaalt de organisator rechtstreeks aan jou — Vyra verwerkt op dit moment nog geen betalingen. Automatische uitbetaling via Vyra volgt zodra online betalen beschikbaar is.
         </p>
       </Card>
 
@@ -116,11 +124,12 @@ export default async function SupplierDashboardPage() {
                   </div>
                   <div className="text-right">
                     <p className="font-medium text-ink">{formatCurrency(offer.totalPriceCents)}</p>
-                    {/* "Uitbetaald" was hier onterecht — payment.status "paid"
-                        betekent alleen dat de organisator heeft afgerekend,
-                        niet dat het geld al is uitbetaald aan de leverancier
-                        (zie de kaart hierboven en /supplier/orders). */}
-                    <Badge tone={payment?.status === "paid" ? "success" : "ochre"}>{payment?.status === "paid" ? "Betaald — uitbetaling volgt" : "In behandeling"}</Badge>
+                    {/* payment.status "paid" betekent dat de organisator de
+                        boeking heeft bevestigd — niet dat Vyra geld heeft
+                        ontvangen of gaat uitbetalen (zie de kaart hierboven
+                        en /supplier/orders): dat rekent de organisator
+                        rechtstreeks met je af. */}
+                    <Badge tone={payment?.status === "paid" ? "success" : "ochre"}>{payment?.status === "paid" ? "Bevestigd door organisator" : "Nog niet bevestigd"}</Badge>
                   </div>
                 </div>
               ))}
