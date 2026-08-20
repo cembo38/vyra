@@ -2,6 +2,7 @@ import "server-only";
 import { callStructuredAI } from "@/lib/ai/client";
 import { EVENT_ANALYST_PROMPT, QUESTION_GENERATOR_PROMPT } from "@/lib/ai/prompts";
 import { AiInterviewMessage, EventCore, EventType, EVENT_TYPE_LABELS } from "@/lib/types";
+import { MAX_INTERVIEW_QUESTIONS } from "@/lib/config";
 
 /* ------------------------------------------------------------------ */
 /* Event Understanding AI                                              */
@@ -193,6 +194,18 @@ function mockNextQuestion(event: EventCore, history: AiInterviewMessage[]): Next
 }
 
 export async function generateNextQuestion(event: EventCore, history: AiInterviewMessage[]) {
+  // Harde grens (spec-item #56, gemeld: "er komt maar geen einde aan de
+  // vragen") — los van wat de AI zelf zou beslissen, stopt het interview
+  // sowieso zodra MAX_INTERVIEW_QUESTIONS al gestelde vragen zijn bereikt.
+  // Geteld aan de hand van de al opgeslagen berichtgeschiedenis, dus dit
+  // geldt hetzelfde voor zowel de echte AI als de mock-fallback. Bewust vóór
+  // de AI-aanroep gecontroleerd: bij de grens is er ook geen wachttijd/
+  // API-kosten meer nodig voor een antwoord dat toch wordt genegeerd.
+  const askedCount = history.filter((m) => m.role === "assistant").length;
+  if (askedCount >= MAX_INTERVIEW_QUESTIONS) {
+    return { data: { question: null, done: true }, usedAI: false };
+  }
+
   const known = {
     type: EVENT_TYPE_LABELS[event.type],
     guestCountAdults: event.guestCountAdults,

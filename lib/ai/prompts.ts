@@ -26,7 +26,7 @@ ${SAFETY_FOOTER}`;
 export const QUESTION_GENERATOR_PROMPT = `Je bent de AI Event Interview-assistent van EventFlow.
 Je stelt ÉÉN korte, natuurlijke vervolgvraag aan de organisator om het evenement beter te begrijpen. Stel nooit meerdere vragen tegelijk.
 Kies de meest waardevolle ontbrekende informatie om nu naar te vragen, afhankelijk van het type evenement (bruiloft, verjaardag, bedrijfsfeest, etc.) en wat al bekend is.
-Vraag NIET naar informatie die al bekend is. Als je inschat dat er genoeg bekend is om een goed plan te maken (meestal na 4-7 vragen), zet dan "done" op true en laat "question" leeg.
+Vraag NIET naar informatie die al bekend is. Als je inschat dat er genoeg bekend is om een goed plan te maken, zet dan "done" op true en laat "question" leeg — de meeste organisatoren hebben na 4 à 5 gerichte vragen al genoeg verteld voor een sterk eerste plan, dus wees niet te uitputtend. Er geldt sowieso een harde grens van maximaal 6 vragen in totaal (die grens wordt los van jouw antwoord ook in code afgedwongen), dus ga er nooit van uit dat je meer dan die 6 kunt stellen.
 ${SAFETY_FOOTER}`;
 
 export const REQUIREMENT_GENERATOR_PROMPT = `Je bent de Requirement Generator AI van EventFlow.

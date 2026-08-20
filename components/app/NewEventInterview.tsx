@@ -4,6 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { Sparkles, ArrowUp, Loader2, AlertTriangle } from "lucide-react";
 import { startInterviewAction, continueInterviewAction, generatePlanAction } from "@/lib/actions/event-actions";
 import { VoiceInputButton } from "@/components/app/VoiceInputButton";
+import { MAX_INTERVIEW_QUESTIONS } from "@/lib/config";
 import { cn } from "@/lib/utils";
 
 interface ChatMessage {
@@ -45,6 +46,18 @@ export function NewEventInterview() {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const endRef = useRef<HTMLDivElement>(null);
+
+  // Spec-item #56 ("er komt maar geen einde aan de vragen"): tel hoeveel
+  // écht gestelde interviewvragen er tot nu toe zijn, zodat we de
+  // organisator vooraf én lopend inzicht kunnen geven in hoeveel vragen er
+  // nog volgen. De statische openingszin ("Wat wil je organiseren?") staat
+  // hierboven hardcoded in de initiële state en is geen AI-gegenereerde
+  // vraag, dus die trekken we af. Zodra het interview klaar is ("done")
+  // bevat de laatste assistant-tekst geen vraag meer maar de afsluitzin
+  // ("Dank je, ik heb genoeg…" — zie startInterviewAction/
+  // continueInterviewAction), dus die tellen we ook niet mee.
+  const assistantMessageCount = messages.filter((m) => m.role === "assistant").length;
+  const askedCount = Math.max(0, assistantMessageCount - 1 - (done ? 1 : 0));
 
   function scrollDown() {
     requestAnimationFrame(() => endRef.current?.scrollIntoView({ behavior: "smooth" }));
@@ -101,7 +114,13 @@ export function NewEventInterview() {
         </div>
         <div>
           <p className="font-display text-lg text-ink">AI Event Interview</p>
-          <p className="text-xs text-ink-faint">Vertel me over je evenement — ik stel gerichte vervolgvragen.</p>
+          <p className="text-xs text-ink-faint">
+            {done
+              ? "Klaar — ik heb genoeg om een eerste plan te maken."
+              : askedCount === 0
+                ? `Vertel me over je evenement — ik stel meestal 4 tot 5 gerichte vervolgvragen, nooit meer dan ${MAX_INTERVIEW_QUESTIONS}.`
+                : `Vraag ${askedCount} van maximaal ${MAX_INTERVIEW_QUESTIONS}.`}
+          </p>
         </div>
       </div>
 

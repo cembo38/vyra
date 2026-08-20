@@ -263,6 +263,22 @@ export function getEffectiveTierDefinition(tier: EffectiveSupplierTier): Subscri
   return tier === "trial" ? TRIAL_TIER_DEFINITION : SUBSCRIPTION_TIERS[tier];
 }
 
+/**
+ * Harde bovengrens op het aantal vervolgvragen dat het AI-interview
+ * (`generateNextQuestion` in lib/ai/interview.ts) mag stellen bij het
+ * starten van een nieuw evenement — spec-item #56 (gemeld: het gesprek
+ * leek geen einde te nemen). De AI-prompt kreeg al eerder de instructie om
+ * na "meestal 4-7 vragen" te stoppen, maar dat is slechts een suggestie die
+ * de AI naar eigen inzicht kan negeren — deze constante wordt in CODE
+ * afgedwongen (`generateNextQuestion` forceert `done: true` zodra dit
+ * aantal al gestelde vragen is bereikt, zonder de AI nog te hoeven
+ * raadplegen), dezelfde "nooit alleen op de AI vertrouwen voor een harde
+ * grens"-aanpak als overal elders in dit bestand. Ook client-side gebruikt
+ * (NewEventInterview.tsx) om vooraf aan te geven hoeveel vragen er
+ * maximaal volgen — één bron van waarheid voor beide kanten.
+ */
+export const MAX_INTERVIEW_QUESTIONS = 6;
+
 export const SUPPLIER_RESPONSE_WINDOW_HOURS = 48;
 
 /**
