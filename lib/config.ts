@@ -17,6 +17,14 @@
  * wordt afgerekend — dat is nu al te innen (zie SUBSCRIPTION_TIERS
  * hieronder voor hoe, via Stripe Payment Links).
  *
+ * Prijstrede: elk niveau kost ~1,5–1,6x het vorige (49 → 79 → 129 → 199 →
+ * 299), een bewust AFNEMENDE verhouding i.p.v. de eerdere reeks die steeds
+ * ongeveer verdubbelde (49 → 99 → 199 → 349 → 599) — die voelde voor een
+ * leverancier "exponentieel" duurder bij elke stap. Met een constante,
+ * lichtjes dalende factor blijft elke upgrade een herkenbare, uit te leggen
+ * stap ("een derde duurder voor dit extra"), i.p.v. een sprong die steeds
+ * groter aanvoelt.
+ *
  * Elke nieuwe leverancier krijgt eerst `TRIAL_BOOKING_COUNT` succesvolle
  * boekingen volledig gratis, met VOLLEDIGE toegang tot alles wat Vyra te
  * bieden heeft (zie `TRIAL_TIER_DEFINITION`) — zo ervaart een leverancier
@@ -117,8 +125,8 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
   groei: {
     key: "groei",
     label: "Groei",
-    priceCents: 9_900,
-    priceLabel: "€99/maand",
+    priceCents: 7_900,
+    priceLabel: "€79/maand",
     tagline: "Meer categorieën, meer zichtbaarheid, minder commissie.",
     maxCategories: 3,
     maxGalleryPhotos: 10,
@@ -147,8 +155,8 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
   pro: {
     key: "pro",
     label: "Pro",
-    priceCents: 19_900,
-    priceLabel: "€199/maand",
+    priceCents: 12_900,
+    priceLabel: "€129/maand",
     tagline: "Uitgelicht profiel, geen commissie meer.",
     maxCategories: null,
     maxGalleryPhotos: null,
@@ -173,8 +181,8 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
   premium: {
     key: "premium",
     label: "Premium",
-    priceCents: 34_900,
-    priceLabel: "€349/maand",
+    priceCents: 19_900,
+    priceLabel: "€199/maand",
     tagline: "Gegarandeerd bovenaan, met persoonlijke ondersteuning.",
     maxCategories: null,
     maxGalleryPhotos: null,
@@ -199,7 +207,7 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
     key: "enterprise",
     label: "Enterprise",
     priceCents: null,
-    priceLabel: "Vanaf €599/maand, op maat",
+    priceLabel: "Vanaf €299/maand, op maat",
     tagline: "Voor grote, veelboekende leveranciers — op maat.",
     maxCategories: null,
     maxGalleryPhotos: null,

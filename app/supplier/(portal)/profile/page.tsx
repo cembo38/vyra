@@ -28,57 +28,65 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
   const commissionStatus = await getSupplierCommissionStatus(supplier.id);
 
   return (
-    <div className="mx-auto max-w-lg">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="font-display text-3xl text-ink">Bedrijfsprofiel</h1>
-          <p className="mt-1 text-ink-soft">Dit bepaalt bij welke aanvragen je wordt gematcht — en is ook wat organisatoren van je zien.</p>
-        </div>
-      </div>
-
-      <Link
-        href={`/leveranciers/${supplier.id}`}
-        target="_blank"
-        className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-sage hover:underline"
-      >
-        Bekijk je openbare profiel <ExternalLink className="size-3.5" />
-      </Link>
-
-      <Card className="mt-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+    // Het abonnementenblok hieronder (SubscriptionTierPicker) is een
+    // vergelijkingstabel met vijf kolommen — die heeft veel meer breedte
+    // nodig dan de rest van dit (bewust smalle) formulier. Vandaar dat de
+    // buitenste container hier breder is (max-w-5xl) en de overige
+    // secties elk in hun eigen smalle `max-w-lg`-wrapper zitten: alleen het
+    // abonnementenblok mag de volle breedte gebruiken.
+    <div className="mx-auto max-w-5xl">
+      <div className="mx-auto max-w-lg">
+        <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-sm font-medium uppercase tracking-wide text-ink-faint">Verificatie</h2>
-            <p className="mt-1 text-sm text-ink-soft">
-              Een geverifieerd profiel wekt vertrouwen bij organisatoren: we controleren je bedrijfsgegevens handmatig.
-            </p>
+            <h1 className="font-display text-3xl text-ink">Bedrijfsprofiel</h1>
+            <p className="mt-1 text-ink-soft">Dit bepaalt bij welke aanvragen je wordt gematcht — en is ook wat organisatoren van je zien.</p>
           </div>
-          {supplier.verified ? (
-            <Badge tone="success" icon={<BadgeCheck className="size-3.5" />}>Geverifieerd</Badge>
-          ) : supplier.verificationRequestedAt ? (
-            <Badge tone="ochre" icon={<Clock className="size-3.5" />}>Aanvraag in behandeling</Badge>
-          ) : (
-            <Badge tone="neutral">Nog niet geverifieerd</Badge>
-          )}
         </div>
-        {!supplier.verified && !supplier.verificationRequestedAt && (
-          <form action={requestSupplierVerificationAction} className="mt-3">
-            <button type="submit" className="lift-hover rounded-xl bg-ink px-4 py-2.5 text-sm font-medium text-white hover:bg-ink/90">
-              Verificatie aanvragen
-            </button>
-            <p className="mt-1.5 text-xs text-ink-faint">Vul eerst een geldig KVK-nummer (8 cijfers) in bij Basisgegevens — dat heeft een admin nodig om je te kunnen verifiëren.</p>
-          </form>
-        )}
-        {verifyError && (
-          <p className="mt-3 rounded-xl border border-warning-50 bg-warning-50 px-3 py-2 text-sm text-warning">
-            Vul eerst een geldig KVK-nummer (precies 8 cijfers) in bij Basisgegevens voordat je verificatie kunt aanvragen.
-          </p>
-        )}
-        {verifyRequested && (
-          <p className="mt-3 flex items-center gap-2 rounded-xl border border-success-50 bg-success-50 px-3 py-2 text-sm text-success">
-            <CheckCircle2 className="size-4" /> Verificatie aangevraagd — we laten je weten zodra deze is behandeld.
-          </p>
-        )}
-      </Card>
+
+        <Link
+          href={`/leveranciers/${supplier.id}`}
+          target="_blank"
+          className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-sage hover:underline"
+        >
+          Bekijk je openbare profiel <ExternalLink className="size-3.5" />
+        </Link>
+
+        <Card className="mt-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-medium uppercase tracking-wide text-ink-faint">Verificatie</h2>
+              <p className="mt-1 text-sm text-ink-soft">
+                Een geverifieerd profiel wekt vertrouwen bij organisatoren: we controleren je bedrijfsgegevens handmatig.
+              </p>
+            </div>
+            {supplier.verified ? (
+              <Badge tone="success" icon={<BadgeCheck className="size-3.5" />}>Geverifieerd</Badge>
+            ) : supplier.verificationRequestedAt ? (
+              <Badge tone="ochre" icon={<Clock className="size-3.5" />}>Aanvraag in behandeling</Badge>
+            ) : (
+              <Badge tone="neutral">Nog niet geverifieerd</Badge>
+            )}
+          </div>
+          {!supplier.verified && !supplier.verificationRequestedAt && (
+            <form action={requestSupplierVerificationAction} className="mt-3">
+              <button type="submit" className="lift-hover rounded-xl bg-ink px-4 py-2.5 text-sm font-medium text-white hover:bg-ink/90">
+                Verificatie aanvragen
+              </button>
+              <p className="mt-1.5 text-xs text-ink-faint">Vul eerst een geldig KVK-nummer (8 cijfers) in bij Basisgegevens — dat heeft een admin nodig om je te kunnen verifiëren.</p>
+            </form>
+          )}
+          {verifyError && (
+            <p className="mt-3 rounded-xl border border-warning-50 bg-warning-50 px-3 py-2 text-sm text-warning">
+              Vul eerst een geldig KVK-nummer (precies 8 cijfers) in bij Basisgegevens voordat je verificatie kunt aanvragen.
+            </p>
+          )}
+          {verifyRequested && (
+            <p className="mt-3 flex items-center gap-2 rounded-xl border border-success-50 bg-success-50 px-3 py-2 text-sm text-success">
+              <CheckCircle2 className="size-4" /> Verificatie aangevraagd — we laten je weten zodra deze is behandeld.
+            </p>
+          )}
+        </Card>
+      </div>
 
       <Card className="mt-6">
         <div>
@@ -98,29 +106,30 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
         </div>
       </Card>
 
-      {justSaved && (
-        <div className="mt-4 flex items-center gap-2 rounded-xl border border-success-50 bg-success-50 px-4 py-3 text-sm text-success">
-          <CheckCircle2 className="size-4" /> Je profiel is opgeslagen.
-        </div>
-      )}
-      {hasError && (
-        <div className="mt-4 rounded-xl border border-warning-50 bg-warning-50 px-3 py-2 text-sm text-warning">
-          Vul alle verplichte velden in voordat je opslaat.
-        </div>
-      )}
-      {uploadFailed && (
-        <div className="mt-4 rounded-xl border border-warning-50 bg-warning-50 px-3 py-2 text-sm text-warning">
-          Je overige wijzigingen zijn opgeslagen, maar minstens één foto kon niet worden geüpload. Probeer het opnieuw, of neem contact op als dit blijft gebeuren.
-        </div>
-      )}
-      {capApplied && (
-        <div className="mt-4 rounded-xl border border-warning-50 bg-warning-50 px-3 py-2 text-sm text-warning">
-          Je wijzigingen zijn opgeslagen, maar één of meer velden (categorieën, foto&apos;s of werkgebied) zijn afgekapt tot het maximum
-          van je huidige abonnementsniveau. Kies hieronder een hoger niveau om de limiet te verhogen.
-        </div>
-      )}
+      <div className="mx-auto max-w-lg">
+        {justSaved && (
+          <div className="mt-4 flex items-center gap-2 rounded-xl border border-success-50 bg-success-50 px-4 py-3 text-sm text-success">
+            <CheckCircle2 className="size-4" /> Je profiel is opgeslagen.
+          </div>
+        )}
+        {hasError && (
+          <div className="mt-4 rounded-xl border border-warning-50 bg-warning-50 px-3 py-2 text-sm text-warning">
+            Vul alle verplichte velden in voordat je opslaat.
+          </div>
+        )}
+        {uploadFailed && (
+          <div className="mt-4 rounded-xl border border-warning-50 bg-warning-50 px-3 py-2 text-sm text-warning">
+            Je overige wijzigingen zijn opgeslagen, maar minstens één foto kon niet worden geüpload. Probeer het opnieuw, of neem contact op als dit blijft gebeuren.
+          </div>
+        )}
+        {capApplied && (
+          <div className="mt-4 rounded-xl border border-warning-50 bg-warning-50 px-3 py-2 text-sm text-warning">
+            Je wijzigingen zijn opgeslagen, maar één of meer velden (categorieën, foto&apos;s of werkgebied) zijn afgekapt tot het maximum
+            van je huidige abonnementsniveau. Kies hieronder een hoger niveau om de limiet te verhogen.
+          </div>
+        )}
 
-      <Card className="mt-6">
+        <Card className="mt-6">
         <form action={updateSupplierProfileAction} encType="multipart/form-data" className="space-y-5">
           <div>
             <h2 className="mb-3 text-sm font-medium uppercase tracking-wide text-ink-faint">Basisgegevens</h2>
@@ -262,7 +271,8 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
             Wijzigingen opslaan
           </button>
         </form>
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }

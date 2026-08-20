@@ -61,7 +61,23 @@ export function SubscriptionTierPicker({
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      {/*
+        BEWUST geen viewport-breakpoints (sm:/lg:/xl:) meer voor het aantal
+        kolommen — dit was de daadwerkelijke oorzaak van de layoutbug die Cem
+        meldde: die breakpoints kijken naar de schermbreedte, niet naar hoe
+        breed déze kaart daadwerkelijk is. Op de leveranciersprofielpagina
+        staat deze tabel binnen een smalle `max-w-lg`-kolom (zie
+        app/supplier/(portal)/profile/page.tsx) — bij een breed scherm
+        activeerde `xl:grid-cols-5` dan alsnog 5 kolommen, terwijl er maar
+        ~450px daadwerkelijke ruimte was: elke kolom werd ~80px breed en de
+        tekst brak zelfs midden in korte woorden af.
+        `repeat(auto-fit,minmax(200px,1fr))` laat de browser i.p.v. daarvan
+        kijken naar de ECHTE beschikbare breedte van dit grid en past het
+        aantal kolommen daarop aan (1 kolom als er nauwelijks ruimte is, tot
+        5 op een écht brede pagina) — dat werkt overal correct, ongeacht in
+        welke kolombreedte dit component ooit wordt geplaatst.
+      */}
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3">
         {SUBSCRIPTION_TIER_ORDER.map((key) => {
           const def = SUBSCRIPTION_TIERS[key];
           const isCurrent = key === selected;

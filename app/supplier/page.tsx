@@ -49,7 +49,10 @@ export default function SupplierLandingPage() {
               moment te wijzigen.
             </p>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+          {/* Zie de toelichting in SubscriptionTierPicker.tsx: viewport-breakpoints
+              voor het aantal kolommen kijken naar de schermbreedte, niet naar de
+              werkelijke breedte van dit grid — `auto-fit`/`minmax` lost dat structureel op. */}
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3">
             {SUBSCRIPTION_TIER_ORDER.map((key) => {
               const def = SUBSCRIPTION_TIERS[key];
               return (
