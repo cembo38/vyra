@@ -49,22 +49,26 @@ export default function SupplierLandingPage() {
               moment te wijzigen.
             </p>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             {SUBSCRIPTION_TIER_ORDER.map((key) => {
               const def = SUBSCRIPTION_TIERS[key];
               return (
-                <Card key={key} className="flex flex-col">
+                <Card key={key} className="flex min-w-0 flex-col">
                   <div className="flex items-center gap-1.5">
                     <p className="font-display text-base text-ink">{def.label}</p>
-                    {def.badge === "aanbevolen" && <Sparkles className="size-3.5 text-ochre" />}
-                    {def.badge === "elite" && <Crown className="size-3.5 text-clay" />}
+                    {def.badge === "aanbevolen" && <Sparkles className="size-3.5 shrink-0 text-ochre" />}
+                    {def.badge === "elite" && <Crown className="size-3.5 shrink-0 text-clay" />}
                   </div>
-                  <p className="mt-0.5 text-sm font-medium text-ink-soft">{def.priceLabel}</p>
-                  <p className="mt-1.5 text-xs text-ink-faint">{def.tagline}</p>
-                  <ul className="mt-3 flex-1 space-y-1.5">
+                  <p className="mt-0.5 break-words text-sm font-medium text-ink-soft">{def.priceLabel}</p>
+                  <p className="mt-1.5 break-words text-xs text-ink-faint">{def.tagline}</p>
+                  {/* Zie de toelichting in SubscriptionTierPicker.tsx: zonder
+                      een apart tekst-element bleedt lange perk-tekst als
+                      anonieme flex-child buiten zijn kolom i.p.v. af te breken. */}
+                  <ul className="mt-3 min-w-0 flex-1 space-y-1.5">
                     {def.perks.slice(0, 4).map((perk) => (
                       <li key={perk} className="flex items-start gap-1.5 text-xs text-ink-soft">
-                        <CheckCircle2 className="mt-0.5 size-3 shrink-0 text-sage" /> {perk}
+                        <CheckCircle2 className="mt-0.5 size-3 shrink-0 text-sage" />
+                        <span className="min-w-0 break-words">{perk}</span>
                       </li>
                     ))}
                   </ul>
