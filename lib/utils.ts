@@ -9,9 +9,16 @@ export function uid(prefix: string = "id") {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36).slice(-4)}`;
 }
 
+// Een kale datum-string ("2026-12-15", zonder tijd) wordt door `new Date()`
+// als UTC-middernacht geïnterpreteerd — op een server die niet in UTC
+// draait (of een browser in een tijdzone vóór UTC) toonde dit soms de dag
+// ERVOOR (bv. een mijlpaal op de tijdlijn die 14 december toonde i.p.v. 15
+// december). `daysUntil()` hieronder had dit al opgelost door zelf
+// "T00:00:00" (lokale tijd) toe te voegen — diezelfde truc hier toepassen
+// voor elke kale datum-string, zodat de kalenderdag nooit verschuift.
 export function formatDateNL(iso: string | null, opts?: Intl.DateTimeFormatOptions) {
   if (!iso) return null;
-  const d = new Date(iso);
+  const d = new Date(/^\d{4}-\d{2}-\d{2}$/.test(iso) ? `${iso}T00:00:00` : iso);
   return new Intl.DateTimeFormat("nl-NL", opts ?? { day: "numeric", month: "long", year: "numeric" }).format(d);
 }
 

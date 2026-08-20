@@ -73,6 +73,9 @@ export default async function BudgetPage(props: PageProps<"/events/[id]/budget">
 
       <Card>
         <h2 className="mb-4 font-display text-lg text-ink">Verdeling per categorie</h2>
+        {requirements.length === 0 ? (
+          <p className="text-sm text-ink-faint">Nog geen categorieën geselecteerd — rond het AI-eventplan af om hier een verdeling te zien.</p>
+        ) : (
         <div className="divide-y divide-line-soft">
           {requirements.map((r) => (
             <div key={r.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
@@ -87,6 +90,7 @@ export default async function BudgetPage(props: PageProps<"/events/[id]/budget">
             </div>
           ))}
         </div>
+        )}
         <div className="mt-4 flex items-center gap-1.5 text-xs text-ink-faint">
           <AiTag /> Budgetverdeling is een AI-aanbeveling op basis van je eventgegevens — pas het gerust aan.
         </div>

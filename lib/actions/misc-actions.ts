@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import {
   addSupplierFavorite,
+  getEvent,
   markAllNotificationsRead,
   markNotificationRead,
   removeSupplierFavorite,
@@ -11,12 +12,31 @@ import {
   toggleTimelineDone,
 } from "@/lib/data/store";
 
+/**
+ * Controleerde tot nu toe nergens wie er aanriep, of dat diegene ook echt
+ * eigenaar van het evenement was — een Server Action is los aan te roepen
+ * met elke eventId/taskId, ongeacht welke pagina 'm daadwerkelijk toonde.
+ * RLS op `event_tasks`/`event_timeline` blokkeert de rijmutatie zelf al
+ * (eigenaar-only policy), maar zonder deze check hier geeft de actie geen
+ * enkele terugmelding daarover — zelfde soort defense-in-depth-check als
+ * overal elders (event-actions.ts, marketplace-actions.ts).
+ */
 export async function toggleTaskAction(eventId: string, taskId: string, done: boolean) {
+  const user = await getCurrentUser();
+  if (!user) return;
+  const event = await getEvent(eventId);
+  if (!event || event.ownerId !== user.id) return;
+
   await toggleTaskDone(eventId, taskId, done);
   revalidatePath(`/events/${eventId}`, "layout");
 }
 
 export async function toggleTimelineAction(eventId: string, itemId: string, done: boolean) {
+  const user = await getCurrentUser();
+  if (!user) return;
+  const event = await getEvent(eventId);
+  if (!event || event.ownerId !== user.id) return;
+
   await toggleTimelineDone(eventId, itemId, done);
   revalidatePath(`/events/${eventId}`, "layout");
 }
@@ -25,13 +45,26 @@ export async function toggleTimelineAction(eventId: string, itemId: string, done
 // belletje (en nu ook de volledige notificatiepagina) staat zowel in het
 // organisator- als het leveranciersportaal, dus een gelezen/ongelezen-
 // wijziging moet overal bijwerken, niet alleen in de organisator-nav.
+//
+// `userId` kwam tot nu toe rechtstreeks van de aanroeper, zonder enige
+// controle dat dit ook echt de ingelogde gebruiker was — een Server Action
+// aanroepen met een ANDER account se userId zou (afgezien van RLS) diens
+// notificatie(s) als gelezen kunnen markeren. We gebruiken nu altijd het
+// ID van de daadwerkelijk ingelogde gebruiker; de meegegeven `userId` dient
+// alleen nog als extra check dat de aanroepende component niet in de war is.
 export async function markNotificationReadAction(userId: string, notificationId: string) {
-  await markNotificationRead(userId, notificationId);
+  const user = await getCurrentUser();
+  if (!user || user.id !== userId) return;
+
+  await markNotificationRead(user.id, notificationId);
   revalidatePath("/", "layout");
 }
 
 export async function markAllNotificationsReadAction(userId: string) {
-  await markAllNotificationsRead(userId);
+  const user = await getCurrentUser();
+  if (!user || user.id !== userId) return;
+
+  await markAllNotificationsRead(user.id);
   revalidatePath("/", "layout");
 }
 

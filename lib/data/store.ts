@@ -2137,10 +2137,16 @@ export async function listAiInteractionLogs(limit = 200): Promise<{ logs: AiInte
 /* NOTIFICATIONS                                                        */
 /* ------------------------------------------------------------------ */
 
-export async function getNotifications(userId: string): Promise<AppNotification[]> {
+// Zonder limiet haalde dit ALTIJD de volledige notificatiegeschiedenis van
+// een gebruiker op — voor de topbar-bel (die er toch maar 8 van toont) is
+// dat onnodig, en voor de volledige notificatiepagina zou dit op termijn
+// (na maanden gebruik) een steeds tragere, ongelimiteerde query worden. 100
+// is ruim genoeg voor "alles wat de laatste tijd is gebeurd" op de
+// notificatiepagina zelf.
+export async function getNotifications(userId: string, limit = 100): Promise<AppNotification[]> {
   await ensureAutoNotifications(userId);
   const supabase = await sb();
-  const { data } = await supabase.from("notifications").select("*").eq("user_id", userId).order("created_at", { ascending: false });
+  const { data } = await supabase.from("notifications").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(limit);
   return (data ?? []).map(rowToNotification);
 }
 
@@ -2443,15 +2449,20 @@ export function allSuppliers() {
 /* alleen je eigen data — de admin-pagina toont in dat geval een banner. */
 /* ------------------------------------------------------------------ */
 
+// `.order()` toegevoegd op beide — zonder ORDER BY garandeert Postgres geen
+// enkele rijvolgorde, waardoor het admin-dashboard "Recente evenementen"
+// toonde die helemaal niet per se recent waren. De KPI-tellingen
+// (events.length, GMV-som, ...) blijven ongewijzigd correct, want die lezen
+// nog steeds de volledige lijst — alleen de WEERGAVEVOLGORDE verandert hier.
 export async function listAllEvents(): Promise<EventCore[]> {
   const supabase = createSupabaseAdminClient() ?? (await sb());
-  const { data } = await supabase.from("events").select("*");
+  const { data } = await supabase.from("events").select("*").order("created_at", { ascending: false });
   return (data ?? []).map((r) => rowToEvent(r));
 }
 
 export async function listAllPayments(): Promise<Payment[]> {
   const supabase = createSupabaseAdminClient() ?? (await sb());
-  const { data } = await supabase.from("payments").select("*");
+  const { data } = await supabase.from("payments").select("*").order("created_at", { ascending: false });
   return (data ?? []).map(rowToPayment);
 }
 

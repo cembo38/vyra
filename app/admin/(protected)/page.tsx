@@ -24,7 +24,13 @@ export default async function AdminOverviewPage() {
   const serviceRoleConfigured = isServiceRoleConfigured();
 
   const paidPayments = payments.filter((p) => p.status === "paid");
-  const gmv = paidPayments.reduce((sum, p) => sum + p.supplierAmountCents, 0);
+  // GMV = het volledige bedrag dat organisatoren betalen (supplier-deel +
+  // platformfee samen, "totalCents"), NIET alleen het supplier-deel — die
+  // laatste stond hier per ongeluk, waardoor zowel de GMV-tegel als het
+  // "blended"-commissiepercentage hieronder (revenue/gmv) stelselmatig te
+  // hoog uitkwamen (een boeking van €100 supplier + €10 fee toonde 10%
+  // i.p.v. de werkelijke 9,09%).
+  const gmv = paidPayments.reduce((sum, p) => sum + p.totalCents, 0);
   const revenue = paidPayments.reduce((sum, p) => sum + p.platformFeeCents, 0);
   // Sinds het gestaffelde commissiemodel (spec-item #53) bestaat er geen
   // enkel vast percentage meer — hier het werkelijke, blended tarief over
@@ -35,7 +41,14 @@ export default async function AdminOverviewPage() {
   const eventsWithBudget = events.filter((e) => e.budget);
   const avgEventValue = eventsWithBudget.length ? eventsWithBudget.reduce((s, e) => s + (e.budget?.totalCents ?? 0), 0) / eventsWithBudget.length : 0;
   const avgResponseHours = suppliers.length ? suppliers.reduce((s, sup) => s + sup.avgResponseHours, 0) / suppliers.length : 0;
-  const conversionRate = requests.length ? (paidPayments.length / requests.length) * 100 : 0;
+  // Een offerte die via het termijnenplan wordt betaald, staat als TWEE
+  // aparte payment-rijen (aanbetaling + restbedrag) — die allebei meetellen
+  // liet één betaalde boeking soms als "2" meetellen in de teller, wat de
+  // conversieratio kunstmatig opblies. Tellen op basis van unieke offerte-
+  // id's telt elke geconverteerde boeking maar één keer, ongeacht het
+  // gekozen betaalplan.
+  const paidOfferIds = new Set(paidPayments.map((p) => p.offerId));
+  const conversionRate = requests.length ? (paidOfferIds.size / requests.length) * 100 : 0;
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
@@ -71,7 +84,11 @@ export default async function AdminOverviewPage() {
             <p className="text-sm text-ink-faint">Nog geen evenementen.</p>
           ) : (
             <div className="space-y-2">
-              {events.map((e) => (
+              {/* Alleen de 10 nieuwste tonen — "Recente evenementen" moet niet
+                  ongelimiteerd blijven meegroeien met het hele platform. De
+                  KPI-tegel "Evenementen" hierboven gebruikt nog gewoon de
+                  volledige `events`-lijst, dus die telling blijft correct. */}
+              {events.slice(0, 10).map((e) => (
                 <div key={e.id} className="flex items-center justify-between rounded-xl border border-line-soft px-3.5 py-2.5 text-sm">
                   <div>
                     <p className="font-medium text-ink">{e.name}</p>

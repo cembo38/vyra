@@ -50,8 +50,14 @@ export async function deleteGuestAction(eventId: string, guestId: string) {
 export async function submitPublicRsvpAction(guestId: string, formData: FormData) {
   const status = formData.get("status");
   if (status !== "yes" && status !== "no" && status !== "maybe") return;
-  const plusOnes = Number(formData.get("plusOnes") ?? 0) || 0;
-  const dietaryNotes = String(formData.get("dietaryNotes") ?? "");
+  // Deze actie is publiek en ongeauthenticeerd (elke gast met de link kan
+  // 'm aanroepen), dus serverkant dezelfde grenzen afdwingen als het
+  // formulier al client-side stelt — anders kan iemand met een aangepast
+  // verzoek een absurd aantal introducees of een oneindig lange
+  // dieetwensen-tekst insturen (zelfde soort gat als eerder gevonden bij
+  // geschil-omschrijvingen, zie DESCRIPTION_MAX_LENGTH in dispute-actions.ts).
+  const plusOnes = Math.min(20, Math.max(0, Number(formData.get("plusOnes") ?? 0) || 0));
+  const dietaryNotes = String(formData.get("dietaryNotes") ?? "").slice(0, 500);
   const ok = await submitRsvpPublic(guestId, status, plusOnes, dietaryNotes);
   // submitRsvpPublic() geeft `false` terug bij een RPC-fout (bv. verlopen/
   // ongeldige guestId) — dat werd hier voorheen genegeerd, waardoor een gast

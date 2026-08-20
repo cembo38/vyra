@@ -94,10 +94,10 @@ export default async function RsvpPage(props: PageProps<"/rsvp/[guestId]">) {
             </div>
 
             <Field label="Aantal introducees" hint="Optioneel — alleen relevant als je komt">
-              <Input type="number" name="plusOnes" min={0} defaultValue={guest.plusOnes} />
+              <Input type="number" name="plusOnes" min={0} max={20} defaultValue={guest.plusOnes} />
             </Field>
             <Field label="Dieetwensen of allergieën" hint="Optioneel">
-              <Textarea name="dietaryNotes" rows={2} defaultValue={guest.dietaryNotes ?? ""} placeholder="Bijv. vegetarisch, notenallergie..." />
+              <Textarea name="dietaryNotes" rows={2} maxLength={500} defaultValue={guest.dietaryNotes ?? ""} placeholder="Bijv. vegetarisch, notenallergie..." />
             </Field>
 
             <p className="text-xs text-ink-faint">Klik op één van de knoppen hierboven om je antwoord (met eventuele introducees/dieetwensen) te versturen.</p>
