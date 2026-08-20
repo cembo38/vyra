@@ -332,6 +332,16 @@ export interface SupplierProfile {
   /** Alleen gezet voor échte (ingelogde) leveranciers: link naar hun openbare profielpagina. */
   isReal?: boolean;
   logoUrl?: string | null;
+  /**
+   * Welk abonnements-badge (spec-item #53-vervolg, SaaS-pivot) op dit moment
+   * voor deze leverancier geldt — "aanbevolen" (Pro) of "elite"
+   * (Premium/Enterprise), altijd "none" tijdens de proefperiode (ook als er
+   * al een hoger niveau is gekozen: dat niveau gaat pas écht in ná de
+   * proefperiode, zie computeEffectiveTier() in lib/data/store.ts) en altijd
+   * "none"/undefined voor de statische demo-catalogus. Gebruikt overal waar
+   * een offerte/leverancier aan een organisator wordt getoond (OfferBrowser).
+   */
+  tierBadge?: "none" | "aanbevolen" | "elite";
 }
 
 /**

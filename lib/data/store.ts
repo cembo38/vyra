@@ -625,8 +625,17 @@ function gradientFor(id: string): [string, string] {
   return DISPLAY_GRADIENTS[hash % DISPLAY_GRADIENTS.length];
 }
 
-/** Zet een écht leveranciersaccount om naar de "weergave-vorm" die overal (offertes, shortlist, gesprekken) wordt gebruikt om suppliers te tonen. */
-export function supplierAccountToProfileShape(account: SupplierAccount): SupplierProfile {
+/**
+ * Zet een écht leveranciersaccount om naar de "weergave-vorm" die overal
+ * (offertes, shortlist, gesprekken) wordt gebruikt om suppliers te tonen.
+ * Async vanwege `tierBadge` — dat vraagt het huidige effectieve
+ * abonnementsniveau op (proefperiode-aware, zie computeEffectiveTier()),
+ * wat een databaseaanroep vergt (boekingentelling). Enige aanroeper is
+ * `resolveSupplierDisplay` hieronder (zelf al async), dus dit raakt geen
+ * andere call-sites.
+ */
+export async function supplierAccountToProfileShape(account: SupplierAccount): Promise<SupplierProfile> {
+  const tierDefinition = await getSupplierEffectiveTierDefinition(account.id);
   return {
     id: account.id,
     companyName: account.companyName,
@@ -651,6 +660,7 @@ export function supplierAccountToProfileShape(account: SupplierAccount): Supplie
     portfolioHighlights: account.portfolioHighlights,
     isReal: true,
     logoUrl: account.logoUrl,
+    tierBadge: tierDefinition.badge,
   };
 }
 
@@ -664,7 +674,7 @@ export async function resolveSupplierDisplay(id: string): Promise<SupplierProfil
   const demo = getSupplierById(id);
   if (demo) return demo;
   const account = await getSupplierAccount(id);
-  return account ? supplierAccountToProfileShape(account) : null;
+  return account ? await supplierAccountToProfileShape(account) : null;
 }
 
 interface SupplierProfilePatch {

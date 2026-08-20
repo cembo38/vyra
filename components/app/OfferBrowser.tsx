@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
-import { Heart, X, ArrowRight, Undo2, Star, ShieldCheck, ListChecks, Rows3, Columns3, CheckCircle2, Loader2, ExternalLink, PiggyBank } from "lucide-react";
+import { Heart, X, ArrowRight, Undo2, Star, ShieldCheck, ListChecks, Rows3, Columns3, CheckCircle2, Loader2, ExternalLink, PiggyBank, Sparkles, Crown } from "lucide-react";
 import { SupplierAvatar } from "@/components/ui/Avatar";
 import { Badge, OfferStatusBadge } from "@/components/ui/Badge";
 import { formatCurrency, DEFAULT_DEPOSIT_PERCENT } from "@/lib/config";
@@ -13,6 +13,20 @@ import { OfferOption, SupplierProfile } from "@/lib/types";
 
 export interface OfferWithSupplier extends OfferOption {
   supplier: SupplierProfile;
+}
+
+/**
+ * Klein icoontje voor het abonnements-badge (spec-item #53-vervolg,
+ * SaaS-pivot) — "Aanbevolen" (Pro) of "Vyra Elite Partner"
+ * (Premium/Enterprise), zichtbaar op precies de plek waar organisatoren
+ * offertes vergelijken en kiezen (dit is dé plek waar die badge zijn werk
+ * moet doen). Rendert niets voor demo-leveranciers of tijdens de
+ * proefperiode van een leverancier — zie `tierBadge` in lib/types.ts.
+ */
+function TierBadgeIcon({ tierBadge }: { tierBadge?: SupplierProfile["tierBadge"] }) {
+  if (tierBadge === "elite") return <Crown className="size-3.5 shrink-0 text-clay" aria-label="Vyra Elite Partner" />;
+  if (tierBadge === "aanbevolen") return <Sparkles className="size-3.5 shrink-0 text-ochre" aria-label="Aanbevolen" />;
+  return null;
 }
 
 export function OfferBrowser({ offers, categoryLabel }: { offers: OfferWithSupplier[]; categoryLabel: string }) {
@@ -214,7 +228,10 @@ function SwipeCard({ offer, stackIndex, interactive, onDecide }: { offer: OfferW
       <div className="p-5">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <h3 className="font-display text-xl text-ink">{offer.supplier.companyName}</h3>
+            <h3 className="flex items-center gap-1.5 font-display text-xl text-ink">
+              {offer.supplier.companyName}
+              <TierBadgeIcon tierBadge={offer.supplier.tierBadge} />
+            </h3>
             <div className="mt-1 flex items-center gap-1.5 text-sm text-ink-faint">
               {offer.supplier.ratingCount > 0 ? (
                 <>
@@ -272,6 +289,7 @@ function CompareTable({ offers, categoryHasAccepted }: { offers: OfferWithSuppli
                   ) : (
                     <span className="font-medium text-ink">{offer.supplier.companyName}</span>
                   )}
+                  <TierBadgeIcon tierBadge={offer.supplier.tierBadge} />
                 </div>
               </td>
               <td className="px-4 py-3 whitespace-nowrap font-display text-base text-ink">{formatCurrency(offer.totalPriceCents)}</td>
@@ -352,7 +370,7 @@ function CompareCardList({ offers, categoryHasAccepted }: { offers: OfferWithSup
         <div key={offer.id} className="rounded-2xl border border-line bg-white p-4 [box-shadow:var(--shadow-card)]">
           <div className="flex items-center gap-2.5">
             <SupplierAvatar gradient={offer.supplier.photoGradient} initials={offer.supplier.initials} imageUrl={offer.supplier.logoUrl} verified={offer.supplier.verified} size={36} />
-            <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 flex-1 items-center gap-1.5">
               {offer.supplier.isReal ? (
                 <Link href={`/leveranciers/${offer.supplier.id}`} target="_blank" className="flex min-w-0 items-center gap-1 truncate font-medium text-ink hover:text-sage hover:underline">
                   <span className="truncate">{offer.supplier.companyName}</span> <ExternalLink className="size-3 shrink-0" />
@@ -360,6 +378,7 @@ function CompareCardList({ offers, categoryHasAccepted }: { offers: OfferWithSup
               ) : (
                 <p className="truncate font-medium text-ink">{offer.supplier.companyName}</p>
               )}
+              <TierBadgeIcon tierBadge={offer.supplier.tierBadge} />
             </div>
             <OfferStatusBadge status={offer.status} />
           </div>
@@ -461,13 +480,16 @@ function OfferListCard({ offer, compact, categoryHasAccepted }: { offer: OfferWi
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            {offer.supplier.isReal ? (
-              <Link href={`/leveranciers/${offer.supplier.id}`} target="_blank" className="flex min-w-0 items-center gap-1 truncate font-medium text-ink hover:text-sage hover:underline">
-                <span className="truncate">{offer.supplier.companyName}</span> <ExternalLink className="size-3 shrink-0" />
-              </Link>
-            ) : (
-              <p className="truncate font-medium text-ink">{offer.supplier.companyName}</p>
-            )}
+            <div className="flex min-w-0 items-center gap-1.5">
+              {offer.supplier.isReal ? (
+                <Link href={`/leveranciers/${offer.supplier.id}`} target="_blank" className="flex min-w-0 items-center gap-1 truncate font-medium text-ink hover:text-sage hover:underline">
+                  <span className="truncate">{offer.supplier.companyName}</span> <ExternalLink className="size-3 shrink-0" />
+                </Link>
+              ) : (
+                <p className="truncate font-medium text-ink">{offer.supplier.companyName}</p>
+              )}
+              <TierBadgeIcon tierBadge={offer.supplier.tierBadge} />
+            </div>
             <OfferStatusBadge status={offer.status} />
           </div>
           <div className="mt-0.5 flex items-center gap-1 text-xs text-ink-faint">
