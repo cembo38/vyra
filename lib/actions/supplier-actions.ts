@@ -11,16 +11,18 @@ import {
   getRequest,
   getSupplierAccount,
   getSupplierAccountByOwner,
+  getSupplierEffectiveTierDefinition,
   pushNotification,
   requestSupplierVerification,
   sendCustomSupplierRequest,
-  setSupplierProSubscription,
   setSupplierStoreOpen,
+  setSupplierSubscriptionTier,
   submitSupplierOffer,
   unblockSupplierDate,
   updateSupplierAccount,
   uploadSupplierFile,
 } from "@/lib/data/store";
+import { SUBSCRIPTION_TIER_ORDER, SubscriptionTier } from "@/lib/config";
 import { SupplierCategory } from "@/lib/types";
 import { isValidKvkFormat } from "@/lib/utils";
 
@@ -126,10 +128,10 @@ export async function updateSupplierProfileAction(formData: FormData) {
 
   const companyName = String(formData.get("companyName") ?? "").trim();
   const contactPerson = String(formData.get("contactPerson") ?? "").trim();
-  const categories = formData.getAll("categories").map(String) as SupplierCategory[];
+  let categories = formData.getAll("categories").map(String) as SupplierCategory[];
   const categoryOther = optionalTrim(formData.get("categoryOther"));
   const baseLocation = String(formData.get("baseLocation") ?? "").trim();
-  const serviceRadiusKm = Number(formData.get("serviceRadiusKm") ?? 25);
+  let serviceRadiusKm = Number(formData.get("serviceRadiusKm") ?? 25);
   const description = String(formData.get("description") ?? "").trim();
   const minPriceEuros = Number(formData.get("minPrice") ?? 0);
   const avgPriceEuros = Number(formData.get("avgPrice") ?? 0);
@@ -141,6 +143,25 @@ export async function updateSupplierProfileAction(formData: FormData) {
 
   if (!companyName || !contactPerson || categories.length === 0 || !baseLocation || !description) {
     redirect("/supplier/profile?error=1");
+  }
+
+  // Abonnementsniveau-limieten (spec-item #53-vervolg, SaaS-pivot) — hoeveel
+  // categorieën, foto's en hoe ver het werkgebied mag reiken, hangt af van
+  // het niveau (of de proefperiode) dat nu voor deze leverancier geldt. Dit
+  // vult de UI-beperking op het profielformulier aan met een echte
+  // server-side grens, want de UI is met devtools te omzeilen. Overschrijdt
+  // een leverancier zijn limiet (bv. na een handmatige downgrade), dan
+  // knippen we simpelweg af tot het maximum i.p.v. de héle opslag te
+  // blokkeren — de leverancier krijgt een duidelijke melding waarom.
+  const tierDefinition = await getSupplierEffectiveTierDefinition(supplier!.id);
+  let capApplied = false;
+  if (tierDefinition.maxCategories != null && categories.length > tierDefinition.maxCategories) {
+    categories = categories.slice(0, tierDefinition.maxCategories);
+    capApplied = true;
+  }
+  if (tierDefinition.maxServiceRadiusKm != null && Number.isFinite(serviceRadiusKm) && serviceRadiusKm > tierDefinition.maxServiceRadiusKm) {
+    serviceRadiusKm = tierDefinition.maxServiceRadiusKm;
+    capApplied = true;
   }
 
   // Logo/foto's zijn optioneel — alleen uploaden als er echt een bestand is
@@ -165,6 +186,10 @@ export async function updateSupplierProfileAction(formData: FormData) {
     const succeeded = uploaded.filter((u): u is string => Boolean(u));
     if (succeeded.length < galleryFiles.length) uploadFailed = true;
     galleryUrls = [...supplier!.galleryUrls, ...succeeded];
+    if (tierDefinition.maxGalleryPhotos != null && galleryUrls.length > tierDefinition.maxGalleryPhotos) {
+      galleryUrls = galleryUrls.slice(0, tierDefinition.maxGalleryPhotos);
+      capApplied = true;
+    }
   }
 
   await updateSupplierAccount(supplier!.id, {
@@ -188,7 +213,10 @@ export async function updateSupplierProfileAction(formData: FormData) {
 
   revalidatePath("/supplier", "layout");
   revalidatePath(`/leveranciers/${supplier!.id}`);
-  redirect(uploadFailed ? "/supplier/profile?saved=1&uploadError=1" : "/supplier/profile?saved=1");
+  const params = new URLSearchParams({ saved: "1" });
+  if (uploadFailed) params.set("uploadError", "1");
+  if (capApplied) params.set("capApplied", "1");
+  redirect(`/supplier/profile?${params.toString()}`);
 }
 
 export async function requestSupplierVerificationAction() {
@@ -293,18 +321,22 @@ export async function toggleStoreOpenAction(open: boolean): Promise<{ ok: boolea
 }
 
 /**
- * Vyra Pro aan/uit (spec-item #53, laag 3) — vast maandbedrag i.p.v.
- * commissie per boeking, plus een bescheiden voorrangsboost in de matching.
- * Zelfde vorm als `toggleSupplierBlockedDateAction`.
+ * Leverancier kiest zelf een abonnementsniveau (spec-item #53-vervolg,
+ * SaaS-pivot) — zelfde vorm als `toggleSupplierBlockedDateAction`. Een
+ * self-service keuze zonder automatische incasso; zie
+ * `setSupplierSubscriptionTier` in lib/data/store.ts voor de volledige
+ * toelichting.
  */
-export async function toggleProSubscriptionAction(active: boolean): Promise<{ ok: boolean; error?: string }> {
+export async function setSubscriptionTierAction(tier: SubscriptionTier): Promise<{ ok: boolean; error?: string }> {
+  if (!SUBSCRIPTION_TIER_ORDER.includes(tier)) return { ok: false, error: "Onbekend abonnementsniveau." };
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Niet ingelogd." };
   const supplier = await getSupplierAccountByOwner(user.id);
   if (!supplier) return { ok: false, error: "Geen leveranciersaccount gevonden." };
 
-  await setSupplierProSubscription(supplier.id, active);
+  await setSupplierSubscriptionTier(supplier.id, tier);
   revalidatePath("/supplier/profile");
+  revalidatePath(`/leveranciers/${supplier.id}`);
   return { ok: true };
 }
 

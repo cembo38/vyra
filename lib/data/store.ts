@@ -2,14 +2,16 @@ import "server-only";
 import { uid } from "@/lib/utils";
 import {
   ADMIN_EMAILS,
-  CommissionTier,
   DEFAULT_DEPOSIT_PERCENT,
+  EffectiveSupplierTier,
   EMAIL_ENABLED,
-  INTRO_BOOKING_COUNT,
   ORGANIZER_STALLED_DAYS,
   SUPPLIER_RESPONSE_WINDOW_HOURS,
+  SubscriptionTier,
+  TRIAL_BOOKING_COUNT,
   calculateCommission,
   formatCurrency,
+  getEffectiveTierDefinition,
 } from "@/lib/config";
 import { SUPPLIERS, suppliersByCategory, getSupplierById } from "@/lib/data/suppliers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -275,8 +277,7 @@ function rowToSupplierAccount(r: Row): SupplierAccount {
     socialTiktok: r.social_tiktok ?? null,
     logoUrl: r.logo_url ?? null,
     galleryUrls: r.gallery_urls ?? [],
-    proSubscribed: r.pro_subscribed ?? false,
-    proSubscribedAt: r.pro_subscribed_at ?? null,
+    subscriptionTier: (r.subscription_tier ?? "starter") as SubscriptionTier,
     storeOpen: r.store_open ?? true,
     createdAt: r.created_at,
   };
@@ -951,7 +952,7 @@ export async function hasOrganizerContactedSupplier(supplierId: string): Promise
 
 /**
  * Aantal succesvol AFGERONDE boekingen van deze leverancier tot nu toe —
- * bepaalt of hij nog in zijn instapperiode zit (zie `INTRO_BOOKING_COUNT`
+ * bepaalt of hij nog in zijn proefperiode zit (zie `TRIAL_BOOKING_COUNT`
  * in lib/config.ts). Telt op `offers.status === "accepted"`, want dat is
  * precies het moment waarop `createPaymentForOffer` ook al een boeking
  * beschouwt (zie ook `getSupplierOrders` hierboven, dat dezelfde telling
@@ -968,45 +969,68 @@ async function countAcceptedOffersForSupplier(supplierId: string, excludeOfferId
 }
 
 /**
- * Welke commissielaag geldt op dit moment voor deze leverancier? Pro gaat
- * voor (een Pro-leverancier betaalt nooit ook nog het instaptarief), daarna
- * de instapperiode, daarna het gestaffelde tarief. Gebruikt zowel bij het
- * daadwerkelijk aanmaken van een betaling (`createPaymentForOffer`) als
- * puur informatief op het leveranciersprofiel (`getSupplierCommissionStatus`).
+ * Puur, synchrone regel voor welke laag op dit moment geldt voor een
+ * leverancier — de proefperiode gaat altijd voor (spec-item #53-vervolg,
+ * SaaS-pivot): zolang een leverancier nog geen `TRIAL_BOOKING_COUNT`
+ * bevestigde boekingen heeft, ervaart hij het volledige platform gratis,
+ * ongeacht welk abonnement hij eventueel al heeft gekozen. Los van de
+ * database-aanroepen gehouden zodat `findRealMatchingSuppliers` hem kan
+ * hergebruiken zonder de leverancier een tweede keer op te hoeven halen.
  */
-export async function resolveSupplierCommissionTier(supplierId: string, excludeOfferId?: string): Promise<CommissionTier> {
-  const supplier = await getSupplierAccount(supplierId);
-  if (supplier?.proSubscribed) return "pro";
-  const priorBookings = await countAcceptedOffersForSupplier(supplierId, excludeOfferId);
-  return priorBookings < INTRO_BOOKING_COUNT ? "intro" : "tiered";
-}
-
-/** Voor weergave op het leveranciersprofiel: huidige laag + hoeveel instapboekingen er nog over zijn. */
-export async function getSupplierCommissionStatus(supplierId: string): Promise<{
-  tier: CommissionTier;
-  acceptedBookingsCount: number;
-  introBookingsRemaining: number;
-}> {
-  const [tier, acceptedBookingsCount] = await Promise.all([
-    resolveSupplierCommissionTier(supplierId),
-    countAcceptedOffersForSupplier(supplierId),
-  ]);
-  return { tier, acceptedBookingsCount, introBookingsRemaining: Math.max(0, INTRO_BOOKING_COUNT - acceptedBookingsCount) };
+function computeEffectiveTier(supplier: SupplierAccount, priorAcceptedBookings: number): EffectiveSupplierTier {
+  return priorAcceptedBookings < TRIAL_BOOKING_COUNT ? "trial" : supplier.subscriptionTier;
 }
 
 /**
- * Vyra Pro aan/uit — vast maandbedrag i.p.v. commissie per boeking (spec-item
- * #53, laag 3). Nog een zelfbedienings-toggle zonder automatische incasso —
- * zelfde "mock"-aanpak als de rest van de betaalflow in deze app (zie
- * `provider: "mock"` bij `createPaymentForOffer`), dus geen halve/misleidende
- * facturatie voordat er een echte Stripe-koppeling voor abonnementen is.
+ * Welk abonnementsniveau (of de proefperiode) geldt op dit moment voor deze
+ * leverancier? Gebruikt zowel bij het daadwerkelijk aanmaken van een
+ * betaling (`createPaymentForOffer`) als puur informatief op het
+ * leveranciersprofiel (`getSupplierCommissionStatus`).
  */
-export async function setSupplierProSubscription(supplierId: string, active: boolean): Promise<void> {
+export async function resolveEffectiveSupplierTier(supplierId: string, excludeOfferId?: string): Promise<EffectiveSupplierTier> {
+  const supplier = await getSupplierAccount(supplierId);
+  if (!supplier) return "starter";
+  const priorBookings = await countAcceptedOffersForSupplier(supplierId, excludeOfferId);
+  return computeEffectiveTier(supplier, priorBookings);
+}
+
+/** De volledige tier-definitie (perks, limieten, commissie) die op dit moment voor deze leverancier geldt. */
+export async function getSupplierEffectiveTierDefinition(supplierId: string) {
+  const tier = await resolveEffectiveSupplierTier(supplierId);
+  return getEffectiveTierDefinition(tier);
+}
+
+/** Voor weergave op het leveranciersprofiel: huidige laag + hoeveel proefboekingen er nog over zijn. */
+export async function getSupplierCommissionStatus(supplierId: string): Promise<{
+  tier: EffectiveSupplierTier;
+  inTrial: boolean;
+  acceptedBookingsCount: number;
+  trialBookingsRemaining: number;
+}> {
+  const [tier, acceptedBookingsCount] = await Promise.all([
+    resolveEffectiveSupplierTier(supplierId),
+    countAcceptedOffersForSupplier(supplierId),
+  ]);
+  return {
+    tier,
+    inTrial: tier === "trial",
+    acceptedBookingsCount,
+    trialBookingsRemaining: Math.max(0, TRIAL_BOOKING_COUNT - acceptedBookingsCount),
+  };
+}
+
+/**
+ * Leverancier kiest zelf een abonnementsniveau (spec-item #53-vervolg,
+ * SaaS-pivot) — nog een zelfbedienings-keuze zonder automatische incasso,
+ * zelfde "mock"-aanpak als de rest van de betaalflow in deze app (zie
+ * `provider: "mock"` bij `createPaymentForOffer`): het niveau bepaalt al
+ * meteen de perks/limieten/commissie, maar het daadwerkelijk innen van het
+ * maandbedrag loopt (nog) niet via de app, zie het leveranciersprofiel voor
+ * de Stripe Payment Link die de leverancier daarvoor zelf gebruikt.
+ */
+export async function setSupplierSubscriptionTier(supplierId: string, tier: SubscriptionTier): Promise<void> {
   const supabase = await sb();
-  await supabase
-    .from("suppliers")
-    .update({ pro_subscribed: active, pro_subscribed_at: active ? new Date().toISOString() : null })
-    .eq("id", supplierId);
+  await supabase.from("suppliers").update({ subscription_tier: tier }).eq("id", supplierId);
 }
 
 /**
@@ -1078,22 +1102,30 @@ async function findRealMatchingSuppliers(
 
   const unavailableIds = opts.eventDate ? await getUnavailableSupplierIds(pool.map((s) => s.id), opts.eventDate) : new Set<string>();
 
-  const scored = pool.map((sup) => {
-    let score = 60;
-    if (opts.locationLabel && sup.serviceAreas.some((a) => a.toLowerCase().includes(opts.locationLabel!.toLowerCase()))) {
-      score += 20;
-    }
-    score += Math.round(sup.ratingAvg * 4);
-    if (sup.verified) score += 5;
-    // Eén van de Vyra Pro-perks (spec-item #53, laag 3): een bescheiden
-    // voorrangsboost in de matching — vergelijkbaar met de "geverifieerd"-
-    // boost hierboven, net iets hoger omdat dit een betaald voordeel is.
-    if (sup.proSubscribed) score += 8;
-    const unavailableOnDate = unavailableIds.has(sup.id);
-    return { supplier: sup, score: Math.min(99, score), unavailableOnDate };
-  });
+  // Abonnementsniveau-perk (spec-item #53-vervolg, SaaS-pivot): een
+  // additieve matching-boost per niveau (Groei/Pro/Premium/Enterprise, en de
+  // proefperiode zelf) plus, voor Premium/Enterprise, een HARDE
+  // sorteer-override — "gegarandeerd bovenaan" moet dat ook letterlijk zijn,
+  // niet slechts een kans, anders klopt de tekst in de voorwaarden niet met
+  // wat er werkelijk gebeurt.
+  const scored = await Promise.all(
+    pool.map(async (sup) => {
+      let score = 60;
+      if (opts.locationLabel && sup.serviceAreas.some((a) => a.toLowerCase().includes(opts.locationLabel!.toLowerCase()))) {
+        score += 20;
+      }
+      score += Math.round(sup.ratingAvg * 4);
+      if (sup.verified) score += 5;
+      const priorBookings = await countAcceptedOffersForSupplier(sup.id);
+      const tierDefinition = getEffectiveTierDefinition(computeEffectiveTier(sup, priorBookings));
+      score += tierDefinition.matchingBoost;
+      const unavailableOnDate = unavailableIds.has(sup.id);
+      return { supplier: sup, score: Math.min(99, score), unavailableOnDate, guaranteedTopPosition: tierDefinition.guaranteedTopPosition };
+    })
+  );
   scored.sort((a, b) => {
     if (a.unavailableOnDate !== b.unavailableOnDate) return a.unavailableOnDate ? 1 : -1;
+    if (a.guaranteedTopPosition !== b.guaranteedTopPosition) return a.guaranteedTopPosition ? -1 : 1;
     return b.score - a.score;
   });
   return scored.slice(0, limit);
@@ -1233,8 +1265,13 @@ export interface SupplierEarningsSummary {
 
 export async function getSupplierEarningsSummary(supplierId: string): Promise<SupplierEarningsSummary> {
   const [orders, leads] = await Promise.all([getSupplierOrders(supplierId), getSupplierLeads(supplierId)]);
-  const paidCents = orders.filter((o) => o.payment?.status === "paid").reduce((sum, o) => sum + (o.payment?.supplierAmountCents ?? 0), 0);
-  const pendingCents = orders.filter((o) => o.payment && o.payment.status !== "paid").reduce((sum, o) => sum + (o.payment?.supplierAmountCents ?? 0), 0);
+  // totalCents (het volledige, afgesproken bedrag), niet supplierAmountCents
+  // (het deel ná aftrek van Vyra's commissie) — zolang Vyra zelf geen
+  // betalingen verwerkt, betaalt de organisator rechtstreeks aan de
+  // leverancier, zonder dat Vyra daar iets van inhoudt. Zie de toelichting
+  // op de checkout-pagina (app/events/[id]/checkout/[paymentId]/page.tsx).
+  const paidCents = orders.filter((o) => o.payment?.status === "paid").reduce((sum, o) => sum + (o.payment?.totalCents ?? 0), 0);
+  const pendingCents = orders.filter((o) => o.payment && o.payment.status !== "paid").reduce((sum, o) => sum + (o.payment?.totalCents ?? 0), 0);
   const now = new Date();
   const upcomingThisMonthCount = orders.filter((o) => {
     if (!o.event?.date) return false;
@@ -1791,10 +1828,11 @@ export async function createPaymentForOffer(offerId: string, plan: "full" | "dep
   const categorySiblings = await getOffersForEvent(o.eventId, o.categoryKey);
   if (categorySiblings.some((sibling) => sibling.id !== o.id && sibling.status === "accepted")) return null;
 
-  // Welke commissielaag geldt NU voor deze leverancier (instap/gestaffeld/Pro)
-  // — deze offerte zelf wordt uitgesloten van de boekingentelling, anders
-  // telt boeking 5 zichzelf al mee als boeking 6 (zie resolveSupplierCommissionTier).
-  const tier = await resolveSupplierCommissionTier(o.supplierId, o.id);
+  // Welk abonnementsniveau (of nog de proefperiode) geldt NU voor deze
+  // leverancier — deze offerte zelf wordt uitgesloten van de
+  // boekingentelling, anders telt de laatste proefboeking zichzelf al mee
+  // als de boeking die de proefperiode beëindigt (zie resolveEffectiveSupplierTier).
+  const tier = await resolveEffectiveSupplierTier(o.supplierId, o.id);
   const commission = calculateCommission(o.totalPriceCents, tier);
 
   if (plan === "full") {

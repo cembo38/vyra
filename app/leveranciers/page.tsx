@@ -9,10 +9,10 @@ import { SupplierAvatar } from "@/components/ui/Avatar";
 import { getCurrentUser } from "@/lib/auth";
 import { searchSupplierAccounts } from "@/lib/data/store";
 import { SUPPLIER_CATEGORY_LABELS, SupplierCategory } from "@/lib/types";
-import { formatCurrency } from "@/lib/config";
+import { SUBSCRIPTION_TIERS, formatCurrency } from "@/lib/config";
 import { SIDEBAR_OFFSET_CLASS } from "@/lib/nav-constants";
 import { cn } from "@/lib/utils";
-import { MapPin, Search, ShieldCheck, Star } from "lucide-react";
+import { Crown, MapPin, Search, ShieldCheck, Sparkles, Star } from "lucide-react";
 
 export const metadata = { title: "Leveranciers zoeken — Vyra" };
 
@@ -114,6 +114,19 @@ export default async function SupplierDirectoryPage(props: PageProps<"/leveranci
                 </div>
 
                 <div className="mt-3 flex flex-wrap gap-1.5">
+                  {/*
+                    Badge o.b.v. het GEKOZEN abonnementsniveau (spec-item #53-vervolg,
+                    SaaS-pivot) — niet de effectieve laag inclusief proefperiode, want
+                    dat zou hier een aparte databasequery per leverancier vergen. Op het
+                    eigen leveranciersprofiel/openbare profielpagina wordt wel de
+                    effectieve laag gebruikt (zie app/leveranciers/[id]/page.tsx).
+                  */}
+                  {SUBSCRIPTION_TIERS[s.subscriptionTier].badge === "elite" && (
+                    <Badge tone="clay" icon={<Crown className="size-3" />}>Elite Partner</Badge>
+                  )}
+                  {SUBSCRIPTION_TIERS[s.subscriptionTier].badge === "aanbevolen" && (
+                    <Badge tone="ochre" icon={<Sparkles className="size-3" />}>Aanbevolen</Badge>
+                  )}
                   {s.categories.slice(0, 3).map((c) => (
                     <Badge key={c} tone="sage">{SUPPLIER_CATEGORY_LABELS[c]}</Badge>
                   ))}

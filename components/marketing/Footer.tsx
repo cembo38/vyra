@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/marketing/Logo";
-import { INTRO_COMMISSION_RATE } from "@/lib/config";
+import { SUBSCRIPTION_TIERS, formatCurrency } from "@/lib/config";
 
 export function Footer() {
   return (
@@ -39,8 +39,10 @@ export function Footer() {
         </div>
         <div className="mt-12 flex flex-col gap-2 border-t border-line-soft pt-6 text-xs text-ink-faint sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} Vyra. Alle rechten voorbehouden.</p>
-          {/* Was hardcoded op de oude vaste 9,5%-commissie — zie de toelichting bij TrustSection.tsx. */}
-          <p>Vyra rekent vanaf {(INTRO_COMMISSION_RATE * 100).toFixed(0)}% platformkosten over geboekte diensten — altijd vooraf zichtbaar, nooit verborgen.</p>
+          {/* Sinds het abonnementenmodel voor leveranciers (spec-item #53-vervolg,
+              SaaS-pivot): organisatoren betalen nooit platformkosten, leveranciers
+              kiezen zelf een abonnement — zie SUBSCRIPTION_TIERS in lib/config.ts. */}
+          <p>Leveranciers kiezen zelf hun abonnement bij Vyra, vanaf {formatCurrency(SUBSCRIPTION_TIERS.starter.priceCents!)}/maand — organisatoren betalen nooit platformkosten.</p>
         </div>
       </div>
     </footer>

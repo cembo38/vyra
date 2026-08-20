@@ -292,10 +292,10 @@ function buildWeddingEvent(ownerId: string): EventBundle {
   requests.push(request({ eventId, categoryKey: "lighting_sound", supplierIds: ["sup_light_01"], desiredService: "Sfeerverlichting binnen en buiten", specialRequests: "Uplighting in pastel tinten", budgetCents: 90_000, status: "awaiting_response", sentHoursAgo: 24 }));
   requests.push(request({ eventId, categoryKey: "cleaning", supplierIds: ["sup_clean_01"], desiredService: "Eindschoonmaak locatie", specialRequests: "Oplevering vóór 10:00 de volgende ochtend", budgetCents: 35_000, status: "awaiting_response", sentHoursAgo: 20 }));
 
-  // Demo-boeking gebruikt het gestaffelde tarief (spec-item #53) — een
-  // realistische venue-boeking van deze omvang zou allang voorbij de
-  // instapperiode van een leverancier zijn.
-  const demoCommission = calculateCommission(520_000, "tiered");
+  // Demo-boeking gebruikt het Starter-tarief (spec-item #53-vervolg,
+  // SaaS-pivot) — een realistische venue-boeking van deze omvang zou allang
+  // voorbij de proefperiode van een leverancier zijn.
+  const demoCommission = calculateCommission(520_000, "starter");
   const payments: Payment[] = [
     {
       id: uid("pay"),

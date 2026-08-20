@@ -1,14 +1,13 @@
 import { ShieldCheck, Clock, Percent, HeartHandshake } from "lucide-react";
-import { INTRO_COMMISSION_RATE } from "@/lib/config";
 
 const items = [
   { icon: Clock, title: "Binnen 48 uur reactie", description: "Leveranciers reageren gegarandeerd snel — met duidelijke deadlines en herinneringen." },
-  // Was hardcoded op de oude vaste 9,5%-commissie — sinds het gestaffelde
-  // model (spec-item #53) bestaat er geen enkel vast percentage meer, dus
-  // hier het instaptarief (het laagste, eerste-indruk-tarief) i.p.v. een
-  // getal dat niet meer overal hetzelfde is. Zie app/voorwaarden/page.tsx
-  // Artikel 5 voor de volledige, dynamische uitleg van alle lagen.
-  { icon: Percent, title: `Vanaf ${(INTRO_COMMISSION_RATE * 100).toFixed(0)}% platformkosten`, description: "Transparant en vooraf zichtbaar bij elke offerte. Geen verborgen kosten achteraf." },
+  // Sinds het abonnementenmodel voor leveranciers (spec-item #53-vervolg,
+  // SaaS-pivot) verdient Vyra aan een maandabonnement met leveranciers, niet
+  // aan een opslag op jouw boeking — dus geen percentage meer om hier te
+  // noemen. Zie app/voorwaarden/page.tsx Artikel 5 voor de volledige
+  // toelichting op hoe leveranciers Vyra betalen.
+  { icon: Percent, title: "Geen platformkosten voor jou", description: "Je betaalt precies de prijs die de leverancier je biedt — geen opslag, geen verborgen kosten." },
   { icon: ShieldCheck, title: "Geverifieerde aanbieders", description: "Beoordelingen, portfolio's en verificatie zodat je met vertrouwen kiest." },
   { icon: HeartHandshake, title: "Jij houdt de regie", description: "De AI adviseert, jij beslist. Elke aanbeveling is aanpasbaar of af te wijzen." },
 ];

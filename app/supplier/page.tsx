@@ -7,8 +7,8 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { LinkButton } from "@/components/ui/Button";
 import { SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
-import { formatCurrency, INTRO_COMMISSION_RATE } from "@/lib/config";
-import { CheckCircle2, Clock, Percent, Sparkles, Star } from "lucide-react";
+import { SUBSCRIPTION_TIERS, SUBSCRIPTION_TIER_ORDER, TRIAL_BOOKING_COUNT, formatCurrency } from "@/lib/config";
+import { CheckCircle2, Clock, Crown, Percent, Sparkles, Star } from "lucide-react";
 
 export const metadata = { title: "Voor leveranciers — Vyra" };
 
@@ -32,11 +32,45 @@ export default function SupplierLandingPage() {
         <section className="border-y border-line-soft bg-paper-dim/60 py-14">
           <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 px-6 sm:grid-cols-3">
             <Stat icon={<Clock className="size-5" />} title="Duidelijke deadlines" description="Reageer binnen 48 uur op een aanvraag — met automatische herinneringen." />
-            {/* Was hardcoded op de oude vaste 9,5%-commissie — zie de
-                toelichting bij TrustSection.tsx voor waarom dat sinds het
-                gestaffelde model (spec-item #53) niet meer klopt. */}
-            <Stat icon={<Percent className="size-5" />} title={`Vanaf ${(INTRO_COMMISSION_RATE * 100).toFixed(0)}% commissie`} description="Alleen bij een succesvolle boeking. Geen abonnement verplicht, geen verborgen kosten." />
+            {/* Sinds het abonnementenmodel voor leveranciers (spec-item #53-vervolg,
+                SaaS-pivot) is er geen vast commissiepercentage meer om hier te
+                noemen — leveranciers proberen eerst gratis uit, en kiezen daarna
+                een abonnement. Zie de vergelijkingstabel verderop op deze pagina. */}
+            <Stat icon={<Percent className="size-5" />} title={`Eerste ${TRIAL_BOOKING_COUNT} boekingen gratis`} description="Volledige toegang tot alles wat Vyra te bieden heeft, zonder abonnement — kies daarna het niveau dat bij je past." />
             <Stat icon={<Star className="size-5" />} title="Bouw je reputatie op" description="Reviews, reactiesnelheid en acceptatiegraad verbeteren je positie in de matching." />
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-5xl px-6 py-16">
+          <div className="mb-8 text-center">
+            <h2 className="font-display text-2xl text-ink">Kies het abonnement dat bij je past</h2>
+            <p className="mx-auto mt-2 max-w-xl text-sm text-ink-soft">
+              Eerst {TRIAL_BOOKING_COUNT} boekingen volledig gratis uitproberen, met volledige toegang. Daarna kies je zelf — op elk
+              moment te wijzigen.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            {SUBSCRIPTION_TIER_ORDER.map((key) => {
+              const def = SUBSCRIPTION_TIERS[key];
+              return (
+                <Card key={key} className="flex flex-col">
+                  <div className="flex items-center gap-1.5">
+                    <p className="font-display text-base text-ink">{def.label}</p>
+                    {def.badge === "aanbevolen" && <Sparkles className="size-3.5 text-ochre" />}
+                    {def.badge === "elite" && <Crown className="size-3.5 text-clay" />}
+                  </div>
+                  <p className="mt-0.5 text-sm font-medium text-ink-soft">{def.priceLabel}</p>
+                  <p className="mt-1.5 text-xs text-ink-faint">{def.tagline}</p>
+                  <ul className="mt-3 flex-1 space-y-1.5">
+                    {def.perks.slice(0, 4).map((perk) => (
+                      <li key={perk} className="flex items-start gap-1.5 text-xs text-ink-soft">
+                        <CheckCircle2 className="mt-0.5 size-3 shrink-0 text-sage" /> {perk}
+                      </li>
+                    ))}
+                  </ul>
+                </Card>
+              );
+            })}
           </div>
         </section>
 

@@ -3,13 +3,12 @@ import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { Field, Input, Textarea } from "@/components/ui/Form";
-import { ProSubscriptionToggle } from "@/components/app/ProSubscriptionToggle";
+import { SubscriptionTierPicker } from "@/components/app/SubscriptionTierPicker";
 import { getCurrentUser } from "@/lib/auth";
 import { getSupplierAccountByOwner, getSupplierCommissionStatus } from "@/lib/data/store";
 import { updateSupplierProfileAction, removeSupplierGalleryImageAction, requestSupplierVerificationAction } from "@/lib/actions/supplier-actions";
-import { COMMISSION_FEE_CAP_CENTS, COMMISSION_TIER_LABELS, INTRO_COMMISSION_RATE, PRO_SUBSCRIPTION_PRICE_CENTS, formatCurrency } from "@/lib/config";
 import { SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
-import { BadgeCheck, CheckCircle2, Clock, ExternalLink, ImagePlus, Percent, X } from "lucide-react";
+import { BadgeCheck, CheckCircle2, Clock, ExternalLink, ImagePlus, X } from "lucide-react";
 
 export const metadata = { title: "Bedrijfsprofiel — Vyra voor leveranciers" };
 
@@ -18,6 +17,7 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
   const hasError = params.error === "1";
   const justSaved = params.saved === "1";
   const uploadFailed = params.uploadError === "1";
+  const capApplied = params.capApplied === "1";
   const verifyError = params.verifyError === "1";
   const verifyRequested = params.verifyRequested === "1";
 
@@ -81,41 +81,20 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
       </Card>
 
       <Card className="mt-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-medium uppercase tracking-wide text-ink-faint">Commissietarief</h2>
-            <p className="mt-1 text-sm text-ink-soft">Wat Vyra van je vraagt over een succesvolle boeking — hangt af van je fase en het bedrag.</p>
-          </div>
-          <Badge tone={commissionStatus.tier === "pro" ? "success" : commissionStatus.tier === "intro" ? "ochre" : "neutral"} icon={<Percent className="size-3.5" />}>
-            {COMMISSION_TIER_LABELS[commissionStatus.tier]}
-          </Badge>
-        </div>
-
-        {commissionStatus.tier === "intro" && (
-          <p className="mt-3 text-sm text-ink-soft">
-            Je zit nog in je instapperiode: <strong className="text-ink">{(INTRO_COMMISSION_RATE * 100).toFixed(0)}%</strong> platformkosten
-            i.p.v. het normale gestaffelde tarief. Nog <strong className="text-ink">{commissionStatus.introBookingsRemaining}</strong> boeking
-            {commissionStatus.introBookingsRemaining !== 1 ? "en" : ""} tegen dit tarief ({commissionStatus.acceptedBookingsCount} tot nu toe afgerond).
-          </p>
-        )}
-        {commissionStatus.tier === "tiered" && (
-          <p className="mt-3 text-sm text-ink-soft">
-            Je instapperiode zit erop ({commissionStatus.acceptedBookingsCount} boekingen afgerond) — je betaalt nu het gestaffelde tarief:
-            hoe hoger het boekingsbedrag, hoe lager het percentage, met een maximum van {formatCurrency(COMMISSION_FEE_CAP_CENTS)} per boeking.
-          </p>
-        )}
-        {commissionStatus.tier === "pro" && (
-          <p className="mt-3 text-sm text-ink-soft">Je bent Vyra Pro-abonnee: geen commissie per boeking meer, plus voorrang in de matching.</p>
-        )}
-
-        <div className="mt-4 border-t border-line-soft pt-4">
-          <p className="text-sm font-medium text-ink">Vyra Pro</p>
+        <div>
+          <h2 className="text-sm font-medium uppercase tracking-wide text-ink-faint">Abonnement</h2>
           <p className="mt-1 text-sm text-ink-soft">
-            Vast maandbedrag i.p.v. commissie per boeking — plus voorrang in de matching, ongeacht hoeveel je al hebt geboekt.
+            Je huidige niveau bepaalt hoeveel categorieën en foto&apos;s je mag gebruiken, hoe ver je werkgebied reikt, je positie in de
+            matching, en de commissie op boekingen. Zie{" "}
+            <Link href="/voorwaarden" target="_blank" className="text-sage hover:underline">de voorwaarden</Link> voor alle details.
           </p>
-          <div className="mt-3">
-            <ProSubscriptionToggle active={supplier.proSubscribed} priceCents={PRO_SUBSCRIPTION_PRICE_CENTS} />
-          </div>
+        </div>
+        <div className="mt-4">
+          <SubscriptionTierPicker
+            currentTier={supplier.subscriptionTier}
+            inTrial={commissionStatus.inTrial}
+            trialBookingsRemaining={commissionStatus.trialBookingsRemaining}
+          />
         </div>
       </Card>
 
@@ -132,6 +111,12 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
       {uploadFailed && (
         <div className="mt-4 rounded-xl border border-warning-50 bg-warning-50 px-3 py-2 text-sm text-warning">
           Je overige wijzigingen zijn opgeslagen, maar minstens één foto kon niet worden geüpload. Probeer het opnieuw, of neem contact op als dit blijft gebeuren.
+        </div>
+      )}
+      {capApplied && (
+        <div className="mt-4 rounded-xl border border-warning-50 bg-warning-50 px-3 py-2 text-sm text-warning">
+          Je wijzigingen zijn opgeslagen, maar één of meer velden (categorieën, foto&apos;s of werkgebied) zijn afgekapt tot het maximum
+          van je huidige abonnementsniveau. Kies hieronder een hoger niveau om de limiet te verhogen.
         </div>
       )}
 

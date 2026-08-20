@@ -1,7 +1,7 @@
 import { MarketingHeader } from "@/components/marketing/MarketingHeader";
 import { Footer } from "@/components/marketing/Footer";
 import { Card } from "@/components/ui/Card";
-import { COMMISSION_TIERS, INTRO_BOOKING_COUNT, INTRO_COMMISSION_RATE, PRO_SUBSCRIPTION_PRICE_CENTS, formatCurrency } from "@/lib/config";
+import { SUBSCRIPTION_TIERS, SUBSCRIPTION_TIER_ORDER, TRIAL_BOOKING_COUNT, formatCurrency } from "@/lib/config";
 
 export const metadata = { title: "Algemene voorwaarden — Vyra" };
 
@@ -53,20 +53,54 @@ export default function TermsPage() {
               </p>
             </Article>
 
-            <Article title="Artikel 5 — Commissie en betalingen">
+            <Article title="Artikel 5 — Abonnementen, proefperiode en betalingen">
               <p>
-                Vyra rekent platformkosten per succesvol geboekte dienst, bovenop de leveranciersprijs. Een nieuwe leverancier
-                betaalt voor zijn eerste {INTRO_BOOKING_COUNT} boekingen een verlaagd instaptarief van {(INTRO_COMMISSION_RATE * 100).toFixed(0)}%.
-                Daarna geldt een gestaffeld tarief, afhankelijk van het boekingsbedrag: {COMMISSION_TIERS.map((t) => `${(t.rate * 100).toFixed(1)}%${t.uptoCents ? ` tot ${formatCurrency(t.uptoCents)}` : " daarboven"}`).join(", ")}.
-                Leveranciers kunnen er ook voor kiezen een vast Vyra Pro-abonnement van {formatCurrency(PRO_SUBSCRIPTION_PRICE_CENTS)} per maand af te
-                sluiten in plaats van commissie per boeking te betalen. Het geldende tarief is vooraf zichtbaar bij het afrekenen, zonder
-                verborgen kosten. Betalingen worden verwerkt via Stripe; Vyra ontvangt de betaling en keert het leveranciersdeel uit conform de
-                overeengekomen voorwaarden.
+                Vyra verdient aan een maandelijks abonnement met leveranciers, niet aan een opslag op de boeking van de
+                organisator: organisatoren betalen nooit platformkosten en betalen de leverancier altijd het overeengekomen
+                bedrag rechtstreeks. Elke nieuwe leverancier krijgt eerst zijn eerste {TRIAL_BOOKING_COUNT} succesvolle boekingen
+                volledig gratis, met volledige toegang tot alle functionaliteit van het platform (proefperiode). Daarna kiest de
+                leverancier zelf een van de volgende abonnementsniveaus, elk met eigen limieten (aantal categorieën, foto&apos;s,
+                werkgebied), positie in de matching en — zodra betalen via het platform beschikbaar is — commissietarief per
+                boeking:
+              </p>
+              <ul className="mt-2.5 list-disc space-y-1 pl-5">
+                {SUBSCRIPTION_TIER_ORDER.map((key) => {
+                  const def = SUBSCRIPTION_TIERS[key];
+                  const flatRate = def.commissionTiers.length === 1 && def.commissionTiers[0].uptoCents === null ? def.commissionTiers[0].rate : null;
+                  const commissionLabel =
+                    flatRate != null
+                      ? `${(flatRate * 100).toFixed(0)}% commissie`
+                      : `gestaffelde commissie (${def.commissionTiers.map((t) => `${(t.rate * 100).toFixed(1)}%${t.uptoCents ? ` tot ${formatCurrency(t.uptoCents)}` : " daarboven"}`).join(", ")})`;
+                  return (
+                    <li key={key}>
+                      <strong className="text-ink">{def.label}</strong> — {def.priceLabel}, {commissionLabel}
+                      {def.guaranteedTopPosition ? ", gegarandeerd bovenaan bij matching binnen categorie en regio" : ""}.
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="mt-2.5">
+                Een leverancier kan op elk moment zelf van niveau wisselen via zijn profiel. Het gekozen niveau bepaalt direct de
+                geldende perks, limieten en het commissietarief; het daadwerkelijk innen van het maandbedrag verloopt op dit
+                moment nog niet via automatische incasso — Vyra informeert de leverancier zodra dat wel het geval is.
+              </p>
+              <p className="mt-2.5">
+                Zolang betalen via het platform nog niet beschikbaar is, verwerkt Vyra zelf geen betalingen tussen organisator en
+                leverancier en int Vyra dus ook geen commissie over boekingen: de organisator en de leverancier spreken het
+                overeengekomen bedrag rechtstreeks met elkaar af en rekenen buiten het platform om af (bijvoorbeeld via
+                bankoverschrijving). Zodra betalen via het platform beschikbaar komt, wordt dit artikel daarover geïnformeerd
+                voordat het van toepassing wordt.
               </p>
             </Article>
 
             <Article title="Artikel 6 — Verplichtingen van de organisator">
-              <p>Je verstrekt correcte en volledige informatie over je evenement. Je bent zelf verantwoordelijk voor het beoordelen en accepteren van offertes. Je gebruikt het platform niet om leveranciers die je via Vyra hebt gevonden buiten het platform om te boeken met als doel de platformcommissie te omzeilen.</p>
+              <p>
+                Je verstrekt correcte en volledige informatie over je evenement. Je bent zelf verantwoordelijk voor het
+                beoordelen en accepteren van offertes. Zodra betalen via het platform beschikbaar is, gebruik je het platform
+                niet om leveranciers die je via Vyra hebt gevonden buiten het platform om te boeken met als doel de
+                platformcommissie te omzeilen — zolang dat nog niet het geval is, is rechtstreeks afrekenen met de leverancier
+                (zie Artikel 5) juist de bedoelde werkwijze.
+              </p>
             </Article>
 
             <Article title="Artikel 7 — Verplichtingen van de leverancier">
@@ -78,7 +112,9 @@ export default function TermsPage() {
                 Vyra spant zich in om een betrouwbaar platform te bieden, maar is niet aansprakelijk voor de daadwerkelijke
                 uitvoering van diensten door leveranciers, schade als gevolg van annulering door een leverancier, of
                 onjuistheden in door leveranciers verstrekte informatie. De aansprakelijkheid van Vyra is in alle gevallen beperkt
-                tot het bedrag van de betreffende platformcommissie.
+                tot het bedrag dat Vyra voor de betreffende boeking daadwerkelijk heeft ontvangen (commissie en/of
+                abonnementsgeld); is dat nihil — bijvoorbeeld bij een boeking tijdens de proefperiode of op een 0%-commissieniveau
+                — dan is de aansprakelijkheid beperkt tot een symbolisch bedrag van €25.
               </p>
             </Article>
 

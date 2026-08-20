@@ -5,9 +5,9 @@ import { Card } from "@/components/ui/Card";
 import { StageBadge } from "@/components/ui/Badge";
 import { getLatestAdminBriefing, listAllEvents, listAllOffers, listAllPayments, listAllRequests, listAllSupplierAccounts, listAllUsers } from "@/lib/data/store";
 import { isServiceRoleConfigured } from "@/lib/supabase/admin";
-import { formatCurrency } from "@/lib/config";
+import { SUBSCRIPTION_TIERS, SUBSCRIPTION_TIER_LABELS, SUBSCRIPTION_TIER_ORDER, formatCurrency } from "@/lib/config";
 import { EVENT_TYPE_LABELS } from "@/lib/types";
-import { Building2, CalendarDays, LineChart, Percent, Sparkles, Star, Users } from "lucide-react";
+import { Building2, CalendarDays, LineChart, Percent, Star, Users, Wallet } from "lucide-react";
 
 export const metadata = { title: "Overzicht — Vyra Admin" };
 
@@ -37,7 +37,16 @@ export default async function AdminOverviewPage() {
   // alle betaalde boekingen, i.p.v. een hardcoded constante die niet meer
   // overal hetzelfde is.
   const blendedCommissionRate = gmv > 0 ? (revenue / gmv) * 100 : 0;
-  const proSupplierCount = suppliers.filter((s) => s.proSubscribed).length;
+  // Indicatieve MRR (spec-item #53-vervolg, SaaS-pivot): som van de
+  // maandprijs van het gekozen niveau per leverancier — dit is nog GEEN
+  // daadwerkelijk geïnd bedrag (geen automatische incasso, zie
+  // SubscriptionTierPicker), puur een schatting o.b.v. de gekozen niveaus.
+  const mrrEstimateCents = suppliers.reduce((sum, s) => sum + (SUBSCRIPTION_TIERS[s.subscriptionTier]?.priceCents ?? 0), 0);
+  const tierDistribution = SUBSCRIPTION_TIER_ORDER.map((key) => ({
+    key,
+    label: SUBSCRIPTION_TIER_LABELS[key],
+    count: suppliers.filter((s) => s.subscriptionTier === key).length,
+  }));
   const eventsWithBudget = events.filter((e) => e.budget);
   const avgEventValue = eventsWithBudget.length ? eventsWithBudget.reduce((s, e) => s + (e.budget?.totalCents ?? 0), 0) / eventsWithBudget.length : 0;
   const avgResponseHours = suppliers.length ? suppliers.reduce((s, sup) => s + sup.avgResponseHours, 0) / suppliers.length : 0;
@@ -65,10 +74,28 @@ export default async function AdminOverviewPage() {
         <AdminBriefingCard briefing={briefing} />
       </div>
 
+      {/*
+        Zolang er geen betaaldienst is aangesloten (zie de toelichting op de
+        checkout-pagina), int Vyra geen commissie: organisatoren betalen het
+        volledige bedrag rechtstreeks aan de leverancier. GMV/revenue
+        hieronder zijn dus de WAARDE van bevestigde boekingen en de
+        commissie die erover zou gelden zodra online betalen live gaat —
+        geen geld dat daadwerkelijk op Vyra's rekening staat.
+      */}
       <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Kpi icon={<LineChart className="size-4" />} label="GMV" value={formatCurrency(gmv)} />
-        <Kpi icon={<Percent className="size-4" />} label="Platform revenue" value={formatCurrency(revenue)} sub={gmv > 0 ? `${blendedCommissionRate.toFixed(1)}% blended (instap+gestaffeld+Pro)` : "Nog geen betaalde boekingen"} />
-        <Kpi icon={<Sparkles className="size-4" />} label="Vyra Pro" value={String(proSupplierCount)} sub={`van ${suppliers.length} leveranciers`} />
+        <Kpi icon={<LineChart className="size-4" />} label="GMV" value={formatCurrency(gmv)} sub="Waarde bevestigde boekingen" />
+        <Kpi
+          icon={<Percent className="size-4" />}
+          label="Platform revenue"
+          value={formatCurrency(revenue)}
+          sub={gmv > 0 ? `${blendedCommissionRate.toFixed(1)}% blended — nog niet geïnd, zie toelichting` : "Nog geen bevestigde boekingen"}
+        />
+        <Kpi
+          icon={<Wallet className="size-4" />}
+          label="MRR (indicatief)"
+          value={formatCurrency(mrrEstimateCents)}
+          sub="O.b.v. gekozen niveau — nog geen automatische incasso"
+        />
         <Kpi icon={<CalendarDays className="size-4" />} label="Evenementen" value={String(events.length)} />
         <Kpi icon={<Building2 className="size-4" />} label="Leveranciers" value={String(suppliers.length)} />
         <Kpi icon={<Users className="size-4" />} label="Gebruikers" value={String(users.length)} />
@@ -78,6 +105,28 @@ export default async function AdminOverviewPage() {
       </div>
 
       <div className="mt-10">
+        <Card>
+          <h2 className="mb-4 font-display text-lg text-ink">Abonnementsniveaus</h2>
+          {suppliers.length === 0 ? (
+            <p className="text-sm text-ink-faint">Nog geen leveranciers.</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+              {tierDistribution.map((t) => (
+                <div key={t.key} className="rounded-xl border border-line-soft px-3.5 py-2.5 text-center">
+                  <p className="font-display text-xl text-ink">{t.count}</p>
+                  <p className="text-xs text-ink-faint">{t.label}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          <p className="mt-3 text-xs text-ink-faint">
+            Telt het gekozen niveau, ook tijdens de proefperiode (nog geen boekingen afgerond) — dat niveau gaat pas echt gelden zodra
+            de proefperiode voorbij is.
+          </p>
+        </Card>
+      </div>
+
+      <div className="mt-6">
         <Card>
           <h2 className="mb-4 font-display text-lg text-ink">Recente evenementen</h2>
           {events.length === 0 ? (

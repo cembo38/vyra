@@ -9,55 +9,251 @@
  */
 
 /**
- * Commissiemodel (spec-item #53) — bewust NIET meer één vlak percentage.
- * Doel: eerst leveranciers/traffic laten groeien vóórdat er commissie wordt
- * verzilverd, en daarna een tarief dat grote boekingen niet onevenredig
- * hard raakt. Drie lagen, in volgorde van toepassing (zie
- * `resolveSupplierCommissionTier` in lib/data/store.ts):
+ * Leveranciers-abonnementenmodel (spec-item #53, SaaS-pivot) — vervangt het
+ * eerdere drielaags-commissiemodel (instap/gestaffeld/Pro). Reden: commissie
+ * innen vereist dat je het geld even vasthoudt, wat pas kan zodra er een
+ * echte betaaldienst is aangesloten; een abonnement is een vast, terugkerend
+ * bedrag dat de leverancier zelf betaalt, los van hoe een boeking daarna
+ * wordt afgerekend — dat is nu al te innen (zie SUBSCRIPTION_TIERS
+ * hieronder voor hoe, via Stripe Payment Links).
  *
- * 1. "intro"  — een leverancier zijn eerste `INTRO_BOOKING_COUNT` succesvolle
- *    boekingen tellen tegen een laag, vast instaptarief. Dit is per
- *    leverancier (niet platformbreed), dus het schaalt vanzelf mee met elke
- *    nieuwe aanmelding — geen handmatig "omschakelmoment" nodig.
- * 2. "tiered" — ná de instapperiode: een gestaffeld tarief afhankelijk van
- *    het boekingsbedrag (net als belastingschijven — elk deel van het
- *    bedrag valt in zijn eigen schijf), met een maximum bedrag per boeking
- *    zodat een grote boeking nooit een onevenredig hoge fee oplevert.
- * 3. "pro"    — een leverancier die het Vyra Pro-abonnement heeft
- *    geactiveerd betaalt in plaats daarvan een vast maandbedrag en geen
- *    commissie per boeking meer (0%).
+ * Elke nieuwe leverancier krijgt eerst `TRIAL_BOOKING_COUNT` succesvolle
+ * boekingen volledig gratis, met VOLLEDIGE toegang tot alles wat Vyra te
+ * bieden heeft (zie `TRIAL_TIER_DEFINITION`) — zo ervaart een leverancier
+ * eerst het volledige platform vóórdat hij een abonnement kiest. Daarna kiest
+ * hij een van de vijf niveaus hieronder. Zie `resolveEffectiveSupplierTier`
+ * in lib/data/store.ts voor hoe dit per leverancier wordt bepaald.
+ *
+ * Belangrijk: abonnementsgeld wordt nog handmatig/self-service geregeld (via
+ * een Stripe Payment Link die je zelf aanmaakt, zie het leveranciersprofiel)
+ * — er is nog GEEN automatische incasso. Zelfde eerlijke "mock/pilotfase"-
+ * aanpak als de rest van de betaalflow in deze app.
  */
 
-/** Aantal succesvolle boekingen waarvoor een NIEUWE leverancier het lage instaptarief krijgt. */
-export const INTRO_BOOKING_COUNT = 5;
-export const INTRO_COMMISSION_RATE = 0.03; // 3%
+/** Aantal succesvolle boekingen waarvoor een NIEUWE leverancier volledig gratis, met volledige toegang, kan uitproberen. */
+export const TRIAL_BOOKING_COUNT = 3;
 
-/**
- * Gestaffelde tarieven ná de instapperiode. `uptoCents: null` betekent "en
- * hoger" — de laatste, open schijf. Elke schijf geldt alleen over het deel
- * van het bedrag dát in die schijf valt (progressief, zoals belastingschijven).
- */
-export const COMMISSION_TIERS: { uptoCents: number | null; rate: number }[] = [
-  { uptoCents: 50_000, rate: 0.06 }, // €0 – €500: 6%
-  { uptoCents: 200_000, rate: 0.045 }, // €500 – €2.000: 4,5%
-  { uptoCents: 1_000_000, rate: 0.03 }, // €2.000 – €10.000: 3%
-  { uptoCents: null, rate: 0.02 }, // > €10.000: 2%
-];
+export type SubscriptionTier = "starter" | "groei" | "pro" | "premium" | "enterprise";
+/** De proefperiode ("trial") gedraagt zich als een zesde, tijdelijke laag bovenop de vijf echte abonnementen. */
+export type EffectiveSupplierTier = "trial" | SubscriptionTier;
 
-/** Maximumbedrag aan platformkosten per boeking, ongeacht het gestaffelde tarief hierboven. */
+export const SUBSCRIPTION_TIER_ORDER: SubscriptionTier[] = ["starter", "groei", "pro", "premium", "enterprise"];
+
+export const SUBSCRIPTION_TIER_LABELS: Record<SubscriptionTier, string> = {
+  starter: "Starter",
+  groei: "Groei",
+  pro: "Pro",
+  premium: "Premium",
+  enterprise: "Enterprise",
+};
+
+interface CommissionBracket {
+  /** null = "en hoger" — de laatste, open schijf. */
+  uptoCents: number | null;
+  rate: number;
+}
+
+export interface SubscriptionTierDefinition {
+  key: EffectiveSupplierTier;
+  label: string;
+  /** null = geen vaste prijs (Enterprise: op maat). */
+  priceCents: number | null;
+  priceLabel: string;
+  tagline: string;
+  /** null = onbeperkt. */
+  maxCategories: number | null;
+  /** null = onbeperkt. */
+  maxGalleryPhotos: number | null;
+  /** null = onbeperkt. */
+  maxServiceRadiusKm: number | null;
+  /** Additieve score-boost in de matching (zie findRealMatchingSuppliers in lib/data/store.ts). */
+  matchingBoost: number;
+  /** Harde sorteer-override: altijd bovenaan binnen categorie/regio, ongeacht score (niet kans-gebaseerd). */
+  guaranteedTopPosition: boolean;
+  /** Hoeveel benchmark-statistieken (t.o.v. het categoriegemiddelde) zichtbaar zijn op het leveranciersprofiel. */
+  insightMetrics: 0 | 1 | 3;
+  badge: "none" | "aanbevolen" | "elite";
+  personalSupportLine: boolean;
+  dedicatedAccountManager: boolean;
+  /** Progressief, net als belastingschijven — elk deel van het boekingsbedrag valt in zijn eigen schijf. */
+  commissionTiers: CommissionBracket[];
+  /** Weergavetekst voor de vergelijkingstabel op het leveranciersprofiel. */
+  perks: string[];
+}
+
+/** Maximumbedrag aan platformkosten per boeking, ongeacht het gestaffelde tarief hieronder. */
 export const COMMISSION_FEE_CAP_CENTS = 40_000; // €400
 
-/** Vyra Pro: vast maandbedrag i.p.v. commissie per boeking (indicatief — nog geen automatische incasso, zie lib/actions/supplier-actions.ts). */
-export const PRO_SUBSCRIPTION_PRICE_CENTS = 7_900; // €79/maand
-export const PRO_COMMISSION_RATE = 0;
-
-export type CommissionTier = "intro" | "tiered" | "pro";
-
-export const COMMISSION_TIER_LABELS: Record<CommissionTier, string> = {
-  intro: "Instaptarief",
-  tiered: "Gestaffeld tarief",
-  pro: "Vyra Pro",
+export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefinition> = {
+  starter: {
+    key: "starter",
+    label: "Starter",
+    priceCents: 4_900,
+    priceLabel: "€49/maand",
+    tagline: "Om te beginnen — één categorie, altijd zichtbaar in matching.",
+    maxCategories: 1,
+    maxGalleryPhotos: 3,
+    maxServiceRadiusKm: 25,
+    matchingBoost: 0,
+    guaranteedTopPosition: false,
+    insightMetrics: 0,
+    badge: "none",
+    personalSupportLine: false,
+    dedicatedAccountManager: false,
+    commissionTiers: [
+      { uptoCents: 50_000, rate: 0.06 }, // €0 – €500: 6%
+      { uptoCents: 200_000, rate: 0.045 }, // €500 – €2.000: 4,5%
+      { uptoCents: 1_000_000, rate: 0.03 }, // €2.000 – €10.000: 3%
+      { uptoCents: null, rate: 0.02 }, // > €10.000: 2%
+    ],
+    perks: [
+      "1 categorie",
+      "Tot 3 foto's in je profiel",
+      "Werkgebied tot 25 km",
+      "Onbeperkt reageren op aanvragen",
+      "Gestaffelde commissie (6% → 2%, afhankelijk van het boekingsbedrag)",
+    ],
+  },
+  groei: {
+    key: "groei",
+    label: "Groei",
+    priceCents: 9_900,
+    priceLabel: "€99/maand",
+    tagline: "Meer categorieën, meer zichtbaarheid, minder commissie.",
+    maxCategories: 3,
+    maxGalleryPhotos: 10,
+    maxServiceRadiusKm: 50,
+    matchingBoost: 10,
+    guaranteedTopPosition: false,
+    insightMetrics: 1,
+    badge: "none",
+    personalSupportLine: false,
+    dedicatedAccountManager: false,
+    commissionTiers: [
+      { uptoCents: 50_000, rate: 0.04 },
+      { uptoCents: 200_000, rate: 0.03 },
+      { uptoCents: 1_000_000, rate: 0.02 },
+      { uptoCents: null, rate: 0.01 },
+    ],
+    perks: [
+      "Tot 3 categorieën",
+      "Tot 10 foto's in je profiel",
+      "Werkgebied tot 50 km",
+      "Hogere positie in de matching",
+      "Inzicht: je reactiesnelheid t.o.v. je categoriegemiddelde",
+      "Verlaagde gestaffelde commissie (4% → 1%)",
+    ],
+  },
+  pro: {
+    key: "pro",
+    label: "Pro",
+    priceCents: 19_900,
+    priceLabel: "€199/maand",
+    tagline: "Uitgelicht profiel, geen commissie meer.",
+    maxCategories: null,
+    maxGalleryPhotos: null,
+    maxServiceRadiusKm: 100,
+    matchingBoost: 20,
+    guaranteedTopPosition: false,
+    insightMetrics: 3,
+    badge: "aanbevolen",
+    personalSupportLine: false,
+    dedicatedAccountManager: false,
+    commissionTiers: [{ uptoCents: null, rate: 0 }],
+    perks: [
+      "Onbeperkt categorieën",
+      "Onbeperkt foto's",
+      "Werkgebied tot 100 km",
+      "\"Aanbevolen\"-badge op je profiel en in matching",
+      "Sterkere positie in de matching",
+      "Volledig inzicht: reactiesnelheid, acceptatiegraad én beoordeling t.o.v. je categoriegemiddelde",
+      "0% commissie op boekingen",
+    ],
+  },
+  premium: {
+    key: "premium",
+    label: "Premium",
+    priceCents: 34_900,
+    priceLabel: "€349/maand",
+    tagline: "Gegarandeerd bovenaan, met persoonlijke ondersteuning.",
+    maxCategories: null,
+    maxGalleryPhotos: null,
+    maxServiceRadiusKm: 150,
+    matchingBoost: 20,
+    guaranteedTopPosition: true,
+    insightMetrics: 3,
+    badge: "elite",
+    personalSupportLine: true,
+    dedicatedAccountManager: false,
+    commissionTiers: [{ uptoCents: null, rate: 0 }],
+    perks: [
+      "Alles van Pro",
+      "Gegarandeerd bovenaan bij matching binnen je categorie en regio",
+      "\"Vyra Elite Partner\"-badge",
+      "Werkgebied tot 150 km",
+      "Persoonlijke supportlijn",
+      "0% commissie op boekingen",
+    ],
+  },
+  enterprise: {
+    key: "enterprise",
+    label: "Enterprise",
+    priceCents: null,
+    priceLabel: "Vanaf €599/maand, op maat",
+    tagline: "Voor grote, veelboekende leveranciers — op maat.",
+    maxCategories: null,
+    maxGalleryPhotos: null,
+    maxServiceRadiusKm: null,
+    matchingBoost: 20,
+    guaranteedTopPosition: true,
+    insightMetrics: 3,
+    badge: "elite",
+    personalSupportLine: true,
+    dedicatedAccountManager: true,
+    commissionTiers: [{ uptoCents: null, rate: 0 }],
+    perks: [
+      "Alles van Premium",
+      "Onbeperkt werkgebied",
+      "Dedicated accountmanager",
+      "Rapportages op aanvraag",
+      "Maatwerkafspraken mogelijk",
+      "0% commissie op boekingen",
+    ],
+  },
 };
+
+/**
+ * Wat een leverancier tijdens de proefperiode krijgt: dezelfde perks als
+ * Enterprise (zodat hij het volledige platform kan ervaren vóórdat hij een
+ * abonnement kiest, zie de toelichting hierboven), maar zonder badge — die
+ * hoort bij een echt gekozen (en straks betaald) abonnement — en met 0%
+ * commissie.
+ */
+export const TRIAL_TIER_DEFINITION: SubscriptionTierDefinition = {
+  key: "trial",
+  label: "Proefperiode",
+  priceCents: null,
+  priceLabel: "Gratis",
+  tagline: `Je eerste ${TRIAL_BOOKING_COUNT} boekingen — met volledige toegang tot alles wat Vyra te bieden heeft.`,
+  maxCategories: null,
+  maxGalleryPhotos: null,
+  maxServiceRadiusKm: null,
+  matchingBoost: 20,
+  guaranteedTopPosition: true,
+  insightMetrics: 3,
+  badge: "none",
+  personalSupportLine: true,
+  dedicatedAccountManager: false,
+  commissionTiers: [{ uptoCents: null, rate: 0 }],
+  perks: [
+    `Je eerste ${TRIAL_BOOKING_COUNT} boekingen volledig gratis, 0% commissie`,
+    "Volledige toegang tot alle Enterprise-functies, zodat je eerst kunt ervaren wat Vyra voor je kan doen",
+  ],
+};
+
+export function getEffectiveTierDefinition(tier: EffectiveSupplierTier): SubscriptionTierDefinition {
+  return tier === "trial" ? TRIAL_TIER_DEFINITION : SUBSCRIPTION_TIERS[tier];
+}
 
 export const SUPPLIER_RESPONSE_WINDOW_HOURS = 48;
 
@@ -144,32 +340,25 @@ export function formatCurrency(
 }
 
 /**
- * Berekent de platformkosten voor een boeking, volgens het lagenmodel
- * hierboven. `tier` bepaalt welke laag van toepassing is voor déze
- * leverancier op dít moment — zie `resolveSupplierCommissionTier` in
- * lib/data/store.ts, dat per leverancier bepaalt of hij nog in zijn
- * instapperiode zit, het gestaffelde tarief betaalt, of Pro-abonnee is.
+ * Berekent de platformkosten voor een boeking, volgens het gestaffelde
+ * tarief van het abonnementsniveau (of de proefperiode) dat op dít moment
+ * voor déze leverancier geldt — zie `resolveEffectiveSupplierTier` in
+ * lib/data/store.ts. Voor Pro/Premium/Enterprise (en de proefperiode) is dat
+ * tarief een enkele schijf van 0%, dus dan komt hier altijd 0 platformkosten
+ * uit — dezelfde functie werkt voor alle niveaus, geen aparte "pro"-tak meer
+ * nodig.
  *
- * `rate` in het resultaat is het EFFECTIEVE (gemiddelde) percentage over
- * het hele bedrag — bij "tiered" dus niet gelijk aan één van de
+ * `rate` in het resultaat is het EFFECTIEVE (gemiddelde) percentage over het
+ * hele bedrag — bij een gestaffeld tarief dus niet gelijk aan één van de
  * schijfpercentages, maar de blend ervan (handig voor weergave, bv.
  * "Platformkosten (4,1%)" op de afrekenpagina).
  */
-export function calculateCommission(supplierAmountInCents: number, tier: CommissionTier = "tiered") {
-  if (tier === "pro") {
-    return { supplierAmount: supplierAmountInCents, platformFee: 0, total: supplierAmountInCents, rate: PRO_COMMISSION_RATE, tier };
-  }
-
-  if (tier === "intro") {
-    const platformFee = Math.round(supplierAmountInCents * INTRO_COMMISSION_RATE);
-    return { supplierAmount: supplierAmountInCents, platformFee, total: supplierAmountInCents + platformFee, rate: INTRO_COMMISSION_RATE, tier };
-  }
-
-  // "tiered" — elk deel van het bedrag valt in zijn eigen schijf (progressief).
+export function calculateCommission(supplierAmountInCents: number, tier: EffectiveSupplierTier = "starter") {
+  const definition = getEffectiveTierDefinition(tier);
   let remaining = supplierAmountInCents;
   let lowerBoundCents = 0;
   let feeCents = 0;
-  for (const bracket of COMMISSION_TIERS) {
+  for (const bracket of definition.commissionTiers) {
     const upperBoundCents = bracket.uptoCents ?? Infinity;
     const amountInBracket = Math.max(0, Math.min(remaining, upperBoundCents - lowerBoundCents));
     feeCents += amountInBracket * bracket.rate;

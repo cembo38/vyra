@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
-import { getSupplierAccount, hasOrganizerContactedSupplier, isSupplierFavorited, listEventsForUser } from "@/lib/data/store";
+import { getSupplierAccount, getSupplierEffectiveTierDefinition, hasOrganizerContactedSupplier, isSupplierFavorited, listEventsForUser } from "@/lib/data/store";
 import { submitCustomSupplierRequestAction } from "@/lib/actions/supplier-actions";
 import { MarketingHeader } from "@/components/marketing/MarketingHeader";
 import { Footer } from "@/components/marketing/Footer";
@@ -15,7 +15,7 @@ import { formatCurrency } from "@/lib/config";
 import { SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
 import { SIDEBAR_OFFSET_CLASS } from "@/lib/nav-constants";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, Clock, ExternalLink, Link2, Lock, MapPin, MoonStar, ShieldCheck, Star } from "lucide-react";
+import { CheckCircle2, Clock, Crown, ExternalLink, Link2, Lock, MapPin, MoonStar, ShieldCheck, Sparkles, Star } from "lucide-react";
 
 export const metadata = { title: "Leveranciersprofiel — Vyra" };
 
@@ -33,6 +33,7 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
   let events: Awaited<ReturnType<typeof listEventsForUser>> = [];
   let favorited = false;
   let alreadyContacted = false;
+  const tierDefinitionPromise = getSupplierEffectiveTierDefinition(supplier.id);
   if (user) {
     [events, favorited, alreadyContacted] = await Promise.all([
       listEventsForUser(user.id),
@@ -40,6 +41,7 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
       hasOrganizerContactedSupplier(supplier.id),
     ]);
   }
+  const tierDefinition = await tierDefinitionPromise;
 
   const categories = supplier.categories.length > 0 ? supplier.categories : [supplier.category];
 
@@ -63,6 +65,12 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
               {supplier.categoryOther && <Badge tone="neutral">{supplier.categoryOther}</Badge>}
               {supplier.verified && (
                 <Badge tone="success" icon={<ShieldCheck className="size-3" />}>Geverifieerd</Badge>
+              )}
+              {tierDefinition.badge === "elite" && (
+                <Badge tone="clay" icon={<Crown className="size-3" />}>Vyra Elite Partner</Badge>
+              )}
+              {tierDefinition.badge === "aanbevolen" && (
+                <Badge tone="ochre" icon={<Sparkles className="size-3" />}>Aanbevolen</Badge>
               )}
               {!supplier.storeOpen && (
                 <Badge tone="neutral" icon={<MoonStar className="size-3" />}>Tijdelijk gesloten</Badge>

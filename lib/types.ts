@@ -8,6 +8,8 @@
  * overal wordt meegegeven waar dat onderscheid ertoe doet.
  */
 
+import type { SubscriptionTier } from "@/lib/config";
+
 export type Provenance = "user" | "ai_recommendation" | "supplier" | "system";
 
 export interface AttributedValue<T> {
@@ -395,9 +397,14 @@ export interface SupplierAccount {
   socialTiktok: string | null;
   logoUrl: string | null;
   galleryUrls: string[];
-  /** Vyra Pro-abonnement actief? (spec-item #53, laag 3) — vast maandbedrag i.p.v. commissie per boeking. */
-  proSubscribed: boolean;
-  proSubscribedAt: string | null;
+  /**
+   * Gekozen abonnementsniveau (spec-item #53, SaaS-pivot) — geldt zodra de
+   * proefperiode (TRIAL_BOOKING_COUNT boekingen) voorbij is; zie
+   * `resolveEffectiveSupplierTier` in lib/data/store.ts. Self-service
+   * gekozen door de leverancier zelf op zijn profiel — nog geen automatische
+   * incasso, zie lib/config.ts.
+   */
+  subscriptionTier: SubscriptionTier;
   /** "Winkel open/gesloten" — zet de leverancier zelf uit als hij tijdelijk geen nieuwe aanvragen kan aannemen (spec-item #55). Gesloten = niet zichtbaar in zoeken/matching. */
   storeOpen: boolean;
   createdAt: string;
@@ -518,8 +525,12 @@ export interface Payment {
   platformFeeCents: number;
   totalCents: number;
   commissionRate: number;
-  /** Welke commissielaag gold bij het aanmaken van deze betaling — zie lib/config.ts. */
-  commissionTier: "intro" | "tiered" | "pro";
+  /**
+   * Welk abonnementsniveau (of de proefperiode) gold bij het aanmaken van
+   * deze betaling — zie lib/config.ts. Historische rijen van vóór de
+   * SaaS-pivot kunnen ook nog de oude waarden "intro"/"tiered" bevatten.
+   */
+  commissionTier: "trial" | "starter" | "groei" | "pro" | "premium" | "enterprise" | "intro" | "tiered";
   status: PaymentStatus;
   createdAt: string;
   paidAt: string | null;
