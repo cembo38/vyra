@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getEvent, getRequirements } from "@/lib/data/store";
+import { findMatchingSuppliers, getEvent, getRequirements } from "@/lib/data/store";
 import { Card } from "@/components/ui/Card";
 import { PriorityBadge } from "@/components/ui/Badge";
 import { RequirementToggle } from "@/components/app/RequirementToggle";
@@ -80,7 +80,18 @@ export default async function PlanPage(props: PageProps<"/events/[id]/plan">) {
                     <Sparkles className="mt-0.5 size-3.5 shrink-0" />
                     <p>{r.aiRationale}</p>
                   </div>
-                  {r.selected && <RequirementDraftEditor eventId={id} categoryId={r.id} initialMessage={r.draftMessage} />}
+                  {r.selected && (
+                    <RequirementDraftEditor
+                      eventId={id}
+                      categoryId={r.id}
+                      categoryKey={r.categoryKey}
+                      label={r.label}
+                      initialMessage={r.draftMessage}
+                      defaultBudgetCents={r.estimatedBudgetCents}
+                      matchCount={findMatchingSuppliers(r.categoryKey, { locationLabel: event.locationLabel, limit: 4 }).length}
+                      alreadySent={r.status !== "selected" && r.status !== "suggested"}
+                    />
+                  )}
                 </Card>
               ))}
             </div>
@@ -88,11 +99,19 @@ export default async function PlanPage(props: PageProps<"/events/[id]/plan">) {
         );
       })}
 
+      {/*
+        Voorheen was dit de ENIGE manier om een aanvraag te versturen — je
+        moest helemaal naar beneden scrollen, hierop klikken, en dan op een
+        aparte pagina alsnog per categorie een tweede knop indrukken. Nu kan
+        dat per categorie ook meteen bij het kaartje hierboven (zie
+        RequirementDraftEditor); dit blijft staan voor wie liever alles in
+        één overzicht afhandelt op de aanvragenpagina.
+      */}
       <div className="flex flex-col items-center gap-3 border-t border-line-soft pt-8 text-center">
-        <p className="text-sm text-ink-soft">Klaar? We sturen automatisch aanvragen naar de best passende leveranciers voor je geselecteerde categorieën.</p>
+        <p className="text-sm text-ink-soft">Je kunt hierboven per categorie direct een aanvraag versturen. Liever alles in één overzicht bekijken en afhandelen?</p>
         <form action={confirmRequirementsAction.bind(null, id)}>
           <button type="submit" className="lift-hover inline-flex items-center gap-2 rounded-xl bg-clay px-7 py-3.5 text-sm font-medium text-white shadow-sm hover:bg-clay-dark">
-            Bevestig selectie ({selectedCount}) en ga verder
+            Naar de aanvragenpagina ({selectedCount} geselecteerd)
           </button>
         </form>
       </div>

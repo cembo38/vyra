@@ -13,6 +13,7 @@ import {
   markPaymentPaid,
   pushNotification,
   resolveSupplierDisplay,
+  updateEvent,
   updateRequirementStatus,
 } from "@/lib/data/store";
 import { SupplierCategory } from "@/lib/types";
@@ -40,6 +41,20 @@ export async function sendRequestAction(params: {
   if (!user) redirect("/login");
   const event = await getEvent(params.eventId);
   if (!event || event.ownerId !== user.id) redirect("/events");
+
+  // Voorheen zette alleen confirmRequirementsAction (de verzamelknop
+  // onderaan de planpagina) de stage naar "sourcing" — nu je een aanvraag
+  // ook rechtstreeks per categorie kunt versturen (zie
+  // RequirementDraftEditor.tsx), moet DIT de plek zijn die de stage
+  // bijwerkt, want dit is waar een aanvraag daadwerkelijk de deur uitgaat.
+  // Werkt ook `updated_at` bij, wat belangrijk is voor het
+  // "organizer_stalled"-signaal in het AI-team-dagrapport
+  // (generateAndStoreDailyBriefing() in lib/data/store.ts) — dat leest
+  // alleen `updated_at`, niet losse requirement-statussen, om te bepalen of
+  // een organisator al een tijdje niets meer heeft gedaan.
+  if (event.stage === "draft" || event.stage === "planning") {
+    await updateEvent(params.eventId, { stage: "sourcing" });
+  }
 
   const { request, offers } = await createAndSendRequest({
     eventId: params.eventId,
