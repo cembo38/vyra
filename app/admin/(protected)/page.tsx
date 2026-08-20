@@ -1,0 +1,104 @@
+import { ReactNode } from "react";
+import { AdminBriefingCard } from "@/components/app/AdminBriefingCard";
+import { AdminServiceRoleBanner } from "@/components/app/AdminServiceRoleBanner";
+import { Card } from "@/components/ui/Card";
+import { StageBadge } from "@/components/ui/Badge";
+import { getLatestAdminBriefing, listAllEvents, listAllOffers, listAllPayments, listAllRequests, listAllSupplierAccounts, listAllUsers } from "@/lib/data/store";
+import { isServiceRoleConfigured } from "@/lib/supabase/admin";
+import { formatCurrency } from "@/lib/config";
+import { EVENT_TYPE_LABELS } from "@/lib/types";
+import { Building2, CalendarDays, LineChart, Percent, Sparkles, Star, Users } from "lucide-react";
+
+export const metadata = { title: "Overzicht — Vyra Admin" };
+
+export default async function AdminOverviewPage() {
+  const [events, payments, requests, offers, users, suppliers, briefing] = await Promise.all([
+    listAllEvents(),
+    listAllPayments(),
+    listAllRequests(),
+    listAllOffers(),
+    listAllUsers(),
+    listAllSupplierAccounts(),
+    getLatestAdminBriefing(),
+  ]);
+  const serviceRoleConfigured = isServiceRoleConfigured();
+
+  const paidPayments = payments.filter((p) => p.status === "paid");
+  const gmv = paidPayments.reduce((sum, p) => sum + p.supplierAmountCents, 0);
+  const revenue = paidPayments.reduce((sum, p) => sum + p.platformFeeCents, 0);
+  // Sinds het gestaffelde commissiemodel (spec-item #53) bestaat er geen
+  // enkel vast percentage meer — hier het werkelijke, blended tarief over
+  // alle betaalde boekingen, i.p.v. een hardcoded constante die niet meer
+  // overal hetzelfde is.
+  const blendedCommissionRate = gmv > 0 ? (revenue / gmv) * 100 : 0;
+  const proSupplierCount = suppliers.filter((s) => s.proSubscribed).length;
+  const eventsWithBudget = events.filter((e) => e.budget);
+  const avgEventValue = eventsWithBudget.length ? eventsWithBudget.reduce((s, e) => s + (e.budget?.totalCents ?? 0), 0) / eventsWithBudget.length : 0;
+  const avgResponseHours = suppliers.length ? suppliers.reduce((s, sup) => s + sup.avgResponseHours, 0) / suppliers.length : 0;
+  const conversionRate = requests.length ? (paidPayments.length / requests.length) * 100 : 0;
+
+  return (
+    <div className="mx-auto max-w-6xl px-6 py-10">
+      <h1 className="font-display text-3xl text-ink">Platform overzicht</h1>
+      <p className="mt-1 text-ink-soft">Geaggregeerde data over het hele platform.</p>
+
+      {!serviceRoleConfigured && (
+        <div className="mt-6">
+          <AdminServiceRoleBanner />
+        </div>
+      )}
+
+      <div className="mt-8">
+        <AdminBriefingCard briefing={briefing} />
+      </div>
+
+      <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Kpi icon={<LineChart className="size-4" />} label="GMV" value={formatCurrency(gmv)} />
+        <Kpi icon={<Percent className="size-4" />} label="Platform revenue" value={formatCurrency(revenue)} sub={gmv > 0 ? `${blendedCommissionRate.toFixed(1)}% blended (instap+gestaffeld+Pro)` : "Nog geen betaalde boekingen"} />
+        <Kpi icon={<Sparkles className="size-4" />} label="Vyra Pro" value={String(proSupplierCount)} sub={`van ${suppliers.length} leveranciers`} />
+        <Kpi icon={<CalendarDays className="size-4" />} label="Evenementen" value={String(events.length)} />
+        <Kpi icon={<Building2 className="size-4" />} label="Leveranciers" value={String(suppliers.length)} />
+        <Kpi icon={<Users className="size-4" />} label="Gebruikers" value={String(users.length)} />
+        <Kpi icon={<LineChart className="size-4" />} label="Conversieratio" value={`${conversionRate.toFixed(0)}%`} sub="Betaald / aanvragen" />
+        <Kpi icon={<LineChart className="size-4" />} label="Gem. eventwaarde" value={formatCurrency(avgEventValue)} />
+        <Kpi icon={<Star className="size-4" />} label="Gem. reactietijd" value={`${avgResponseHours.toFixed(0)} uur`} sub="Leveranciers" />
+      </div>
+
+      <div className="mt-10">
+        <Card>
+          <h2 className="mb-4 font-display text-lg text-ink">Recente evenementen</h2>
+          {events.length === 0 ? (
+            <p className="text-sm text-ink-faint">Nog geen evenementen.</p>
+          ) : (
+            <div className="space-y-2">
+              {events.map((e) => (
+                <div key={e.id} className="flex items-center justify-between rounded-xl border border-line-soft px-3.5 py-2.5 text-sm">
+                  <div>
+                    <p className="font-medium text-ink">{e.name}</p>
+                    <p className="text-xs text-ink-faint">{EVENT_TYPE_LABELS[e.type]} · {e.locationLabel ?? "onbekende locatie"}</p>
+                  </div>
+                  <StageBadge stage={e.stage} />
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
+
+      <p className="mt-8 text-xs text-ink-faint">{offers.length} offertes verwerkt in totaal over alle evenementen.</p>
+    </div>
+  );
+}
+
+function Kpi({ icon, label, value, sub }: { icon: ReactNode; label: string; value: string; sub?: string }) {
+  return (
+    <Card className="p-4">
+      <div className="flex items-center gap-1.5 text-ink-faint">
+        {icon}
+        <span className="text-xs font-medium uppercase tracking-wide">{label}</span>
+      </div>
+      <p className="mt-2 font-display text-2xl text-ink">{value}</p>
+      {sub && <p className="text-xs text-ink-faint">{sub}</p>}
+    </Card>
+  );
+}

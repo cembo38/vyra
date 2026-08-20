@@ -78,7 +78,7 @@ export async function banUserAction(formData: FormData): Promise<ActionResult> {
       .eq("id", userId);
     if (error) throw new Error(error.message);
 
-    revalidatePath("/admin");
+    revalidatePath("/admin/gebruikers");
   });
 }
 
@@ -94,7 +94,7 @@ export async function unbanUserAction(formData: FormData): Promise<ActionResult>
     const { error } = await supabase.from("profiles").update({ banned_at: null, ban_reason: null }).eq("id", userId);
     if (error) throw new Error(error.message);
 
-    revalidatePath("/admin");
+    revalidatePath("/admin/gebruikers");
   });
 }
 
@@ -116,7 +116,7 @@ export async function approveSupplierVerificationAction(formData: FormData): Pro
       href: "/supplier/profile",
     });
 
-    revalidatePath("/admin");
+    revalidatePath("/admin/leveranciers");
   });
 }
 
@@ -138,7 +138,7 @@ export async function rejectSupplierVerificationAction(formData: FormData): Prom
       href: "/supplier/profile",
     });
 
-    revalidatePath("/admin");
+    revalidatePath("/admin/leveranciers");
   });
 }
 
@@ -160,7 +160,7 @@ export async function resolveDisputeAction(formData: FormData): Promise<ActionRe
     const dispute = await resolveDispute(disputeId, "resolved", adminResponse);
     if (!dispute) throw new Error("Kon geschil niet oplossen (service-role sleutel niet geconfigureerd?).");
 
-    revalidatePath("/admin");
+    revalidatePath("/admin/geschillen");
   });
 }
 
@@ -175,7 +175,7 @@ export async function dismissDisputeAction(formData: FormData): Promise<ActionRe
     const dispute = await resolveDispute(disputeId, "dismissed", adminResponse);
     if (!dispute) throw new Error("Kon geschil niet afwijzen (service-role sleutel niet geconfigureerd?).");
 
-    revalidatePath("/admin");
+    revalidatePath("/admin/geschillen");
   });
 }
 
@@ -215,6 +215,7 @@ export async function approveBriefingSupplierAction(formData: FormData): Promise
 
     await markBriefingItemStatus(itemId, "approved");
     revalidatePath("/admin");
+    revalidatePath("/admin/leveranciers");
   });
 }
 
@@ -239,6 +240,7 @@ export async function rejectBriefingSupplierAction(formData: FormData): Promise<
 
     await markBriefingItemStatus(itemId, "dismissed");
     revalidatePath("/admin");
+    revalidatePath("/admin/leveranciers");
   });
 }
 

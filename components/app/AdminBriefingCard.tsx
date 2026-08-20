@@ -170,7 +170,7 @@ function BriefingItemRow({ item }: { item: AdminBriefingItem }) {
           ) : (
             <>
               {item.kind === "dispute" && (
-                <a href="#geschillen" className="chip-hover inline-flex items-center gap-1 rounded-full border border-line bg-white px-2.5 py-1 text-xs font-medium text-ink-soft hover:border-sage/50 hover:text-ink">
+                <a href="/admin/geschillen" className="chip-hover inline-flex items-center gap-1 rounded-full border border-line bg-white px-2.5 py-1 text-xs font-medium text-ink-soft hover:border-sage/50 hover:text-ink">
                   <Eye className="size-3" /> Bekijk
                 </a>
               )}

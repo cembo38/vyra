@@ -51,6 +51,7 @@ export function Drawer({
   widthClassName = "w-[84vw] max-w-[320px]",
   labelledBy,
   testId,
+  panelClassName,
   children,
 }: {
   open: boolean;
@@ -59,6 +60,8 @@ export function Drawer({
   widthClassName?: string;
   labelledBy?: string;
   testId?: string;
+  /** Overschrijft de standaard `bg-paper` paneelachtergrond (bv. `bg-ink` voor een donker paneel zoals de admin-navigatie) — via `cn()`/`twMerge` toegepast, dus de laatste `bg-*`-klasse wint. */
+  panelClassName?: string;
   children: ReactNode;
 }) {
   useEffect(() => {
@@ -116,7 +119,8 @@ export function Drawer({
           "fixed inset-y-0 z-[60] flex flex-col bg-paper pt-[var(--safe-t)] pb-[var(--safe-b)] shadow-[var(--shadow-pop)] transition-transform duration-300 ease-[var(--ease-swift)]",
           side === "left" ? "left-0" : "right-0",
           widthClassName,
-          open ? "translate-x-0" : side === "left" ? "-translate-x-full" : "translate-x-full"
+          open ? "translate-x-0" : side === "left" ? "-translate-x-full" : "translate-x-full",
+          panelClassName
         )}
       >
         {children}
