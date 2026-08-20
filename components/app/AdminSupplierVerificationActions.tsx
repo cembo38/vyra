@@ -2,23 +2,20 @@
 
 import { useState, useTransition } from "react";
 import { BadgeCheck, Loader2, X } from "lucide-react";
-import { approveSupplierVerificationAction, rejectSupplierVerificationAction } from "@/lib/actions/admin-actions";
+import { approveSupplierVerificationAction, rejectSupplierVerificationAction, type ActionResult } from "@/lib/actions/admin-actions";
 
 /** Zelfde inline-actie-patroon als `AdminUserActions` — geen navigatie weg van het dashboard nodig. */
 export function AdminSupplierVerificationActions({ supplierId }: { supplierId: string }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  function run(action: (formData: FormData) => Promise<void>) {
+  function run(action: (formData: FormData) => Promise<ActionResult>) {
     setError(null);
     const formData = new FormData();
     formData.set("supplierId", supplierId);
     startTransition(async () => {
-      try {
-        await action(formData);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Dit is niet gelukt.");
-      }
+      const result = await action(formData);
+      if (!result.ok) setError(result.error);
     });
   }
 

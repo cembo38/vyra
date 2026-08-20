@@ -8,9 +8,11 @@ import { banUserAction, unbanUserAction } from "@/lib/actions/admin-actions";
  * Blokkeren is reversibel (vandaar geen zware "typ de naam ter bevestiging"-
  * stap zoals bij het definitief verwijderen van een evenement) — een lichte
  * inline bevestiging met optionele reden volstaat, zelfde patroon als
- * `CloseEventButton`. De Server Actions gooien een Error bij een probleem
- * (bv. "kan jezelf niet blokkeren"); die vangen we hier af en tonen we
- * gewoon inline i.p.v. een onbehandelde crash.
+ * `CloseEventButton`. De Server Actions geven bij een probleem
+ * `{ ok: false, error }` terug (bv. "kan jezelf niet blokkeren") — geen
+ * `throw`, want Next.js redigeert de boodschap van een echt gegooide
+ * Error in productie naar een onleesbare generieke tekst. Zie de
+ * uitleg bij `runAction()` in lib/actions/admin-actions.ts.
  */
 export function AdminUserActions({ userId, bannedAt }: { userId: string; bannedAt: string | null }) {
   const [confirming, setConfirming] = useState(false);
@@ -29,11 +31,8 @@ export function AdminUserActions({ userId, bannedAt }: { userId: string; bannedA
             const formData = new FormData();
             formData.set("userId", userId);
             startTransition(async () => {
-              try {
-                await unbanUserAction(formData);
-              } catch (e) {
-                setError(e instanceof Error ? e.message : "Dit is niet gelukt.");
-              }
+              const result = await unbanUserAction(formData);
+              if (!result.ok) setError(result.error);
             });
           }}
           className="chip-hover inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium text-ink-soft hover:border-sage/50 hover:text-ink disabled:opacity-40 disabled:pointer-events-none"
@@ -65,12 +64,9 @@ export function AdminUserActions({ userId, bannedAt }: { userId: string; bannedA
               formData.set("userId", userId);
               formData.set("reason", reason);
               startTransition(async () => {
-                try {
-                  await banUserAction(formData);
-                  setConfirming(false);
-                } catch (e) {
-                  setError(e instanceof Error ? e.message : "Dit is niet gelukt.");
-                }
+                const result = await banUserAction(formData);
+                if (result.ok) setConfirming(false);
+                else setError(result.error);
               });
             }}
             className="chip-hover inline-flex items-center gap-1.5 rounded-full bg-danger px-3 py-1.5 text-xs font-medium text-white disabled:opacity-40 disabled:pointer-events-none"

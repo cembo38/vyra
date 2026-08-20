@@ -31,11 +31,8 @@ export function MessageComposer({
         setText("");
         setError(null);
         startTransition(async () => {
-          try {
-            await (sender === "supplier" ? sendSupplierMessageAction : sendMessageAction)(eventId, categoryKey, supplierId, value);
-          } catch (err) {
-            setError(err instanceof Error ? err.message : "Versturen is niet gelukt.");
-          }
+          const result = await (sender === "supplier" ? sendSupplierMessageAction : sendMessageAction)(eventId, categoryKey, supplierId, value);
+          if (!result.ok) setError(result.error ?? "Versturen is niet gelukt.");
         });
       }}
     >

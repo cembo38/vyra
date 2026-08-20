@@ -5,12 +5,18 @@ import { addMessage, getEvent, getSupplierAccountByOwner, pushNotification } fro
 import { getCurrentUser } from "@/lib/auth";
 import { SUPPLIER_CATEGORY_LABELS, SupplierCategory } from "@/lib/types";
 
-export async function sendMessageAction(eventId: string, categoryKey: SupplierCategory, supplierId: string, text: string) {
-  if (!text.trim()) return;
+export async function sendMessageAction(
+  eventId: string,
+  categoryKey: SupplierCategory,
+  supplierId: string,
+  text: string
+): Promise<{ ok: boolean; error?: string }> {
+  if (!text.trim()) return { ok: true };
   const event = await getEvent(eventId);
-  if (!event) return;
+  if (!event) return { ok: false, error: "Evenement niet gevonden." };
   await addMessage({ eventId, categoryKey, supplierId, sender: "customer", text: text.trim() });
   revalidatePath(`/events/${eventId}/messages`, "layout");
+  return { ok: true };
 }
 
 /**
@@ -21,17 +27,28 @@ export async function sendMessageAction(eventId: string, categoryKey: SupplierCa
  * verkeerd/ontbrekend account een duidelijke fout geeft in plaats van een
  * stil door RLS geblokkeerde, lege insert — zelfde aanpak als
  * `requireAdmin()` in `lib/actions/admin-actions.ts`.
+ *
+ * Geeft `{ ok: false, error }` terug i.p.v. te gooien: Next.js 16
+ * redigeert de boodschap van een echt gegooide Error uit een Server
+ * Action in productie naar een onleesbare generieke tekst (zie de
+ * uitleg bij `runAction()` in lib/actions/admin-actions.ts) — dat bleek
+ * hier ook live het geval te zijn.
  */
-export async function sendSupplierMessageAction(eventId: string, categoryKey: SupplierCategory, supplierId: string, text: string) {
-  if (!text.trim()) return;
+export async function sendSupplierMessageAction(
+  eventId: string,
+  categoryKey: SupplierCategory,
+  supplierId: string,
+  text: string
+): Promise<{ ok: boolean; error?: string }> {
+  if (!text.trim()) return { ok: true };
 
   const user = await getCurrentUser();
-  if (!user) throw new Error("Niet ingelogd.");
+  if (!user) return { ok: false, error: "Niet ingelogd." };
   const supplier = await getSupplierAccountByOwner(user.id);
-  if (!supplier || supplier.id !== supplierId) throw new Error("Niet geautoriseerd voor dit gesprek.");
+  if (!supplier || supplier.id !== supplierId) return { ok: false, error: "Niet geautoriseerd voor dit gesprek." };
 
   const event = await getEvent(eventId);
-  if (!event) throw new Error("Evenement niet gevonden.");
+  if (!event) return { ok: false, error: "Evenement niet gevonden." };
 
   await addMessage({ eventId, categoryKey, supplierId, sender: "supplier", text: text.trim() });
 
@@ -49,4 +66,5 @@ export async function sendSupplierMessageAction(eventId: string, categoryKey: Su
 
   revalidatePath(`/events/${eventId}/messages`, "layout");
   revalidatePath("/supplier/messages", "layout");
+  return { ok: true };
 }

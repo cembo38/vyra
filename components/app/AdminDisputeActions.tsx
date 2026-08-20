@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { CheckCircle2, Loader2, X } from "lucide-react";
 import { Textarea } from "@/components/ui/Form";
-import { resolveDisputeAction, dismissDisputeAction } from "@/lib/actions/admin-actions";
+import { resolveDisputeAction, dismissDisputeAction, type ActionResult } from "@/lib/actions/admin-actions";
 
 /** Zelfde inline-actie-patroon als `AdminSupplierVerificationActions`, met een verplichte toelichting — die gaat naar beide betrokken partijen. */
 export function AdminDisputeActions({ disputeId }: { disputeId: string }) {
@@ -11,7 +11,7 @@ export function AdminDisputeActions({ disputeId }: { disputeId: string }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
-  function run(action: (formData: FormData) => Promise<void>) {
+  function run(action: (formData: FormData) => Promise<ActionResult>) {
     if (!response.trim()) {
       setError("Geef een toelichting op je beslissing — die zien beide partijen.");
       return;
@@ -21,12 +21,9 @@ export function AdminDisputeActions({ disputeId }: { disputeId: string }) {
     formData.set("disputeId", disputeId);
     formData.set("adminResponse", response.trim());
     startTransition(async () => {
-      try {
-        await action(formData);
-        setResponse("");
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Dit is niet gelukt.");
-      }
+      const result = await action(formData);
+      if (result.ok) setResponse("");
+      else setError(result.error);
     });
   }
 

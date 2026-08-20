@@ -9,6 +9,7 @@ import {
   dismissBriefingItemAction,
   generateBriefingNowAction,
   rejectBriefingSupplierAction,
+  type ActionResult,
 } from "@/lib/actions/admin-actions";
 import type { AdminBriefing, AdminBriefingItem } from "@/lib/types";
 
@@ -36,11 +37,8 @@ export function AdminBriefingCard({ briefing }: { briefing: AdminBriefing | null
   function generateNow() {
     setError(null);
     startTransition(async () => {
-      try {
-        await generateBriefingNowAction();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Dit is niet gelukt.");
-      }
+      const result = await generateBriefingNowAction();
+      if (!result.ok) setError(result.error);
     });
   }
 
@@ -126,17 +124,14 @@ function BriefingItemRow({ item }: { item: AdminBriefingItem }) {
   const [pending, startTransition] = useTransition();
   const [localError, setLocalError] = useState<string | null>(null);
 
-  function run(action: (formData: FormData) => Promise<void>, extra?: Record<string, string>) {
+  function run(action: (formData: FormData) => Promise<ActionResult>, extra?: Record<string, string>) {
     setLocalError(null);
     const formData = new FormData();
     formData.set("itemId", item.id);
     if (extra) for (const [key, value] of Object.entries(extra)) formData.set(key, value);
     startTransition(async () => {
-      try {
-        await action(formData);
-      } catch (e) {
-        setLocalError(e instanceof Error ? e.message : "Dit is niet gelukt.");
-      }
+      const result = await action(formData);
+      if (!result.ok) setLocalError(result.error);
     });
   }
 
