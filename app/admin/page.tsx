@@ -4,10 +4,12 @@ import { AppTopBar } from "@/components/app/AppTopBar";
 import { AdminUserActions } from "@/components/app/AdminUserActions";
 import { AdminSupplierVerificationActions } from "@/components/app/AdminSupplierVerificationActions";
 import { AdminDisputeActions } from "@/components/app/AdminDisputeActions";
+import { AdminBriefingCard } from "@/components/app/AdminBriefingCard";
 import { Card } from "@/components/ui/Card";
 import { Badge, StageBadge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import {
+  getLatestAdminBriefing,
   listAllDisputes,
   listAllEvents,
   listAllOffers,
@@ -39,7 +41,7 @@ export default async function AdminPage() {
   if (!user) redirect("/login");
   if (!ADMIN_EMAILS.includes(user.email.toLowerCase())) redirect("/events");
 
-  const [events, payments, requests, offers, users, suppliers, aiLogs, disputes] = await Promise.all([
+  const [events, payments, requests, offers, users, suppliers, aiLogs, disputes, briefing] = await Promise.all([
     listAllEvents(),
     listAllPayments(),
     listAllRequests(),
@@ -48,6 +50,7 @@ export default async function AdminPage() {
     listAllSupplierAccounts(),
     listAiInteractionLogs(50),
     listAllDisputes(),
+    getLatestAdminBriefing(),
   ]);
   const serviceRoleConfigured = isServiceRoleConfigured();
   const pendingVerifications = suppliers.filter((s) => !s.verified && s.verificationRequestedAt);
@@ -93,6 +96,10 @@ export default async function AdminPage() {
             </div>
           </div>
         )}
+
+        <div className="mt-8">
+          <AdminBriefingCard briefing={briefing} />
+        </div>
 
         <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Kpi icon={<LineChart className="size-4" />} label="GMV" value={formatCurrency(gmv)} />
@@ -276,7 +283,7 @@ export default async function AdminPage() {
             )}
           </Card>
 
-          <Card>
+          <Card id="geschillen">
             <div className="mb-1 flex items-center justify-between">
               <h2 className="font-display text-lg text-ink">Geschillen</h2>
               {openDisputeCount > 0 && (

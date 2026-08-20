@@ -1,21 +1,28 @@
 import "server-only";
 import { uid } from "@/lib/utils";
 import {
+  ADMIN_EMAILS,
   CommissionTier,
   DEFAULT_DEPOSIT_PERCENT,
   EMAIL_ENABLED,
   INTRO_BOOKING_COUNT,
   SUPPLIER_RESPONSE_WINDOW_HOURS,
   calculateCommission,
+  formatCurrency,
 } from "@/lib/config";
 import { SUPPLIERS, suppliersByCategory, getSupplierById } from "@/lib/data/suppliers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { sendNotificationEmail } from "@/lib/email/send";
+import { BRIEFING_TEAM_MEMBERS, generateBriefingNarrative, type BriefingTeamKey } from "@/lib/ai/briefing";
 import {
+  AdminBriefing,
+  AdminBriefingItem,
   AiInterviewMessage,
   AppNotification,
+  BriefingItemStatus,
   Dispute,
+  DISPUTE_CATEGORY_LABELS,
   DisputeCategory,
   DisputeFiledByRole,
   DisputeStatus,
@@ -2426,6 +2433,244 @@ export async function listAllSupplierAccounts(): Promise<SupplierAccount[]> {
   const supabase = createSupabaseAdminClient() ?? (await sb());
   const { data } = await supabase.from("suppliers").select("*");
   return (data ?? []).map(rowToSupplierAccount);
+}
+
+/* ------------------------------------------------------------------ */
+/* ADMIN — dagelijks AI-team-rapport (spec-item #52 vervolg)           */
+/*                                                                       */
+/* Zie lib/ai/briefing.ts voor de narratieve laag (samenvatting +        */
+/* koppen per teamlid) en supabase/migrations/0021_admin_briefings.sql   */
+/* voor het schema. Alleen via de service-role client — vereist dus      */
+/* SUPABASE_SERVICE_ROLE_KEY, net als de rest van dit admin-blok.        */
+/* ------------------------------------------------------------------ */
+
+function rowToAdminBriefingItem(r: Row): AdminBriefingItem {
+  return {
+    id: r.id,
+    briefingId: r.briefing_id,
+    teamMember: r.team_member,
+    kind: r.kind,
+    title: r.title,
+    description: r.description,
+    requiresApproval: r.requires_approval,
+    relatedType: r.related_type ?? null,
+    relatedId: r.related_id ?? null,
+    status: r.status,
+    createdAt: r.created_at,
+  };
+}
+
+function rowToAdminBriefing(r: Row, items: AdminBriefingItem[]): AdminBriefing {
+  return {
+    id: r.id,
+    coordinatorSummary: r.coordinator_summary,
+    teamHeadlines: r.team_headlines ?? {},
+    since: r.since,
+    usedAI: r.used_ai,
+    createdAt: r.created_at,
+    items,
+  };
+}
+
+/** Meest recente dagrapport + bijbehorende punten — null als er nog nooit één is gegenereerd (of geen service-role sleutel). */
+export async function getLatestAdminBriefing(): Promise<AdminBriefing | null> {
+  const admin = createSupabaseAdminClient();
+  if (!admin) return null;
+
+  const { data: briefingRow } = await admin.from("admin_briefings").select("*").order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (!briefingRow) return null;
+
+  const { data: itemRows } = await admin
+    .from("admin_briefing_items")
+    .select("*")
+    .eq("briefing_id", briefingRow.id)
+    .order("requires_approval", { ascending: false })
+    .order("created_at", { ascending: true });
+
+  return rowToAdminBriefing(briefingRow, (itemRows ?? []).map(rowToAdminBriefingItem));
+}
+
+/** Eén punt uit een rapport goedkeuren/afwijzen/negeren — de eigenlijke actie (bv. leverancier verifiëren) gebeurt apart, dit is puur de rapport-status. */
+export async function markBriefingItemStatus(itemId: string, status: BriefingItemStatus): Promise<AdminBriefingItem | null> {
+  const admin = createSupabaseAdminClient();
+  if (!admin) return null;
+  const { data, error } = await admin.from("admin_briefing_items").update({ status }).eq("id", itemId).select().single();
+  if (error || !data) return null;
+  return rowToAdminBriefingItem(data);
+}
+
+/**
+ * Genereert het dagrapport en slaat het op — aangeroepen door zowel de
+ * cronjob (app/api/cron/daily-briefing/route.ts, dagelijks) als de
+ * "Genereer nu"-knop in het admin-dashboard (handig voor een eerste
+ * rapport, of als Cem tussendoor een vers overzicht wil).
+ *
+ * Belangrijk: WELKE items er in het rapport komen (openstaande
+ * verificaties, openstaande geschillen, nieuwe aanmeldingen, gemarkeerde
+ * AI-interacties, financiële samenvatting) wordt hier volledig
+ * deterministisch uit de database gehaald — de AI-laag (lib/ai/briefing.ts)
+ * schrijft alleen de begeleidende tekst erbij op basis van de kale
+ * aantallen, en verzint dus nooit zelf een item of een id.
+ *
+ * "Openstaand" (verificaties, geschillen) is bewust NIET beperkt tot
+ * "sinds het laatste rapport" — die blijven anders verschijnen totdat ze
+ * zijn afgehandeld. "Nieuw" (aanmeldingen, betalingen, gemarkeerde
+ * AI-logs) is wél beperkt tot sinds het laatste rapport, anders zou
+ * bijvoorbeeld elke leverancier die ooit is aangemeld elke dag opnieuw
+ * als "nieuw" verschijnen.
+ */
+export async function generateAndStoreDailyBriefing(): Promise<AdminBriefing | null> {
+  const admin = createSupabaseAdminClient();
+  if (!admin) return null;
+
+  const { data: lastBriefingRow } = await admin.from("admin_briefings").select("created_at").order("created_at", { ascending: false }).limit(1).maybeSingle();
+  const since = lastBriefingRow?.created_at ?? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const sinceMs = new Date(since).getTime();
+
+  const [suppliers, disputes, users, payments, aiLogs] = await Promise.all([
+    listAllSupplierAccounts(),
+    listAllDisputes(),
+    listAllUsers(),
+    listAllPayments(),
+    listAiInteractionLogs(200),
+  ]);
+
+  const pendingVerifications = suppliers.filter((s) => !s.verified && s.verificationRequestedAt);
+  const openDisputes = disputes.filter((d) => d.status === "open");
+  const newSuppliers = suppliers.filter((s) => new Date(s.createdAt).getTime() > sinceMs);
+  const newUsers = users.filter((u) => new Date(u.createdAt).getTime() > sinceMs);
+  const newPayments = payments.filter((p) => p.status === "paid" && new Date(p.paidAt ?? p.createdAt).getTime() > sinceMs);
+  const flaggedLogs = aiLogs.logs.filter((l) => l.flagged && new Date(l.createdAt).getTime() > sinceMs);
+  const revenueCents = newPayments.reduce((sum, p) => sum + p.platformFeeCents, 0);
+
+  const { narrative, usedAI } = await generateBriefingNarrative({
+    pendingVerifications: pendingVerifications.length,
+    openDisputes: openDisputes.length,
+    newSuppliers: newSuppliers.length,
+    newUsers: newUsers.length,
+    flaggedAiCount: flaggedLogs.length,
+    paymentsCount: newPayments.length,
+    revenueCents,
+  });
+
+  type NewItem = Omit<AdminBriefingItem, "id" | "briefingId" | "status" | "createdAt">;
+  const items: NewItem[] = [];
+
+  for (const s of pendingVerifications) {
+    items.push({
+      teamMember: BRIEFING_TEAM_MEMBERS.verificatie,
+      kind: "supplier_verification",
+      title: `Verifieer ${s.companyName}`,
+      description: `KVK: ${s.kvkNumber ?? "onbekend"} · ${s.contactPerson} · ${s.baseLocation}`,
+      requiresApproval: true,
+      relatedType: "supplier",
+      relatedId: s.id,
+    });
+  }
+
+  for (const d of openDisputes) {
+    items.push({
+      teamMember: BRIEFING_TEAM_MEMBERS.vertrouwen,
+      kind: "dispute",
+      title: `Geschil: ${DISPUTE_CATEGORY_LABELS[d.category]}`,
+      description: d.description,
+      requiresApproval: true,
+      relatedType: "dispute",
+      relatedId: d.id,
+    });
+  }
+
+  if (newSuppliers.length > 0) {
+    const names = newSuppliers.slice(0, 5).map((s) => s.companyName);
+    items.push({
+      teamMember: BRIEFING_TEAM_MEMBERS.groei,
+      kind: "new_supplier",
+      title: `${newSuppliers.length} nieuwe leverancier${newSuppliers.length === 1 ? "" : "s"}`,
+      description: names.join(", ") + (newSuppliers.length > names.length ? ` en ${newSuppliers.length - names.length} meer` : ""),
+      requiresApproval: false,
+      relatedType: null,
+      relatedId: null,
+    });
+  }
+
+  if (newUsers.length > 0) {
+    items.push({
+      teamMember: BRIEFING_TEAM_MEMBERS.groei,
+      kind: "new_users",
+      title: `${newUsers.length} nieuwe gebruiker${newUsers.length === 1 ? "" : "s"}`,
+      description: "Nieuwe accounts sinds het vorige rapport — geen actie nodig.",
+      requiresApproval: false,
+      relatedType: null,
+      relatedId: null,
+    });
+  }
+
+  if (newPayments.length > 0) {
+    items.push({
+      teamMember: BRIEFING_TEAM_MEMBERS.financien,
+      kind: "financial",
+      title: `${newPayments.length} nieuwe betaling${newPayments.length === 1 ? "" : "en"}`,
+      description: `Samen ${formatCurrency(revenueCents)} aan platformkosten sinds het vorige rapport.`,
+      requiresApproval: false,
+      relatedType: null,
+      relatedId: null,
+    });
+  }
+
+  if (flaggedLogs.length > 0) {
+    items.push({
+      teamMember: BRIEFING_TEAM_MEMBERS.veiligheid,
+      kind: "flagged_ai",
+      title: `${flaggedLogs.length} AI-interactie${flaggedLogs.length === 1 ? "" : "s"} gemarkeerd`,
+      description: "Mogelijke prompt-injection-poging(en) — zie het AI-interactielogboek verderop op deze pagina.",
+      requiresApproval: false,
+      relatedType: null,
+      relatedId: null,
+    });
+  }
+
+  const teamHeadlinesByName = Object.fromEntries(
+    (Object.keys(BRIEFING_TEAM_MEMBERS) as BriefingTeamKey[]).map((key) => [BRIEFING_TEAM_MEMBERS[key], narrative.teamHeadlines[key]])
+  );
+
+  const { data: briefingRow, error } = await admin
+    .from("admin_briefings")
+    .insert({ coordinator_summary: narrative.coordinatorSummary, team_headlines: teamHeadlinesByName, since, used_ai: usedAI })
+    .select()
+    .single();
+  if (error || !briefingRow) {
+    console.error("[briefing] opslaan mislukt:", error?.message);
+    return null;
+  }
+
+  if (items.length > 0) {
+    const { error: itemsError } = await admin.from("admin_briefing_items").insert(
+      items.map((it) => ({
+        briefing_id: briefingRow.id,
+        team_member: it.teamMember,
+        kind: it.kind,
+        title: it.title,
+        description: it.description,
+        requires_approval: it.requiresApproval,
+        related_type: it.relatedType,
+        related_id: it.relatedId,
+      }))
+    );
+    if (itemsError) console.error("[briefing] items opslaan mislukt:", itemsError.message);
+  }
+
+  const actionableCount = pendingVerifications.length + openDisputes.length;
+  for (const adminEmail of ADMIN_EMAILS) {
+    await sendNotificationEmail({
+      to: adminEmail,
+      title: actionableCount > 0 ? `Dagrapport: ${actionableCount} punt${actionableCount === 1 ? "" : "en"} vraagt aandacht` : "Dagrapport: niets te melden",
+      body: narrative.coordinatorSummary,
+      href: "/admin",
+      ctaLabel: "Bekijk volledig rapport",
+    });
+  }
+
+  return getLatestAdminBriefing();
 }
 
 // `uid()` blijft beschikbaar voor eventuele client-side tijdelijke ids

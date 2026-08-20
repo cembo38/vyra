@@ -4,7 +4,14 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { ADMIN_EMAILS } from "@/lib/config";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { approveSupplierVerification, rejectSupplierVerification, pushNotification, resolveDispute } from "@/lib/data/store";
+import {
+  approveSupplierVerification,
+  rejectSupplierVerification,
+  pushNotification,
+  resolveDispute,
+  generateAndStoreDailyBriefing,
+  markBriefingItemStatus,
+} from "@/lib/data/store";
 
 /**
  * Elke actie hier raakt ANDERE gebruikers dan de aanroeper — dus altijd
@@ -124,5 +131,82 @@ export async function dismissDisputeAction(formData: FormData) {
   const dispute = await resolveDispute(disputeId, "dismissed", adminResponse);
   if (!dispute) throw new Error("Kon geschil niet afwijzen (service-role sleutel niet geconfigureerd?).");
 
+  revalidatePath("/admin");
+}
+
+/**
+ * Acties voor het dagelijkse AI-team-rapport (spec-item #52 vervolg).
+ *
+ * Bewust twee verschillende soorten knoppen op een rapportpunt:
+ * - "Goedkeuren"/"Afwijzen" bij een leveranciersverificatie voert de
+ *   ECHTE actie meteen uit (net als de bestaande kaart verderop op de
+ *   pagina — dit is gewoon een tweede plek om diezelfde actie te
+ *   starten) én markeert het rapportpunt als afgehandeld.
+ * - "Gezien/negeren" bij alle andere soorten punten (geschil, nieuwe
+ *   aanmelding, financieel, AI-veiligheid) doet UITSLUITEND het
+ *   rapportpunt verdwijnen uit de lijst — geen verborgen neveneffect op
+ *   de onderliggende data. Een geschil bijvoorbeeld vereist altijd een
+ *   geschreven toelichting (zie AdminDisputeActions hieronder) en kan
+ *   dus niet met één generieke klik "opgelost" worden.
+ */
+export async function approveBriefingSupplierAction(formData: FormData) {
+  await requireAdmin();
+  const itemId = String(formData.get("itemId") ?? "").trim();
+  const supplierId = String(formData.get("supplierId") ?? "").trim();
+  if (!itemId || !supplierId) throw new Error("Onvolledig rapportpunt.");
+
+  const supplier = await approveSupplierVerification(supplierId);
+  if (!supplier) throw new Error("Kon leverancier niet verifiëren (service-role sleutel niet geconfigureerd?).");
+
+  await pushNotification({
+    userId: supplier.ownerId,
+    eventId: null,
+    type: "verification_approved",
+    title: "Je bent geverifieerd!",
+    body: "Vyra heeft je bedrijfsgegevens gecontroleerd — je profiel toont nu een verificatiebadge, wat vertrouwen wekt bij organisatoren.",
+    href: "/supplier/profile",
+  });
+
+  await markBriefingItemStatus(itemId, "approved");
+  revalidatePath("/admin");
+}
+
+export async function rejectBriefingSupplierAction(formData: FormData) {
+  await requireAdmin();
+  const itemId = String(formData.get("itemId") ?? "").trim();
+  const supplierId = String(formData.get("supplierId") ?? "").trim();
+  if (!itemId || !supplierId) throw new Error("Onvolledig rapportpunt.");
+
+  const supplier = await rejectSupplierVerification(supplierId);
+  if (!supplier) throw new Error("Kon verificatieaanvraag niet afwijzen (service-role sleutel niet geconfigureerd?).");
+
+  await pushNotification({
+    userId: supplier.ownerId,
+    eventId: null,
+    type: "verification_rejected",
+    title: "Verificatieaanvraag afgewezen",
+    body: "We konden je bedrijfsgegevens nog niet verifiëren. Controleer je KVK-nummer en bedrijfsgegevens en vraag het opnieuw aan.",
+    href: "/supplier/profile",
+  });
+
+  await markBriefingItemStatus(itemId, "dismissed");
+  revalidatePath("/admin");
+}
+
+/** Rapportpunt uit de lijst halen zonder de onderliggende data aan te raken — zie uitleg hierboven. */
+export async function dismissBriefingItemAction(formData: FormData) {
+  await requireAdmin();
+  const itemId = String(formData.get("itemId") ?? "").trim();
+  if (!itemId) throw new Error("Geen rapportpunt opgegeven.");
+
+  await markBriefingItemStatus(itemId, "dismissed");
+  revalidatePath("/admin");
+}
+
+/** Handmatig een vers dagrapport genereren — voor het allereerste rapport, of als Cem tussendoor iets wil zien zonder op de nachtelijke cronjob te wachten. */
+export async function generateBriefingNowAction() {
+  await requireAdmin();
+  const briefing = await generateAndStoreDailyBriefing();
+  if (!briefing) throw new Error("Kon geen rapport genereren (service-role sleutel niet geconfigureerd?).");
   revalidatePath("/admin");
 }

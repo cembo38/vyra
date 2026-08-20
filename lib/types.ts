@@ -596,6 +596,51 @@ export interface Dispute {
 }
 
 /* ------------------------------------------------------------------ */
+/* ADMIN AI-TEAM — dagelijks rapport (spec-item #52 vervolg)           */
+/*                                                                       */
+/* Cem (platformeigenaar) wil dagelijks een kort rapport zoals een      */
+/* management-team dat aan een CEO zou geven: wat is er gebeurd, wat    */
+/* vraagt aandacht, en — voor de dingen waar dat kan — een              */
+/* goedkeuren/afwijzen-knop met één klik. Een gecoördineerde AI-aanroep */
+/* (lib/ai/briefing.ts) schrijft alleen de NARRATIEVE tekst             */
+/* (samenvatting + koppen per "teamlid"); WELKE items er zijn en hun    */
+/* echte id's komen altijd uit de database (generateAndStoreBriefing()  */
+/* in lib/data/store.ts) — nooit door de AI verzonnen. Zo kan een       */
+/* kwaadwillende geschiltekst hooguit de samenvattingstekst beïnvloeden */
+/* (die sowieso al door de bestaande prompt-injection-laag gaat, zie    */
+/* lib/ai/client.ts), maar nooit een echte goedkeuren-knop laten        */
+/* verschijnen voor iets dat niet bestaat.                              */
+/* ------------------------------------------------------------------ */
+
+export type BriefingItemKind = "supplier_verification" | "dispute" | "new_supplier" | "new_users" | "flagged_ai" | "financial";
+export type BriefingItemStatus = "open" | "approved" | "dismissed";
+
+export interface AdminBriefingItem {
+  id: string;
+  briefingId: string;
+  teamMember: string;
+  kind: BriefingItemKind;
+  title: string;
+  description: string;
+  requiresApproval: boolean;
+  relatedType: string | null;
+  relatedId: string | null;
+  status: BriefingItemStatus;
+  createdAt: string;
+}
+
+export interface AdminBriefing {
+  id: string;
+  coordinatorSummary: string;
+  /** Eén korte kopzin per teamlid, bv. `{"Leveranciers & Verificatie": "..."}` — ook aanwezig als dat team geen punten heeft. */
+  teamHeadlines: Record<string, string>;
+  since: string;
+  usedAI: boolean;
+  createdAt: string;
+  items: AdminBriefingItem[];
+}
+
+/* ------------------------------------------------------------------ */
 /* Helper aggregates                                                   */
 /* ------------------------------------------------------------------ */
 

@@ -107,8 +107,16 @@ export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://vyra.now";
  * doorgestuurd. Zet hier je eigen e-mailadres; meerdere adressen kan met
  * een komma-gescheiden lijst in ADMIN_EMAILS (env var), als fallback wordt
  * onderstaand adres gebruikt.
+ *
+ * Bugfix (spec-item #52): de fallback stond nog op cemadiyaman91@gmail.com,
+ * maar Cems echte Vyra-account (waarmee hij live inlogt) gebruikt
+ * cemadiyaman@hotmail.nl — daardoor werd hij op /admin altijd stilzwijgend
+ * teruggestuurd naar /events, zonder foutmelding, alsof de pagina niet
+ * bestond. Beide adressen staan nu in de fallback zodat dit niet nogmaals
+ * per ongeluk kan gebeuren als er ooit met een ander account wordt
+ * ingelogd.
  */
-export const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "cemadiyaman91@gmail.com")
+export const ADMIN_EMAILS = (process.env.ADMIN_EMAILS ?? "cemadiyaman@hotmail.nl,cemadiyaman91@gmail.com")
   .split(",")
   .map((e) => e.trim().toLowerCase())
   .filter(Boolean);
