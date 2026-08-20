@@ -61,10 +61,20 @@ in `.gitignore`, net als `test-results/` (ruwe traces/screenshots).
 
 ## Wat dekt dit (nog) wel/niet
 
-`core-loop.spec.ts` bewijst het fundament: inloggen met een echt account
-en een nieuw evenement starten met een echte (AI of mock) reactie op het
-eerste bericht. Het dekt NOG NIET de rest van de kernloop uit
-`vervolgplan-vyra.md` ("een offerte accepteren") — dat vraagt om het
-scripten van de rest van het AI-interview tot "klaar", de planpagina, en de
-requirements-/shortlist-/offertepagina's. Logische vervolgstap, in een
-volgende ronde.
+`core-loop.spec.ts` bevat drie tests, oplopend in dekking:
+
+1. inloggen met een echt account en op `/events` terechtkomen;
+2. een nieuw evenement starten en een echte (AI of mock) reactie krijgen op
+   het eerste bericht;
+3. de volledige kernloop tot en met een bevestigde betaling: het hele
+   AI-interview doorlopen tot "klaar" (aantal vervolgvragen ligt niet vast
+   — de echte AI beslist zelf), het gegenereerde plan bevestigen, een
+   aanvraag versturen naar leveranciers, wachten op een (synchroon
+   gegenereerde demo-)offerte, die offerte accepteren, en de betaling op de
+   afrekenpagina bevestigen.
+
+Dit dekt daarmee de volledige kernloop uit `vervolgplan-vyra.md`
+("... tot en met een offerte accepteren"), inclusief het afrekenen erna.
+Bewust nog niet gedekt: leveranciers-portaal-flows (een échte leverancier
+die zelf reageert op een aanvraag), het geschillenproces, en admin-flows —
+mogelijke vervolgstappen als daar behoefte aan is.
