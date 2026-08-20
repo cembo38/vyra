@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Mic } from "lucide-react";
+import { Loader2, Mic } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
@@ -23,6 +23,36 @@ import { cn } from "@/lib/utils";
  * label — plus een korte pieptoon bij starten (hoog) en loslaten (laag),
  * gesynthetiseerd via de Web Audio API zodat er geen los geluidsbestand
  * nodig is.
+ *
+ * Bugfix (gemeld: "op de iPhone werkt de microfoon niet"): dit component
+ * riep eerst `await navigator.mediaDevices.getUserMedia(...)` aan en pas
+ * daarna, ná die `await`, `recognition.start()` — met de bedoeling om
+ * microfoontoegang te forceren. Op iOS Safari is dat juist de oorzaak van
+ * een STILLE mislukking: Safari staat `SpeechRecognition.start()` alleen
+ * toe zolang die aanroep nog binnen dezelfde synchrone taak van de
+ * gebruikersinteractie (de pointerdown) valt — zodra er een `await`
+ * tussenzit (zelfs een `getUserMedia`-aanroep die de toestemming allang
+ * heeft), is die "user activation" verlopen tegen de tijd dat
+ * `recognition.start()` wordt aangeroepen, en negeert Safari die aanroep
+ * gewoon zonder fout of prompt. `startListening` hieronder is daarom weer
+ * volledig synchroon: `recognition.start()` wordt als allereerste, nog
+ * binnen de pointerdown-handler zelf aangeroepen. `SpeechRecognition`
+ * regelt microfoontoestemming voortaan zelf (dat doet het ook op iOS,
+ * inclusief een eigen systeemprompt) — een losse `getUserMedia`-aanvraag
+ * vooraf is niet meer nodig, en de precieze foutcode uit `onerror`
+ * (`not-allowed` bij geweigerde toestemming, `audio-capture` bij geen
+ * gevonden microfoon, etc.) geeft nu een preciezere melding dan de vorige
+ * gok op basis van een aparte `getUserMedia`-aanroep.
+ *
+ * Tweede bugfix (gemeld: "tijd tussen loslaten en de omgezette tekst,
+ * toon dat er geladen wordt"): na het loslaten stopt de opname niet
+ * onmiddellijk — de browser (en bij mobiele Safari soms een externe
+ * spraakherkenningsdienst) heeft nog een moment nodig om het laatste stukje
+ * geluid om te zetten naar tekst, vóórdat `onresult`/`onend` afgaan. Dat
+ * gaf voorheen geen enkele terugkoppeling (de knop sprong meteen terug naar
+ * "niet aan het luisteren"). Een aparte `processing`-status laat nu een
+ * duidelijke laad-indicator ("Verwerkt…", een draaiend icoon) zien in dat
+ * tussenliggende venster.
  */
 
 interface SpeechRecognitionResultLike {
@@ -33,6 +63,11 @@ interface SpeechRecognitionEventLike extends Event {
   results: ArrayLike<ArrayLike<SpeechRecognitionResultLike>>;
 }
 
+interface SpeechRecognitionErrorEventLike extends Event {
+  /** Bv. "not-allowed", "no-speech", "audio-capture", "network", "aborted". */
+  error?: string;
+}
+
 interface SpeechRecognitionLike extends EventTarget {
   lang: string;
   interimResults: boolean;
@@ -40,7 +75,7 @@ interface SpeechRecognitionLike extends EventTarget {
   start: () => void;
   stop: () => void;
   onresult: ((event: SpeechRecognitionEventLike) => void) | null;
-  onerror: (() => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEventLike) => void) | null;
   onend: (() => void) | null;
 }
 
@@ -105,18 +140,22 @@ function playBeep(frequencyHz: number, durationMs: number) {
   oscillator.stop(now + durationS + 0.02);
 }
 
+/** "idle" = niets aan de hand. "listening" = actief aan het opnemen (knop ingedrukt). "processing" = losgelaten, wacht nog op de laatste tekst. */
+type VoicePhase = "idle" | "listening" | "processing";
+
 export function VoiceInputButton({ onTranscript, className }: { onTranscript: (text: string) => void; className?: string }) {
   const supported = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
-  const [listening, setListening] = useState(false);
+  const [phase, setPhase] = useState<VoicePhase>("idle");
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const onTranscriptRef = useRef(onTranscript);
-  // Ref i.p.v. de `listening`-state: deze wordt gelezen in event-handlers
-  // die éénmalig (bij het aanmaken van de recognition) zijn vastgelegd, en
-  // een ref blijft — anders dan een uit de sluiting meegekregen state-
-  // waarde — altijd actueel.
+  // Refs i.p.v. state: deze worden gelezen in event-handlers die éénmalig
+  // (bij het aanmaken van de recognition) zijn vastgelegd, en een ref blijft
+  // — anders dan een uit de sluiting meegekregen state-waarde — altijd
+  // actueel.
   const holdingRef = useRef(false);
   const gotResultRef = useRef(false);
+  const hadErrorRef = useRef(false);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -137,6 +176,26 @@ export function VoiceInputButton({ onTranscript, className }: { onTranscript: (t
       clearTimeout(timeoutRef.current);
       timeoutRef.current = null;
     }
+  }
+
+  /**
+   * Vangnet voor beide fases: als er tijdens het luisteren/verwerken niets
+   * (geen resultaat, geen fout, geen einde) gebeurt binnen `ms`, forceer dan
+   * een duidelijke melding i.p.v. de gebruiker met een stille, "vastzittende"
+   * knop achter te laten.
+   */
+  function armSafetyTimeout(ms: number, message: string) {
+    clearSafetyTimeout();
+    timeoutRef.current = setTimeout(() => {
+      holdingRef.current = false;
+      try {
+        recognitionRef.current?.stop();
+      } catch {
+        // Niets aan te doen — we zetten de UI hieronder sowieso terug.
+      }
+      setPhase("idle");
+      setError(message);
+    }, ms);
   }
 
   useEffect(() => {
@@ -160,15 +219,21 @@ export function VoiceInputButton({ onTranscript, className }: { onTranscript: (t
         onTranscriptRef.current(transcript);
       }
     };
-    recognition.onerror = () => {
-      // Sommige browsers (met name mobiele Safari) laten dit event soms
-      // ook zonder echte fout afgaan wanneer er simpelweg niets werd
-      // gehoord — toon daarom een neutrale, geruststellende melding i.p.v.
-      // een harde foutmelding.
+    recognition.onerror = (event) => {
+      hadErrorRef.current = true;
       holdingRef.current = false;
       clearSafetyTimeout();
-      setListening(false);
-      setError("Geen spraak herkend — probeer het nog eens, of typ je antwoord.");
+      setPhase("idle");
+      // Sommige browsers (met name mobiele Safari) laten dit event soms
+      // ook zonder een echte fout afgaan wanneer er simpelweg niets werd
+      // gehoord — vandaar de neutrale, geruststellende fallback-melding.
+      if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+        setError("Geen toegang tot de microfoon — sta microfoontoegang toe voor deze site (via het toestemmingsicoon in de adresbalk, of in je instellingen) en probeer opnieuw.");
+      } else if (event.error === "audio-capture") {
+        setError("Kon geen microfoon vinden op dit apparaat.");
+      } else {
+        setError("Geen spraak herkend — probeer het nog eens, of typ je antwoord.");
+      }
     };
     recognition.onend = () => {
       // De browser stopt vanzelf na een korte stilte, ook als de knop nog
@@ -180,20 +245,22 @@ export function VoiceInputButton({ onTranscript, className }: { onTranscript: (t
       if (holdingRef.current) {
         try {
           recognition.start();
+          armSafetyTimeout(10000, "Spraakherkenning reageert niet — typ je antwoord, of probeer het later opnieuw.");
           return;
         } catch {
           // Val door naar het gewone stop-gedrag hieronder.
         }
       }
       clearSafetyTimeout();
-      // Als "luisteren" gewoon eindigde zonder dat er ooit een transcript
-      // binnenkwam (en zonder dat `onerror` iets meldde) — dit is precies
-      // het stille faalpatroon dat op sommige mobiele browsers optreedt —
-      // laat dat dan alsnog duidelijk merken i.p.v. gewoon niets te doen.
-      if (listening && !gotResultRef.current) {
+      // Als "luisteren"/"verwerken" gewoon eindigde zonder dat er ooit een
+      // transcript binnenkwam, en zonder dat `onerror` al een (specifiekere)
+      // melding toonde — dit is precies het stille faalpatroon dat op
+      // sommige mobiele browsers optreedt — laat dat dan alsnog duidelijk
+      // merken i.p.v. gewoon niets te doen.
+      if (!gotResultRef.current && !hadErrorRef.current) {
         setError("Er is niets opgenomen — controleer of de microfoon is toegestaan, of typ je antwoord.");
       }
-      setListening(false);
+      setPhase("idle");
     };
     recognitionRef.current = recognition;
 
@@ -208,56 +275,24 @@ export function VoiceInputButton({ onTranscript, className }: { onTranscript: (t
 
   if (!supported) return null;
 
-  async function startListening() {
-    if (holdingRef.current) return;
+  // BEWUST volledig synchroon (geen `async`/`await` ervoor) — zie de
+  // toelichting bovenaan het bestand: `recognition.start()` moet nog binnen
+  // dezelfde synchrone taak als de pointerdown-gebeurtenis vallen, anders
+  // negeert iOS Safari de aanroep stilzwijgend.
+  function startListening() {
+    if (holdingRef.current || phase !== "idle") return;
     const recognition = recognitionRef.current;
     if (!recognition) return;
     holdingRef.current = true;
     gotResultRef.current = false;
+    hadErrorRef.current = false;
     setError(null);
-
-    // Vraag microfoontoegang eerst expliciet zelf aan i.p.v. te vertrouwen
-    // op de interne toestemmingsaanvraag van `SpeechRecognition` — op
-    // mobiele Safari bleek die laatste onbetrouwbaar: soms verschijnt er
-    // helemaal geen toestemmingsprompt en start `recognition.start()`
-    // vervolgens stilzwijgend niets op (geen opname, geen fout, geen
-    // transcript — precies het gemelde probleem). Deze expliciete aanvraag
-    // dwingt de browser-eigen prompt af en geeft ons een harde fout te
-    // pakken als toegang geweigerd is.
-    if (navigator.mediaDevices?.getUserMedia) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        // Alleen nodig om de toestemming te forceren/bevestigen —
-        // `SpeechRecognition` beheert zijn eigen audio-opname apart, dus
-        // deze losse stream meteen weer sluiten.
-        stream.getTracks().forEach((track) => track.stop());
-      } catch {
-        holdingRef.current = false;
-        setError("Geen toegang tot de microfoon — controleer microfoontoestemming voor deze site in je browser-/telefooninstellingen.");
-        return;
-      }
-    }
-    // De knop kan intussen (tijdens het wachten op de toestemmingsprompt)
-    // alweer losgelaten zijn — dan niet alsnog beginnen met luisteren.
-    if (!holdingRef.current) return;
 
     try {
       recognition.start();
-      setListening(true);
+      setPhase("listening");
       playBeep(880, 100);
-      // Vangnet: als er na 10 seconden nog steeds niets is gebeurd (geen
-      // resultaat, geen fout, geen einde), forceer dan een duidelijke
-      // melding i.p.v. de gebruiker met een stille, "vastzittende" knop
-      // achter te laten.
-      clearSafetyTimeout();
-      timeoutRef.current = setTimeout(() => {
-        if (holdingRef.current && !gotResultRef.current) {
-          holdingRef.current = false;
-          recognition.stop();
-          setListening(false);
-          setError("Spraakherkenning reageert niet — typ je antwoord, of probeer het later opnieuw.");
-        }
-      }, 10000);
+      armSafetyTimeout(10000, "Spraakherkenning reageert niet — typ je antwoord, of probeer het later opnieuw.");
     } catch {
       // Al bezig met luisteren, of microfoon geweigerd — duidelijk melden
       // i.p.v. stilzwijgend niets te doen.
@@ -269,16 +304,24 @@ export function VoiceInputButton({ onTranscript, className }: { onTranscript: (t
   function stopListening() {
     if (!holdingRef.current) return;
     holdingRef.current = false;
-    clearSafetyTimeout();
+    // Loslaten betekent niet meteen "klaar": de laatste tekst moet nog
+    // binnenkomen (onresult/onend) — vandaar de aparte "processing"-status
+    // i.p.v. meteen terug te springen naar "idle" alsof er niets meer
+    // gebeurt.
+    setPhase("processing");
+    armSafetyTimeout(6000, "Dit duurt langer dan verwacht — typ je antwoord, of probeer het opnieuw.");
     recognitionRef.current?.stop();
-    setListening(false);
     playBeep(520, 120);
   }
+
+  const listening = phase === "listening";
+  const processing = phase === "processing";
 
   return (
     <span className="relative inline-flex">
     <button
       type="button"
+      disabled={processing}
       onPointerDown={(e) => {
         e.preventDefault();
         e.currentTarget.setPointerCapture(e.pointerId);
@@ -300,12 +343,14 @@ export function VoiceInputButton({ onTranscript, className }: { onTranscript: (t
         }
       }}
       onBlur={stopListening}
-      aria-label={listening ? "Aan het luisteren — loslaten om te stoppen" : "Houd ingedrukt om in te spreken"}
-      title={listening ? "Loslaten om te stoppen" : "Houd ingedrukt om in te spreken"}
+      aria-label={listening ? "Aan het luisteren — loslaten om te stoppen" : processing ? "Spraak wordt verwerkt…" : "Houd ingedrukt om in te spreken"}
+      title={listening ? "Loslaten om te stoppen" : processing ? "Verwerkt je spraak…" : "Houd ingedrukt om in te spreken"}
       aria-pressed={listening}
+      aria-busy={processing}
       className={cn(
         "icon-pop relative flex shrink-0 touch-none select-none items-center justify-center rounded-full transition-colors duration-[var(--duration-swift)]",
-        listening ? "bg-danger text-white" : "bg-paper-dim text-ink-faint hover:text-ink",
+        listening ? "bg-danger text-white" : processing ? "bg-ink text-white" : "bg-paper-dim text-ink-faint hover:text-ink",
+        processing && "cursor-wait",
         className
       )}
     >
@@ -326,17 +371,31 @@ export function VoiceInputButton({ onTranscript, className }: { onTranscript: (t
           </span>
         </>
       )}
+      {processing && (
+        // Het label dat de tweede gemelde klacht oplost: het duurt na het
+        // loslaten nog even voordat de omgezette tekst er is — zonder dit
+        // label leek de knop simpelweg niets te doen in die tussentijd.
+        <span
+          aria-hidden
+          className="absolute bottom-full left-1/2 z-20 mb-2 flex -translate-x-1/2 animate-rise items-center gap-1.5 whitespace-nowrap rounded-full bg-ink px-2.5 py-1 text-[11px] font-medium text-paper shadow-[var(--shadow-pop)]"
+        >
+          <Loader2 className="size-2.5 animate-spin" />
+          Verwerkt…
+        </span>
+      )}
       {listening ? (
         <span aria-hidden className="relative flex h-3.5 items-center justify-center gap-[3px]">
           <span className="h-2 w-[3px] animate-mic-wave rounded-full bg-white [animation-delay:-0.4s]" />
           <span className="h-3.5 w-[3px] animate-mic-wave rounded-full bg-white [animation-delay:-0.2s]" />
           <span className="h-2.5 w-[3px] animate-mic-wave rounded-full bg-white" />
         </span>
+      ) : processing ? (
+        <Loader2 className="size-4 animate-spin" />
       ) : (
         <Mic className="size-4" />
       )}
     </button>
-    {error && !listening && (
+    {error && phase === "idle" && (
       <span
         role="alert"
         className="absolute bottom-full left-1/2 z-20 mb-2 w-max max-w-[14rem] -translate-x-1/2 rounded-xl bg-danger px-2.5 py-1.5 text-center text-[11px] font-medium leading-snug text-white shadow-[var(--shadow-pop)]"
