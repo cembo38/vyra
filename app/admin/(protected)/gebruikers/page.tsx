@@ -4,16 +4,9 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { listAllUsers } from "@/lib/data/store";
 import { isServiceRoleConfigured } from "@/lib/supabase/admin";
-import { UserRole } from "@/lib/types";
+import { USER_ROLE_LABELS } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Ban } from "lucide-react";
-
-const ROLE_LABELS: Record<UserRole, string> = {
-  customer: "Organisator",
-  supplier: "Leverancier",
-  both: "Organisator + leverancier",
-  admin: "Admin",
-};
 
 export const metadata = { title: "Gebruikers — Vyra Admin" };
 
@@ -64,7 +57,7 @@ export default async function AdminUsersPage() {
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-medium text-ink">{u.firstName} {u.lastName}</p>
-                        <Badge tone={u.role === "admin" ? "clay" : "neutral"}>{ROLE_LABELS[u.role]}</Badge>
+                        <Badge tone={u.role === "admin" ? "clay" : "neutral"}>{USER_ROLE_LABELS[u.role]}</Badge>
                         {u.bannedAt && <Badge tone="danger">Geblokkeerd</Badge>}
                       </div>
                       <p className="text-xs text-ink-faint">{u.email}</p>

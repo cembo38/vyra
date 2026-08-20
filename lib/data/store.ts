@@ -348,6 +348,13 @@ export async function updateUser(userId: string, patch: Partial<UserAccount>): P
   if (patch.language !== undefined) update.language = patch.language;
   if (patch.currency !== undefined) update.currency = patch.currency;
   if (patch.avatarColor !== undefined) update.avatar_color = patch.avatarColor;
+  // `role` bewust ook hier toegestaan (niet alleen bij aanmaken) — spec-item
+  // "rolkeuze aanpassen": iemand die eerst alleen organisator was, kan later
+  // via /profile alsnog "ook leverancier" aanvinken, en andersom. De
+  // aanroepende action (`updateRoleAction` in lib/actions/auth-actions.ts)
+  // whitelist't de waarde al tegen 'customer'/'supplier'/'both' — nooit
+  // 'admin', dat loopt uitsluitend via ADMIN_EMAILS.
+  if (patch.role !== undefined) update.role = patch.role;
   const { data, error } = await supabase.from("profiles").update(update).eq("id", userId).select().single();
   if (error || !data) return null;
   return rowToUser(data);

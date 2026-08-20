@@ -24,6 +24,14 @@ export interface AttributedValue<T> {
 
 export type UserRole = "customer" | "supplier" | "both" | "admin";
 
+/** Eén bron van waarheid voor het label per rol — gebruikt in /profile (zelf wijzigen) en /admin/gebruikers (overzicht). */
+export const USER_ROLE_LABELS: Record<UserRole, string> = {
+  customer: "Organisator",
+  supplier: "Leverancier",
+  both: "Organisator + leverancier",
+  admin: "Admin",
+};
+
 export interface UserAccount {
   id: string;
   role: UserRole;

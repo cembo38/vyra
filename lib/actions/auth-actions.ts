@@ -113,6 +113,37 @@ export async function updateProfileAction(formData: FormData) {
   redirect("/profile?saved=1");
 }
 
+/**
+ * Rolkeuze achteraf wijzigen via /profile — bugfix + uitbreiding: bij
+ * /signup werd deze keuze al gevraagd (organisator/leverancier/allebei),
+ * maar landde die door een ontbrekende koppeling in de database-trigger
+ * (zie migratie 0023) nooit echt op het profiel — iedereen kreeg
+ * stilzwijgend "organisator". Zelfde twee-checkboxes-patroon en dezelfde
+ * berekening als `signupAction` hierboven, zodat beide plekken altijd
+ * hetzelfde resultaat opleveren voor dezelfde keuze.
+ *
+ * Whitelist bewust tegen alleen 'customer'/'supplier'/'both' — 'admin' is
+ * hier nooit een geldige uitkomst, want adminrechten lopen uitsluitend via
+ * ADMIN_EMAILS (lib/config.ts) en hebben niets met deze kolom te maken.
+ * Dit is puur een label + een hint voor de na-login-redirect
+ * (`redirectAfterAuth` hierboven); het regelt zelf geen toegang tot het
+ * leveranciersportaal — dat blijft, zoals nu al, gaan via het bestaan van
+ * een echt leveranciersprofiel (`getSupplierAccountByOwner`).
+ */
+export async function updateRoleAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const asOrganizer = formData.get("asOrganizer") === "on";
+  const asSupplier = formData.get("asSupplier") === "on";
+  if (!asOrganizer && !asSupplier) redirect("/profile?error=role");
+
+  const role = asOrganizer && asSupplier ? "both" : asSupplier ? "supplier" : "customer";
+  await updateUser(user.id, { role });
+  revalidatePath("/", "layout");
+  redirect("/profile?saved=1");
+}
+
 export async function logoutAction() {
   await signOut();
   redirect("/");

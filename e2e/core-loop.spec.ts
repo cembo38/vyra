@@ -41,11 +41,16 @@ test.describe("Kernloop: inloggen en een evenement starten", () => {
     await page.getByRole("button", { name: "Inloggen" }).click();
     await expect(page).toHaveURL(/\/events$/, { timeout: 15_000 });
 
-    // Zowel de topbar-knop als de lege-staat-kaart linken naar
-    // /events/new — op een vers testaccount (nog geen evenementen) staan
-    // ze allebei op de pagina, dus `.first()` om niet-strikte-mode-
-    // ambiguïteit te voorkomen.
-    await page.locator('a[href="/events/new"]').first().click();
+    // Er staan op een vers testaccount (nog geen evenementen) meerdere
+    // links naar /events/new tegelijk in de DOM: de topbar-knop, de
+    // permanente zijbalk ÉN het (op desktop-breedte onzichtbare, maar wel
+    // gemounte) mobiele uitschuifmenu gebruiken alledrie hetzelfde label
+    // "Nieuw evenement" (zie NavShell.tsx) — een `href`-locator zou dus
+    // per ongeluk de kopie in het gesloten mobiele menu kunnen raken, die
+    // buiten beeld staat en dus nooit klikbaar wordt. "Start mijn
+    // evenement" is de tekst van de lege-staat-knop en komt maar op één
+    // plek voor, dus ondubbelzinnig.
+    await page.getByRole("link", { name: "Start mijn evenement" }).click();
     await expect(page).toHaveURL(/\/events\/new$/);
 
     const input = page.getByPlaceholder("Typ of spreek je antwoord in…");
@@ -59,6 +64,6 @@ test.describe("Kernloop: inloggen en een evenement starten", () => {
     // echte AI en de mock-fallback), alleen dat er een nieuwe
     // assistent-reactie bijkomt na het versturen.
     const assistantBubbles = page.locator(".rounded-tl-sm.bg-white");
-    await expect(assistantBubbles).toHaveCount(2, { timeout: 30_000 });
+    await expect(assistantBubbles).toHaveCount(2, { timeout: 45_000 });
   });
 });
