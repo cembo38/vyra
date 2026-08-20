@@ -1,4 +1,5 @@
 import { AdminSupplierVerificationActions } from "@/components/app/AdminSupplierVerificationActions";
+import { AdminRevokeVerificationButton } from "@/components/app/AdminRevokeVerificationButton";
 import { AdminServiceRoleBanner } from "@/components/app/AdminServiceRoleBanner";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -99,7 +100,7 @@ export default async function AdminSuppliersPage() {
                   return b.ratingAvg - a.ratingAvg;
                 })
                 .map((s) => (
-                  <div key={s.id} className="flex items-center justify-between rounded-xl border border-line-soft px-3.5 py-2.5 text-sm">
+                  <div key={s.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line-soft px-3.5 py-2.5 text-sm">
                     <div>
                       <div className="flex items-center gap-1.5">
                         <p className="font-medium text-ink">{s.companyName}</p>
@@ -107,13 +108,16 @@ export default async function AdminSuppliersPage() {
                       </div>
                       <p className="text-xs text-ink-faint">{s.serviceAreas.join(", ")}</p>
                     </div>
-                    {s.ratingCount > 0 ? (
-                      <span className="flex items-center gap-1 text-xs text-ink-faint">
-                        <Star className="size-3.5 fill-ochre text-ochre" /> {s.ratingAvg.toFixed(1)}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-ink-faint">Nog geen reviews</span>
-                    )}
+                    <div className="flex items-center gap-3">
+                      {s.ratingCount > 0 ? (
+                        <span className="flex items-center gap-1 text-xs text-ink-faint">
+                          <Star className="size-3.5 fill-ochre text-ochre" /> {s.ratingAvg.toFixed(1)}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-ink-faint">Nog geen reviews</span>
+                      )}
+                      {s.verified && serviceRoleConfigured && <AdminRevokeVerificationButton supplierId={s.id} />}
+                    </div>
                   </div>
                 ))}
             </div>

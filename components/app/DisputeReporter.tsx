@@ -9,6 +9,8 @@ import { fileDisputeAction } from "@/lib/actions/dispute-actions";
 import { DISPUTE_CATEGORY_LABELS, type Dispute, type DisputeCategory } from "@/lib/types";
 
 const CATEGORY_OPTIONS = Object.entries(DISPUTE_CATEGORY_LABELS) as [DisputeCategory, string][];
+// Moet gelijk blijven aan DESCRIPTION_MAX_LENGTH in lib/actions/dispute-actions.ts.
+const DESCRIPTION_MAX_LENGTH = 2000;
 
 /**
  * Geschil melden/bekijken over één specifieke boeking (spec-item #50) —
@@ -45,6 +47,10 @@ export function DisputeReporter({
   function submit() {
     if (description.trim().length < 10) {
       setError("Beschrijf het probleem iets uitgebreider (minstens 10 tekens).");
+      return;
+    }
+    if (description.trim().length > DESCRIPTION_MAX_LENGTH) {
+      setError(`Beschrijf het probleem iets korter (maximaal ${DESCRIPTION_MAX_LENGTH} tekens).`);
       return;
     }
     setError(null);
@@ -121,8 +127,19 @@ export function DisputeReporter({
                   ))}
                 </Select>
               </Field>
-              <Field label="Wat is er gebeurd?" required hint="Vyra bekijkt dit en bemiddelt tussen jou en de andere partij.">
-                <Textarea rows={3} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Beschrijf het probleem zo concreet mogelijk..." />
+              <Field
+                label="Wat is er gebeurd?"
+                required
+                hint="Vyra bekijkt dit en bemiddelt tussen jou en de andere partij."
+              >
+                <Textarea
+                  rows={3}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Beschrijf het probleem zo concreet mogelijk..."
+                  maxLength={DESCRIPTION_MAX_LENGTH}
+                />
+                <p className="mt-1 text-right text-[11px] text-ink-faint">{description.length}/{DESCRIPTION_MAX_LENGTH}</p>
               </Field>
               {error && <p className="text-xs text-danger">{error}</p>}
               <div className="flex items-center gap-2">

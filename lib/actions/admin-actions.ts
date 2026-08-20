@@ -7,6 +7,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import {
   approveSupplierVerification,
   rejectSupplierVerification,
+  revokeSupplierVerification,
   pushNotification,
   resolveDispute,
   generateAndStoreDailyBriefing,
@@ -135,6 +136,36 @@ export async function rejectSupplierVerificationAction(formData: FormData): Prom
       type: "verification_rejected",
       title: "Verificatieaanvraag afgewezen",
       body: "We konden je bedrijfsgegevens nog niet verifiëren. Controleer je KVK-nummer en bedrijfsgegevens en vraag het opnieuw aan.",
+      href: "/supplier/profile",
+    });
+
+    revalidatePath("/admin/leveranciers");
+  });
+}
+
+/**
+ * Trekt een eerder toegekende verificatie weer in — zie de toelichting bij
+ * `revokeSupplierVerification()` in lib/data/store.ts voor waarom dit
+ * ontbrak. Reversibel (de leverancier kan opnieuw verificatie aanvragen),
+ * dus geen "typ ter bevestiging"-stap nodig — wel een lichte inline
+ * bevestiging in de UI zelf (zie AdminRevokeVerificationButton.tsx),
+ * zelfde soort patroon als blokkeren/deblokkeren van een gebruiker.
+ */
+export async function revokeSupplierVerificationAction(formData: FormData): Promise<ActionResult> {
+  return runAction(async () => {
+    await requireAdmin();
+    const supplierId = String(formData.get("supplierId") ?? "").trim();
+    if (!supplierId) throw new Error("Geen leverancier opgegeven.");
+
+    const supplier = await revokeSupplierVerification(supplierId);
+    if (!supplier) throw new Error("Kon verificatie niet intrekken (service-role sleutel niet geconfigureerd?).");
+
+    await pushNotification({
+      userId: supplier.ownerId,
+      eventId: null,
+      type: "verification_revoked",
+      title: "Verificatie ingetrokken",
+      body: "Vyra heeft je verificatiebadge ingetrokken. Neem contact op als je denkt dat dit niet klopt, of vraag verificatie opnieuw aan vanuit je bedrijfsprofiel.",
       href: "/supplier/profile",
     });
 

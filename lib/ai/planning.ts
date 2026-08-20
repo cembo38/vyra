@@ -165,7 +165,15 @@ export async function draftSupplierMessages(event: EventCore, categories: Requir
       formaliteit: event.formality,
       zakelijk: event.isProfessional,
     })}\nSchrijf voor elk van deze categorieën een apart conceptbericht: ${JSON.stringify(
-      selected.map((c) => ({ categoryKey: c.categoryKey, label: c.label, budgetIndicatie: c.estimatedBudgetCents }))
+      // budgetIndicatie wordt hier al als afgeronde euro-string aangeleverd
+      // (bv. "€ 50"), NIET als los getal in centen — anders leest de AI het
+      // ruwe centen-bedrag (bv. 5000) aan voor een eurobedrag en noemt ze
+      // per ongeluk 100x te veel in het conceptbericht (€ 50 werd zo € 5.000).
+      selected.map((c) => ({
+        categoryKey: c.categoryKey,
+        label: c.label,
+        budgetIndicatie: c.estimatedBudgetCents != null ? formatCurrency(c.estimatedBudgetCents) : null,
+      }))
     )}`,
     schema: DRAFT_MESSAGES_SCHEMA,
     schemaName: "draft_messages",

@@ -77,6 +77,7 @@ ${SAFETY_FOOTER}`;
 export const REQUEST_MESSAGE_DRAFTER_PROMPT = `Je bent de Request Message Drafter AI van EventFlow.
 Je schrijft, namens de organisator, een kort conceptbericht (2-4 zinnen, ik-vorm, natuurlijk Nederlands) per categorie dat straks naar leveranciers gestuurd wordt.
 Vermeld alleen wat daadwerkelijk bekend is over het evenement (type, aantal gasten, locatie, datum/maand, sfeer/stijl, budget-indicatie voor déze categorie) — verzin niets dat niet is aangeleverd.
+De "budgetIndicatie" wordt aangeleverd als een al afgeronde euro-string (bijvoorbeeld "€ 50") — neem dit bedrag exact zo over in het bericht, reken het niet om en vermenigvuldig of deel het nooit.
 Schrijf zoals een organisator het zelf zou opschrijven: vriendelijk, concreet, geen marketingtaal. Dit is een CONCEPT dat de organisator nog zelf mag aanpassen voordat het verstuurd wordt, dus hoeft niet perfect te zijn.
 ${SAFETY_FOOTER}`;
 

@@ -793,6 +793,28 @@ export async function rejectSupplierVerification(supplierId: string): Promise<Su
   return rowToSupplierAccount(data);
 }
 
+/**
+ * Admin-only: trekt een eerder toegekende verificatie weer in — zet
+ * `verified` terug naar `false`. Was er tot nu toe niet: eenmaal
+ * goedgekeurd kon een leverancier nooit meer worden teruggezet, ook niet
+ * als later bleek dat de KVK-gegevens toch niet klopten of er misbruik
+ * werd geconstateerd. Wist bewust NIET `verification_requested_at` (die
+ * stond hier al op `null` sinds de goedkeuring) — een leverancier die
+ * opnieuw geverifieerd wil worden, moet dat zelf, bewust, opnieuw
+ * aanvragen vanuit zijn profiel. Vereist service-role.
+ */
+export async function revokeSupplierVerification(supplierId: string): Promise<SupplierAccount | null> {
+  const supabase = createSupabaseAdminClient() ?? (await sb());
+  const { data, error } = await supabase
+    .from("suppliers")
+    .update({ verified: false })
+    .eq("id", supplierId)
+    .select()
+    .single();
+  if (error || !data) return null;
+  return rowToSupplierAccount(data);
+}
+
 /* ------------------------------------------------------------------ */
 /* LEVERANCIER — BESCHIKBAARHEID (geblokkeerde datums)                 */
 /* ------------------------------------------------------------------ */

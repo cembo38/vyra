@@ -5,6 +5,18 @@ import { addMessage, getEvent, getSupplierAccountByOwner, pushNotification } fro
 import { getCurrentUser } from "@/lib/auth";
 import { SUPPLIER_CATEGORY_LABELS, SupplierCategory } from "@/lib/types";
 
+/**
+ * Had, in tegenstelling tot `sendSupplierMessageAction` hieronder, HELEMAAL
+ * geen controle wie er aanroept — elke ingelogde gebruiker die een
+ * eventId/categoryKey/supplierId kon raden of aflezen (bv. uit de URL van
+ * andermans gesprek) kon zo een bericht "namens" die organisator in diens
+ * gesprek met een leverancier plaatsen. De pagina die dit aanroept
+ * (`/events/[id]/messages/[category]`) checkt zelf wel eigenaarschap via
+ * `app/events/[id]/layout.tsx`, maar een Server Action is een eigen,
+ * rechtstreeks aanroepbaar eindpunt — die bescherming van de pagina erft
+ * niet automatisch mee naar de action zelf. Zelfde patroon nu toegepast
+ * als overal elders (lib/actions/event-actions.ts, marketplace-actions.ts).
+ */
 export async function sendMessageAction(
   eventId: string,
   categoryKey: SupplierCategory,
@@ -12,8 +24,14 @@ export async function sendMessageAction(
   text: string
 ): Promise<{ ok: boolean; error?: string }> {
   if (!text.trim()) return { ok: true };
+
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Niet ingelogd." };
+
   const event = await getEvent(eventId);
   if (!event) return { ok: false, error: "Evenement niet gevonden." };
+  if (event.ownerId !== user.id) return { ok: false, error: "Niet geautoriseerd voor dit gesprek." };
+
   await addMessage({ eventId, categoryKey, supplierId, sender: "customer", text: text.trim() });
   revalidatePath(`/events/${eventId}/messages`, "layout");
   return { ok: true };

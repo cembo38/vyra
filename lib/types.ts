@@ -549,6 +549,7 @@ export interface AppNotification {
     | "verification_requested"
     | "verification_approved"
     | "verification_rejected"
+    | "verification_revoked"
     | "dispute_filed"
     | "dispute_resolved"
     | "dispute_dismissed";

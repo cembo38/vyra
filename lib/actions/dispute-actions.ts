@@ -6,6 +6,12 @@ import { fileDispute, getEvent, getSupplierAccountByOwner } from "@/lib/data/sto
 import type { DisputeCategory, DisputeFiledByRole } from "@/lib/types";
 
 const DISPUTE_CATEGORIES: DisputeCategory[] = ["no_show", "quality", "payment", "communication", "other"];
+// Er was tot nu toe alleen een MINIMUM (10 tekens) — niets hield een
+// gebruiker tegen om er duizenden woorden in te plakken. Dat kan zowel de
+// admin-geschillenlijst (app/admin/geschillen) onleesbaar maken als
+// onnodig veel ruimte in de database gebruiken. 2000 tekens is ruim
+// genoeg voor een uitgebreide, concrete omschrijving.
+const DESCRIPTION_MAX_LENGTH = 2000;
 
 /**
  * Spec-item #50 — geschil melden. Gebruikt door zowel de organisator
@@ -30,6 +36,7 @@ export async function fileDisputeAction(formData: FormData): Promise<{ ok: boole
   if (!paymentId || !eventId || !offerId || !supplierId) return { ok: false, error: "Onvolledige gegevens." };
   if (!DISPUTE_CATEGORIES.includes(category)) return { ok: false, error: "Kies een categorie." };
   if (description.length < 10) return { ok: false, error: "Beschrijf het probleem iets uitgebreider (minstens 10 tekens)." };
+  if (description.length > DESCRIPTION_MAX_LENGTH) return { ok: false, error: `Beschrijf het probleem iets korter (maximaal ${DESCRIPTION_MAX_LENGTH} tekens).` };
 
   const [event, supplierAccount] = await Promise.all([getEvent(eventId), getSupplierAccountByOwner(user.id)]);
 
