@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Logo, LogoMark } from "@/components/marketing/Logo";
+import { Logo } from "@/components/marketing/Logo";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { NotificationsBell } from "@/components/app/NotificationsBell";
 import { NavShell, type NavShellItem } from "@/components/app/NavShell";
@@ -32,10 +32,23 @@ export async function AppTopBar() {
     <NavShell
       items={items}
       logo={<Logo />}
-      logoMark={<LogoMark />}
+      menuLabel="Ontdek leveranciers"
       primaryAction={{ href: "/events/new", label: "Nieuw evenement", icon: <Plus className="size-4" /> }}
+      search={{ action: "/leveranciers", name: "q", placeholder: "Zoek een leverancier of dienst..." }}
       utilityRight={
         <>
+          {/* Alleen in de topbalk (>= md) zichtbaar — op de telefoon staat
+              "Mijn leveranciers" al als gewoon menu-item in de drawer, een
+              extra hartje in de krappe mobiele topstrook zou daar juist
+              precies het "te veel/te grote knoppen"-gevoel terugbrengen
+              dat de mobiele navigatie eerder juist moest oplossen. */}
+          <Link
+            href="/mijn-leveranciers"
+            aria-label="Mijn leveranciers"
+            className="icon-pop hidden size-11 items-center justify-center rounded-full text-ink-soft hover:bg-paper-dim hover:text-ink md:flex"
+          >
+            <Heart className="size-4.5" />
+          </Link>
           <NotificationsBell userId={user.id} notifications={notifications} align="right" viewAllHref="/notifications" />
           <Link href="/profile" aria-label="Profiel" className="icon-pop inline-block rounded-full">
             <UserAvatar firstName={user.firstName || "?"} lastName={user.lastName} color={user.avatarColor} />
@@ -44,7 +57,7 @@ export async function AppTopBar() {
       }
       utilityLeft={
         <>
-          {/* direction="up": deze knop zit onderaan de drawer-/zijbalk-footer
+          {/* direction="up": deze knop zit onderaan de mobiele drawer-footer
               — het paneel moet dus omhoog openklappen, anders valt het
               (deels) buiten de viewport. Zie de toelichting bij `direction`
               in NotificationsBell.tsx. */}

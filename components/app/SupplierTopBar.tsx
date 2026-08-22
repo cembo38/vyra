@@ -1,4 +1,5 @@
-import { Logo, LogoMark } from "@/components/marketing/Logo";
+import Link from "next/link";
+import { Logo } from "@/components/marketing/Logo";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { NotificationsBell } from "@/components/app/NotificationsBell";
@@ -32,10 +33,19 @@ export function SupplierTopBar({ user, notifications }: { user: UserAccount; sup
     <NavShell
       items={ITEMS}
       logo={<Logo />}
-      logoMark={<LogoMark />}
+      menuLabel="Leveranciersportaal"
       badge={<Badge tone="sage">Leveranciersportaal</Badge>}
       utilityRight={
         <>
+          {/* Alleen in de topbalk (>= md) — "Berichten" staat al als
+              menu-item in de drawer voor de telefoon, zie hierboven. */}
+          <Link
+            href="/supplier/messages"
+            aria-label="Berichten"
+            className="icon-pop hidden size-11 items-center justify-center rounded-full text-ink-soft hover:bg-paper-dim hover:text-ink md:flex"
+          >
+            <MessageSquare className="size-4.5" />
+          </Link>
           <NotificationsBell userId={user.id} notifications={notifications} align="right" viewAllHref="/supplier/notifications" />
           <span className="icon-pop inline-block rounded-full">
             <UserAvatar firstName={user.firstName || "?"} lastName={user.lastName} color={user.avatarColor} />

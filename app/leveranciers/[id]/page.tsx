@@ -13,8 +13,6 @@ import { Field, Input, Select, Textarea } from "@/components/ui/Form";
 import { FavoriteSupplierButton } from "@/components/app/FavoriteSupplierButton";
 import { formatCurrency } from "@/lib/config";
 import { SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
-import { SIDEBAR_OFFSET_CLASS } from "@/lib/nav-constants";
-import { cn } from "@/lib/utils";
 import { CheckCircle2, Clock, Crown, ExternalLink, Link2, Lock, MapPin, MoonStar, ShieldCheck, Sparkles, Star } from "lucide-react";
 
 export const metadata = { title: "Leveranciersprofiel — Vyra" };
@@ -222,7 +220,7 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
 
   if (user) {
     return (
-      <div className={cn("min-h-screen bg-paper", SIDEBAR_OFFSET_CLASS)}>
+      <div className="min-h-screen bg-paper">
         <AppTopBar />
         {main}
       </div>

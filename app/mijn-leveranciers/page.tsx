@@ -9,8 +9,6 @@ import { getCurrentUser } from "@/lib/auth";
 import { listFavoriteSuppliers } from "@/lib/data/store";
 import { formatCurrency } from "@/lib/config";
 import { SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
-import { SIDEBAR_OFFSET_CLASS } from "@/lib/nav-constants";
-import { cn } from "@/lib/utils";
 import { Heart, MapPin, ShieldCheck, Star } from "lucide-react";
 
 export const metadata = { title: "Mijn leveranciers — Vyra" };
@@ -29,7 +27,7 @@ export default async function MyFavoriteSuppliersPage() {
   const favorites = await listFavoriteSuppliers(user.id);
 
   return (
-    <div className={cn("min-h-screen bg-paper", SIDEBAR_OFFSET_CLASS)}>
+    <div className="min-h-screen bg-paper">
       <AppTopBar />
       <div className="mx-auto max-w-6xl px-6 py-10">
         <h1 className="font-display text-3xl text-ink">Mijn leveranciers</h1>

@@ -7,9 +7,7 @@ import { UserAvatar } from "@/components/ui/Avatar";
 import { getCurrentUser } from "@/lib/auth";
 import { getSupplierAccountByOwner, listEventsForUser } from "@/lib/data/store";
 import { updateProfileAction, updateRoleAction, logoutAction } from "@/lib/actions/auth-actions";
-import { SIDEBAR_OFFSET_CLASS } from "@/lib/nav-constants";
 import { USER_ROLE_LABELS } from "@/lib/types";
-import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Profiel — Vyra" };
 
@@ -21,7 +19,7 @@ export default async function ProfilePage(props: PageProps<"/profile">) {
   const errorCode = typeof searchParams.error === "string" ? searchParams.error : undefined;
 
   return (
-    <div className={cn("min-h-screen bg-paper", SIDEBAR_OFFSET_CLASS)}>
+    <div className="min-h-screen bg-paper">
       <AppTopBar />
       <div className="mx-auto max-w-2xl px-6 py-10">
         <div className="mb-6 flex items-center gap-4">

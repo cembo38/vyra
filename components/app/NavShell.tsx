@@ -1,12 +1,11 @@
 "use client";
 
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { Menu, X, ChevronDown, Search } from "lucide-react";
 import { Drawer } from "@/components/ui/Drawer";
 import { LinkButton } from "@/components/ui/Button";
-import { SIDEBAR_WIDTH_CLASS } from "@/lib/nav-constants";
 import { cn } from "@/lib/utils";
 
 export interface NavShellItem {
@@ -27,30 +26,36 @@ export interface NavShellItem {
 
 interface NavShellProps {
   items: NavShellItem[];
-  /** Volledig logo (met woordmerk) — mobiele strook, drawer-header, volledige zijbalk (`lg`). */
+  /** Logo (met woordmerk) — mobiele strook, drawer-header, topbalk. */
   logo: ReactNode;
-  /** Alleen het merkje — icoon-only rail (`md`). */
-  logoMark: ReactNode;
   badge?: ReactNode;
+  /** Titel op de knop die in de topbalk (>= md) het uitklapmenu met `items` opent — bv. "Ontdek leveranciers" of "Leveranciersportaal". */
+  menuLabel: string;
   primaryAction?: { href: string; label: string; icon?: ReactNode };
   /**
-   * Notificatiebel + avatar, kant-en-klaar meegegeven door de server-parent
-   * (die de gebruiker al heeft opgehaald) — als TWEE losse, al-gerenderde
-   * elementen (niet één functie met een `align`-parameter, zoals dit eerder
-   * was): `NavShell` is een Client Component en de parents (`AppTopBar`,
-   * `SupplierTopBar`) zijn Server Components. Een functie is niet
-   * serialiseerbaar over die grens — Next.js crasht dan de hele pagina met
-   * "Functions cannot be passed directly to Client Components" (precies
-   * zoals hierboven bij `icon` al staat toegelicht). `utilityRight` gaat in
-   * de mobiele topstrook (rechtsboven, paneel klapt naar links open),
-   * `utilityLeft` in de drawer- en zijbalk-footer (die tegen de linkerrand
-   * zitten, paneel klapt naar rechts open) — de server-parent rendert
-   * `<NotificationsBell align="right" .../>` resp. `align="left"` al kant-
-   * en-klaar, dat zijn gewoon gerenderde elementen, geen functies.
+   * Optioneel zoekveld in de topbalk (>= md) — alleen meegeven als er
+   * ergens écht een pagina is die de `name`-queryparameter oppikt (bv.
+   * `/leveranciers?q=...`, zie `app/leveranciers/page.tsx`). Geen
+   * schijnfunctie: als er geen echte zoekbestemming is (zoals nu bij het
+   * leveranciersportaal, dat nog geen doorzoekbare aanvragenlijst heeft),
+   * laat deze prop dan gewoon weg i.p.v. een zoekveld te tonen dat nergens
+   * naartoe leidt.
+   */
+  search?: { action: string; name: string; placeholder: string };
+  /**
+   * Notificatiebel + avatar (+ eventueel uitlogknop), kant-en-klaar
+   * meegegeven door de server-parent (die de gebruiker al heeft
+   * opgehaald) — als een al-gerenderd element, geen functie: `NavShell`
+   * is een Client Component en de parents (`AppTopBar`, `SupplierTopBar`)
+   * zijn Server Components, en een functie is niet serialiseerbaar over
+   * die grens (crasht met "Functions cannot be passed directly to Client
+   * Components", precies zoals hierboven bij `icon` al staat toegelicht).
+   * Wordt zowel in de mobiele topstrook als in de topbalk (>= md) gebruikt.
    */
   utilityRight: ReactNode;
+  /** Zelfde als `utilityRight`, maar dan voor de footer van het mobiele uitschuifmenu (< md) — die zit tegen de linkerrand, dus het paneel klapt daar naar rechts open in plaats van naar links. */
   utilityLeft: ReactNode;
-  /** Bv. bedrijfsnaam-link + uitlogknop — alleen in de drawer-footer en de volledige (`lg`) zijbalk-footer, niet in de smalle rail. */
+  /** Bv. een extra link — alleen in de footer van het mobiele uitschuifmenu (< md). */
   footerExtra?: ReactNode;
 }
 
@@ -60,15 +65,21 @@ function isActive(href: string, pathname: string) {
 
 /**
  * Herbruikbare navigatieschil voor de twee ingelogde portals (organisator
- * en leverancier): een hamburgermenu + uitschuifdrawer onder `md` (telefoon,
- * en iPad in smalle split-view), een icoon-only permanente rail op `md`
- * (iPad-portret), en een volledige, met labels, permanente zijbalk vanaf
- * `lg` (iPad-landscape en groter). Alle drie regio's staan in dezelfde
- * component en worden puur met Tailwind-responsive-klassen getoond/verborgen
- * — geen client-side media-query-hook nodig.
+ * en leverancier). Onder `md` (telefoon, en iPad in smalle split-view):
+ * een hamburgermenu + uitschuifdrawer — dat loste eerder precies het
+ * "geen terugknop / knoppen te groot"-probleem op en blijft ongewijzigd.
+ * Vanaf `md` (tablet/desktop): geen vaste zijbalk meer, maar een rustige
+ * balk BOVENAAN met een uitklapmenu, in de opzet van Vinted's topbalk
+ * (Catalogus-dropdown, zoekveld, iconen rechts, groene actieknop) — zie
+ * het besproken en goedgekeurde voorstel. De balk is `sticky` (neemt
+ * gewoon ruimte in de normale pagina-flow in), dus pagina's hoeven —
+ * anders dan bij de vorige `position: fixed`-zijbalk — geen aparte
+ * offset-klasse meer toe te passen.
  */
-export function NavShell({ items, logo, logoMark, badge, primaryAction, utilityRight, utilityLeft, footerExtra }: NavShellProps) {
+export function NavShell({ items, logo, badge, menuLabel, primaryAction, search, utilityRight, utilityLeft, footerExtra }: NavShellProps) {
   const [open, setOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
   // Drawer sluiten bij navigatie. Bewust GEEN useEffect (dat zou setState
@@ -80,6 +91,43 @@ export function NavShell({ items, logo, logoMark, badge, primaryAction, utilityR
   if (pathname !== prevPathname) {
     setPrevPathname(pathname);
     setOpen(false);
+    setMenuOpen(false);
+  }
+
+  // Zelfde patroon als het notificatiepaneel (`NotificationsBell.tsx`):
+  // sluiten bij een klik buiten het paneel, en bij Escape.
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [menuOpen]);
+
+  // Sluit dit menu zodra ergens anders een drawer of ander paneel opent
+  // (zie components/ui/Drawer.tsx) — en meld zelf ook zo'n "overlay open"
+  // moment, zodat bv. een openstaand notificatiepaneel op zijn beurt sluit.
+  useEffect(() => {
+    function onOtherOverlayOpen() {
+      setMenuOpen(false);
+    }
+    window.addEventListener("vyra:overlay-open", onOtherOverlayOpen);
+    return () => window.removeEventListener("vyra:overlay-open", onOtherOverlayOpen);
+  }, []);
+
+  function toggleMenu() {
+    setMenuOpen((v) => {
+      if (!v) window.dispatchEvent(new Event("vyra:overlay-open"));
+      return !v;
+    });
   }
 
   return (
@@ -145,51 +193,75 @@ export function NavShell({ items, logo, logoMark, badge, primaryAction, utilityR
         </div>
       </Drawer>
 
-      {/* ── Permanente zijbalk (>= md): icoon-only rail op md, volledig vanaf lg ── */}
-      <aside
-        data-testid="app-sidebar"
-        className={cn(
-          "fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-line bg-white pt-[var(--safe-t)] pb-[var(--safe-b)] md:flex",
-          SIDEBAR_WIDTH_CLASS
-        )}
-      >
-        <div className="flex items-center justify-center px-3 py-4 lg:justify-start lg:px-5">
-          <span className="lg:hidden sidebar-compact">{logoMark}</span>
-          <span className="hidden lg:block sidebar-full-block">{logo}</span>
+      {/* ── Topbalk (>= md) — Vinted-achtige opzet, in Vyra-stijl ── */}
+      <header className="sticky top-0 z-40 hidden items-center gap-3 border-b border-line bg-paper/90 px-5 py-2.5 backdrop-blur-md pt-[calc(var(--safe-t)+0.625rem)] md:flex">
+        {logo}
+
+        <div className="relative shrink-0" ref={menuRef}>
+          <button
+            type="button"
+            onClick={toggleMenu}
+            aria-expanded={menuOpen}
+            aria-haspopup="true"
+            data-testid="nav-menu-trigger"
+            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold text-ink-soft transition-colors duration-[var(--duration-swift)] hover:bg-paper-dim hover:text-ink"
+          >
+            {menuLabel}
+            <ChevronDown className={cn("size-3.5 transition-transform duration-[var(--duration-swift)]", menuOpen && "rotate-180")} />
+          </button>
+          {menuOpen && (
+            <div
+              role="menu"
+              data-testid="nav-menu-panel"
+              className="absolute left-0 top-full z-40 mt-2 w-64 overflow-hidden rounded-2xl border border-line-soft bg-white py-1.5 shadow-[var(--shadow-pop)]"
+            >
+              {badge && <div className="px-4 pb-2 pt-1.5">{badge}</div>}
+              {items.map((item) => {
+                const active = isActive(item.href, pathname);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    role="menuitem"
+                    onClick={() => setMenuOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 px-4 py-2.5 text-[14px] font-medium transition-colors duration-[var(--duration-swift)]",
+                      active ? "bg-paper-dim text-ink" : "text-ink-soft hover:bg-paper-dim hover:text-ink"
+                    )}
+                  >
+                    {item.icon}
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </div>
+          )}
         </div>
-        {badge && <div className="hidden px-5 pb-3 lg:block sidebar-full-block">{badge}</div>}
-        {primaryAction && (
-          <div className="px-3 pb-4 lg:px-5">
-            <LinkButton href={primaryAction.href} variant="secondary" fullWidth className="lg:justify-start sidebar-item" icon={primaryAction.icon}>
-              <span className="hidden lg:inline sidebar-full-inline">{primaryAction.label}</span>
+
+        {search && (
+          <form
+            action={search.action}
+            className="flex min-w-0 max-w-md flex-1 items-center gap-2 rounded-full bg-paper-dim px-3.5 py-2 text-sm text-ink-faint transition-shadow duration-[var(--duration-swift)] focus-within:text-ink focus-within:ring-2 focus-within:ring-clay/30"
+          >
+            <Search className="size-4 shrink-0" />
+            <input
+              type="text"
+              name={search.name}
+              placeholder={search.placeholder}
+              className="w-full min-w-0 bg-transparent text-ink outline-none placeholder:text-ink-faint"
+            />
+          </form>
+        )}
+
+        <div className="ml-auto flex shrink-0 items-center gap-1.5">
+          {utilityRight}
+          {primaryAction && (
+            <LinkButton href={primaryAction.href} variant="secondary" size="sm" icon={primaryAction.icon} className="ml-1">
+              {primaryAction.label}
             </LinkButton>
-          </div>
-        )}
-        <nav className="flex-1 space-y-1 overflow-y-auto px-2 py-2 lg:px-3">
-          {items.map((item) => {
-            const active = isActive(item.href, pathname);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                title={item.label}
-                aria-label={item.label}
-                className={cn(
-                  "flex min-h-11 items-center justify-center gap-3 rounded-xl px-2 text-sm font-medium transition-colors duration-[var(--duration-swift)] lg:justify-start lg:px-3 sidebar-item",
-                  active ? "bg-paper-dim text-ink" : "text-ink-soft hover:bg-paper-dim hover:text-ink"
-                )}
-              >
-                {item.icon}
-                <span className="hidden lg:inline sidebar-full-inline">{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="border-t border-line-soft px-2 py-3 lg:px-4">
-          <div className="flex flex-col items-center gap-2 lg:flex-row lg:justify-start sidebar-utility-row">{utilityLeft}</div>
-          {footerExtra && <div className="mt-2 hidden lg:block sidebar-full-block">{footerExtra}</div>}
+          )}
         </div>
-      </aside>
+      </header>
     </>
   );
 }

@@ -10,8 +10,6 @@ import { getCurrentUser } from "@/lib/auth";
 import { searchSupplierAccounts } from "@/lib/data/store";
 import { SUPPLIER_CATEGORY_LABELS, SupplierCategory } from "@/lib/types";
 import { SUBSCRIPTION_TIERS, formatCurrency } from "@/lib/config";
-import { SIDEBAR_OFFSET_CLASS } from "@/lib/nav-constants";
-import { cn } from "@/lib/utils";
 import { Crown, MapPin, Search, ShieldCheck, Sparkles, Star } from "lucide-react";
 
 export const metadata = { title: "Leveranciers zoeken — Vyra" };
@@ -147,7 +145,7 @@ export default async function SupplierDirectoryPage(props: PageProps<"/leveranci
 
   if (user) {
     return (
-      <div className={cn("min-h-screen bg-paper", SIDEBAR_OFFSET_CLASS)}>
+      <div className="min-h-screen bg-paper">
         <AppTopBar />
         {main}
       </div>
