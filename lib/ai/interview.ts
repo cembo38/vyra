@@ -14,7 +14,11 @@ export interface ExtractedEventFields {
   guestCountAdults: number | null;
   guestCountChildren: number | null;
   locationLabel: string | null;
-  locationType: "home" | "external_venue" | null;
+  // "tbd" (nog te bepalen) toegevoegd naast de EventCore-waarde "home"/
+  // "external_venue" — precies het geval waarin iemand expliciet aangeeft
+  // nog geen locatie te hebben (zie mockExtractEventFields en spec-item
+  // #57). Zonder deze waarde bleef dat antwoord altijd onherkenbaar `null`.
+  locationType: "home" | "external_venue" | "tbd" | null;
   indoorOutdoor: "indoor" | "outdoor" | "both" | null;
   monthHint: string | null;
   budgetCents: number | null;
@@ -32,7 +36,7 @@ const EXTRACT_SCHEMA = {
     guestCountAdults: { type: ["number", "null"] },
     guestCountChildren: { type: ["number", "null"] },
     locationLabel: { type: ["string", "null"] },
-    locationType: { type: ["string", "null"], enum: ["home", "external_venue", null] },
+    locationType: { type: ["string", "null"], enum: ["home", "external_venue", "tbd", null] },
     indoorOutdoor: { type: ["string", "null"], enum: ["indoor", "outdoor", "both", null] },
     monthHint: { type: ["string", "null"] },
     budgetCents: { type: ["number", "null"] },
@@ -49,20 +53,43 @@ const EXTRACT_SCHEMA = {
 const CITIES = ["Amsterdam", "Rotterdam", "Utrecht", "Den Haag", "Eindhoven", "Groningen", "Haarlem", "Tilburg", "Almere", "Breda", "Nijmegen", "Amstelveen", "Zaandam", "Leiden", "Maastricht"];
 const MONTHS = ["januari", "februari", "maart", "april", "mei", "juni", "juli", "augustus", "september", "oktober", "november", "december"];
 
+/**
+ * Volgorde is bewust belangrijk: dit is de EERSTE match die wint (zie de
+ * loop in mockExtractEventFields hieronder), dus een generieke regel die
+ * toevallig ook op een zakelijke variant past moet NA de specifiekere
+ * zakelijke regel staan. Twee concrete bugs die zo aan het licht kwamen
+ * bij een QA-simulatie (spec-item #57, testronde met AI-persona's):
+ * - "kerstborrel voor het personeel, 75 medewerkers" werd door de generieke
+ *   /kerst/i van "christmas_party" al afgevangen VOORDAT "corporate_party"
+ *   (die specifiek al op "medewerkers"/"collega" checkt) ooit aan de beurt
+ *   kwam — een zeer voor de hand liggende manier waarop mensen een
+ *   bedrijfskerstborrel beschrijven werd zo als privé-kerstfeest
+ *   geclassificeerd, met als gevolg: verkeerde bonusvragen (geen AV-
+ *   apparatuur/vervoer-vraag) en een categorieënsjabloon zonder
+ *   AV-apparatuur, terwijl de organisator daar expliciet om vroeg.
+ *   Zelfde risico geldt voor "nieuwjaarsborrel (van het bedrijf)", dus
+ *   "corporate_party" staat nu ook vóór "new_year_party".
+ * - "kinderfeest(je)" ving alleen de letterlijke term af, terwijl de
+ *   meeste ouders het gewoon "verjaardagsfeestje voor mijn dochter/zoon"
+ *   noemen — dat viel dan door naar het generieke "birthday"-sjabloon,
+ *   dat geen "entertainment"-categorie bevat (wél het sjabloon van
+ *   "kids_party"), waardoor een leverancier als een kinderentertainer
+ *   structureel NOOIT een aanvraag kreeg voor exact dit soort feestjes.
+ */
 const TYPE_KEYWORDS: [EventType, RegExp][] = [
   ["wedding", /bruiloft|trouw(en|erij)?|huwelijk/i],
   ["baby_shower", /babyshower|baby.?shower/i],
   ["bachelor_party", /vrijgezellenfeest|vrijgezellen/i],
   ["graduation_party", /afstudeer|afgestudeerd/i],
-  ["christmas_party", /kerst/i],
-  ["new_year_party", /nieuwjaar/i],
   ["anniversary", /jubileum/i],
-  ["kids_party", /kinderfeest|kinderfeestje/i],
+  ["kids_party", /kinderfeest(je)?|(dochter|zoon|kindje|kleintje|kids?).{0,40}(verjaardag\w*|jarig)|(verjaardag\w*|jarig).{0,40}(dochter|zoon|kindje|kleintje)/i],
   ["garden_party", /tuinfeest/i],
   ["festival", /festival/i],
   ["business_conference", /congres|conferentie/i],
   ["product_launch", /productlancering|lancering/i],
   ["corporate_party", /bedrijfsfeest|kerstborrel.*bedrijf|collega|medewerkers|zakelijk feest/i],
+  ["christmas_party", /kerst/i],
+  ["new_year_party", /nieuwjaar/i],
   ["cultural_event", /religieus|cultureel|festiviteit/i],
   ["birthday", /verjaardag|jarig|verjaring/i],
   ["dinner", /diner|etentje/i],
@@ -85,9 +112,31 @@ function mockExtractEventFields(description: string): ExtractedEventFields {
 
   const locationLabel = CITIES.find((c) => text.toLowerCase().includes(c.toLowerCase())) ?? null;
 
+  // Budget-parsing — twee concrete misparses kwamen naar boven in de
+  // QA-simulatie (spec-item #57):
+  // 1. "€150 per persoon" werd als TOTAALbudget van €150 opgeslagen (i.p.v.
+  //    €150 × het aantal gasten), wat bij 75 gasten een absurd laag
+  //    "totaalbudget" van €150 opleverde dat vervolgens ook de
+  //    categoriebudgetten volledig scheeftrok. We kennen het aantal gasten
+  //    op dit punt niet betrouwbaar (elk bericht wordt los geëxtraheerd),
+  //    dus omrekenen kan hier niet veilig — we laten het veld daarom
+  //    bewust leeg in plaats van een bedrag op te slaan dat gegarandeerd
+  //    fout is. Beter zichtbaar "onbekend" dan onzichtbaar fout.
+  // 2. "20 duizend euro" (heel gangbare manier om een rond bedrag in de
+  //    duizenden uit te drukken) werd helemaal niet herkend, omdat de
+  //    euro-regex een bedrag direct vóór "euro" verwacht — "duizend"
+  //    ertussen brak de match. Nu expliciet ondersteund.
+  const perPersonPattern = /per\s?(persoon|hoofd|gast|deelnemer)|\bp\.?p\.?\b/i;
+  const thousandMatch = text.match(/([\d.,]+)\s*duizend\s*euro/i);
   const budgetMatch = text.match(/€\s?([\d.,]+)|([\d.,]+)\s?euro/i);
   let budgetCents: number | null = null;
-  if (budgetMatch) {
+  if (perPersonPattern.test(text)) {
+    budgetCents = null;
+  } else if (thousandMatch) {
+    const raw = thousandMatch[1].replace(/\./g, "").replace(",", ".");
+    const parsed = parseFloat(raw);
+    if (!Number.isNaN(parsed)) budgetCents = Math.round(parsed * 1000 * 100);
+  } else if (budgetMatch) {
     const raw = (budgetMatch[1] ?? budgetMatch[2] ?? "").replace(/\./g, "").replace(",", ".");
     const parsed = parseFloat(raw);
     if (!Number.isNaN(parsed)) budgetCents = Math.round(parsed * 100);
@@ -101,7 +150,17 @@ function mockExtractEventFields(description: string): ExtractedEventFields {
 
   const isProfessional = /bedrijf|collega|medewerkers|kantoor|zakelijk/i.test(text) ? true : eventType === "wedding" || eventType === "birthday" ? false : null;
 
-  const locationType = /thuis|bij (mij|ons) thuis|in de tuin/i.test(text) ? "home" : null;
+  // "nog geen locatie" e.d. viel voorheen door naar `null` (= "onbekend"),
+  // precies hetzelfde alsof de vraag nooit gesteld was — waardoor de vraag
+  // niet opnieuw gesteld werd (al "gevraagd") maar het antwoord ook nooit
+  // vastgelegd werd. `locationType` heeft juist een aparte "tbd"-waarde
+  // voor precies dit geval ("nog te bepalen") — die stond er al in het
+  // type, maar werd door de mock-extractie nooit gezet.
+  const locationType = /thuis|bij (mij|ons) thuis|in de tuin/i.test(text)
+    ? "home"
+    : /geen locatie|nog (geen|niks|niets)|nul locaties|nog te (bepalen|zoeken|kiezen)|weet.*nog niet.*locatie|locatie.*weet.*nog niet/i.test(text)
+      ? "tbd"
+      : null;
   const indoorOutdoor = /tuin|buiten/i.test(text) ? "outdoor" : /binnen|zaal/i.test(text) ? "indoor" : null;
 
   return {
