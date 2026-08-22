@@ -202,6 +202,9 @@ function rowToOffer(r: Row): OfferOption {
     matchRationale: r.match_rationale ?? "",
     respondedAt: r.responded_at,
     swipeDecision: r.swipe_decision,
+    counterPriceCents: r.counter_price_cents ?? null,
+    counterNote: r.counter_note ?? null,
+    counteredAt: r.countered_at ?? null,
   };
 }
 
@@ -1552,6 +1555,48 @@ export async function acceptOffer(offerId: string): Promise<OfferOption | null> 
   return offer;
 }
 
+/**
+ * Organisator stuurt een tegenbod op een offerte. Alleen zinnig zolang de
+ * offerte nog niet is geaccepteerd/afgewezen/verlopen — de aanroepende
+ * action (counterOfferAction in lib/actions/marketplace-actions.ts) bewaakt
+ * die statusovergang, hier wordt alleen de rij bijgewerkt.
+ */
+export async function counterOffer(offerId: string, counterPriceCents: number, note: string | null): Promise<OfferOption | null> {
+  const supabase = await sb();
+  const { data, error } = await supabase
+    .from("offers")
+    .update({ status: "countered", counter_price_cents: counterPriceCents, counter_note: note, countered_at: new Date().toISOString() })
+    .eq("id", offerId)
+    .select()
+    .single();
+  if (error || !data) return null;
+  return rowToOffer(data);
+}
+
+/**
+ * Leverancier reageert op een tegenbod. Bij accepteren wordt het tegenbod
+ * het nieuwe `total_price_cents` (dit bedrag drijft vervolgens de hele
+ * betaalketen aan, zie createPaymentForOffer() die dit veld leest) — bij
+ * afwijzen blijft de oorspronkelijke prijs staan. In beide gevallen gaat de
+ * offerte terug naar "available" zodat de organisator weer normaal kan
+ * shortlisten/accepteren/opnieuw een tegenbod doen, en worden de drie
+ * tegenbod-velden weer leeggemaakt (voorkomt dat een oud tegenbod na een
+ * latere ronde per ongeluk opnieuw getoond wordt).
+ */
+export async function respondToCounterOffer(offerId: string, accept: boolean): Promise<OfferOption | null> {
+  const supabase = await sb();
+  const current = await getOffer(offerId);
+  if (!current || current.status !== "countered") return null;
+
+  const patch: Row = { status: "available", counter_price_cents: null, counter_note: null, countered_at: null };
+  if (accept && current.counterPriceCents != null) {
+    patch.total_price_cents = current.counterPriceCents;
+  }
+  const { data, error } = await supabase.from("offers").update(patch).eq("id", offerId).select().single();
+  if (error || !data) return null;
+  return rowToOffer(data);
+}
+
 export async function getShortlistForEvent(eventId: string): Promise<OfferOption[]> {
   const offers = await getOffersForEvent(eventId);
   return offers.filter((o) => o.swipeDecision === "shortlisted" || o.status === "accepted" || o.status === "shortlisted");
@@ -2300,7 +2345,14 @@ async function pushNotificationOnce(
  * voelt al snel als spam, en niet elke melding (bv. "notitie bijgewerkt")
  * is dringend genoeg om iemands inbox te storen.
  */
-const EMAIL_NOTIFICATION_TYPES = new Set<AppNotification["type"]>(["new_request", "new_offer", "supplier_responded", "deadline_approaching"]);
+const EMAIL_NOTIFICATION_TYPES = new Set<AppNotification["type"]>([
+  "new_request",
+  "new_offer",
+  "supplier_responded",
+  "deadline_approaching",
+  "counter_offer_received",
+  "counter_offer_response",
+]);
 
 export async function pushNotification(n: Omit<AppNotification, "id" | "createdAt" | "read">): Promise<AppNotification | null> {
   const supabase = await sb();

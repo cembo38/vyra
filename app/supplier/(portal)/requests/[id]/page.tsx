@@ -5,6 +5,7 @@ import { Badge, OfferStatusBadge } from "@/components/ui/Badge";
 import { DeadlineCountdown } from "@/components/ui/Countdown";
 import { BackLink } from "@/components/ui/BackLink";
 import { SupplierOfferForm } from "@/components/app/SupplierOfferForm";
+import { CounterOfferResponse } from "@/components/app/CounterOfferResponse";
 import { getCurrentUser } from "@/lib/auth";
 import { getSupplierAccountByOwner, getSupplierLead, getSupplierOfferForRequest } from "@/lib/data/store";
 import { EVENT_TYPE_LABELS, SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
@@ -85,7 +86,14 @@ export default async function SupplierRequestDetailPage(props: PageProps<"/suppl
       </Card>
 
       <div className="mt-6">
-        {existingOffer ? (
+        {existingOffer && existingOffer.status === "countered" && existingOffer.counterPriceCents != null ? (
+          <CounterOfferResponse
+            offerId={existingOffer.id}
+            originalPriceCents={existingOffer.totalPriceCents}
+            counterPriceCents={existingOffer.counterPriceCents}
+            counterNote={existingOffer.counterNote}
+          />
+        ) : existingOffer ? (
           <Card className="flex items-center gap-3 border-success-50 bg-success-50">
             <CheckCircle2 className="size-5 text-success" />
             <div>

@@ -3,11 +3,11 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
-import { Heart, X, ArrowRight, Undo2, Star, ShieldCheck, ListChecks, Rows3, Columns3, CheckCircle2, Loader2, ExternalLink, PiggyBank, Sparkles, Crown } from "lucide-react";
+import { Heart, X, ArrowRight, Undo2, Star, ShieldCheck, ListChecks, Rows3, Columns3, CheckCircle2, Loader2, ExternalLink, PiggyBank, Sparkles, Crown, HandCoins } from "lucide-react";
 import { SupplierAvatar } from "@/components/ui/Avatar";
 import { Badge, OfferStatusBadge } from "@/components/ui/Badge";
 import { formatCurrency, DEFAULT_DEPOSIT_PERCENT } from "@/lib/config";
-import { swipeOfferAction, acceptOfferAction } from "@/lib/actions/marketplace-actions";
+import { swipeOfferAction, acceptOfferAction, counterOfferAction } from "@/lib/actions/marketplace-actions";
 import { cn } from "@/lib/utils";
 import { OfferOption, SupplierProfile } from "@/lib/types";
 
@@ -464,6 +464,90 @@ function OfferList({ offers, compact, categoryHasAccepted }: { offers: OfferWith
   );
 }
 
+/**
+ * Tegenbod-trigger + inline formulier, alleen in de Lijst-weergave
+ * (OfferListCard) — bewust NIET toegevoegd aan CompareTable/CompareCardList
+ * of de Swipe-stack in deze eerste versie, om de wijziging behapbaar te
+ * houden. Klap-open i.p.v. een aparte modal, zodat dit gewoon meedoet met de
+ * bestaande knoppenrij.
+ */
+function CounterOfferControl({ offer }: { offer: OfferWithSupplier }) {
+  const [open, setOpen] = useState(false);
+  const [amount, setAmount] = useState("");
+  const [note, setNote] = useState("");
+  const [pending, startTransition] = useTransition();
+
+  if (!open) {
+    return (
+      <button
+        onClick={() => setOpen(true)}
+        className="chip-hover inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium text-ink-soft hover:border-ochre/50 hover:text-ink"
+      >
+        <HandCoins className="size-3.5" /> Tegenbod doen
+      </button>
+    );
+  }
+
+  function submit() {
+    const cents = Math.round(parseFloat(amount.replace(",", ".")) * 100);
+    if (!Number.isFinite(cents) || cents <= 0) return;
+    startTransition(async () => {
+      await counterOfferAction(offer.id, cents, note.trim() || null);
+      setOpen(false);
+      setAmount("");
+      setNote("");
+    });
+  }
+
+  return (
+    <div className="mt-1 w-full rounded-xl border border-line bg-paper-dim/60 p-3">
+      <p className="mb-2 text-xs font-medium text-ink">Jouw tegenbod</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative">
+          <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-ink-faint">€</span>
+          <input
+            type="number"
+            min={1}
+            step="1"
+            inputMode="decimal"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder={String(Math.round(offer.totalPriceCents / 100))}
+            className="w-28 rounded-lg border border-line bg-white py-2 pl-6 pr-2 text-sm text-ink outline-none focus:border-sage"
+          />
+        </div>
+        <input
+          type="text"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Toelichting (optioneel)"
+          className="min-w-0 flex-1 rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink outline-none focus:border-sage"
+        />
+      </div>
+      <div className="mt-2 flex items-center gap-3">
+        <button
+          disabled={pending || !amount}
+          onClick={submit}
+          className="chip-hover inline-flex items-center gap-1.5 rounded-full bg-ink px-3.5 py-1.5 text-xs font-medium text-paper hover:bg-ink/90 disabled:opacity-50"
+        >
+          {pending ? <Loader2 className="size-3.5 animate-spin" /> : "Versturen"}
+        </button>
+        <button
+          disabled={pending}
+          onClick={() => {
+            setOpen(false);
+            setAmount("");
+            setNote("");
+          }}
+          className="text-xs font-medium text-ink-faint hover:text-ink"
+        >
+          Annuleren
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function OfferListCard({ offer, compact, categoryHasAccepted }: { offer: OfferWithSupplier; compact?: boolean; categoryHasAccepted: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -529,8 +613,14 @@ function OfferListCard({ offer, compact, categoryHasAccepted }: { offer: OfferWi
       </button>
 
       {!compact && (
-        <div className="mt-4 flex flex-wrap gap-2">
-          {offer.status !== "accepted" && !categoryHasAccepted && (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {offer.status === "countered" && (
+            <p className="flex items-center gap-1.5 text-xs font-medium text-ochre">
+              <HandCoins className="size-3.5 shrink-0" />
+              Tegenbod verstuurd{offer.counterPriceCents ? `: ${formatCurrency(offer.counterPriceCents)}` : ""} — wacht op reactie van de leverancier.
+            </p>
+          )}
+          {offer.status !== "accepted" && offer.status !== "countered" && !categoryHasAccepted && (
             <>
               <button
                 disabled={pending}
@@ -561,6 +651,7 @@ function OfferListCard({ offer, compact, categoryHasAccepted }: { offer: OfferWi
               >
                 {pending ? <Loader2 className="size-3.5 animate-spin" /> : "Accepteren →"}
               </button>
+              <CounterOfferControl offer={offer} />
             </>
           )}
           {offer.status === "accepted" && (
@@ -568,7 +659,7 @@ function OfferListCard({ offer, compact, categoryHasAccepted }: { offer: OfferWi
               <CheckCircle2 className="size-4" /> Geaccepteerd
             </span>
           )}
-          {offer.status !== "accepted" && categoryHasAccepted && (
+          {offer.status !== "accepted" && offer.status !== "countered" && categoryHasAccepted && (
             <span className="text-xs text-ink-faint">Je hebt al een andere offerte in deze categorie geaccepteerd.</span>
           )}
         </div>

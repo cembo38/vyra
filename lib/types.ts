@@ -474,7 +474,9 @@ export type OfferStatus =
   | "shortlisted"
   | "accepted"
   | "declined"
-  | "expired";
+  | "expired"
+  /** Organisator heeft een tegenbod verstuurd; wacht op reactie van de leverancier (zie counterOffer() in lib/data/store.ts). */
+  | "countered";
 
 export interface OfferOption {
   id: string;
@@ -501,6 +503,12 @@ export interface OfferOption {
   matchRationale: string;
   respondedAt: string;
   swipeDecision: "none" | "shortlisted" | "rejected";
+  /** Voorgesteld bedrag door de organisator, alleen relevant zolang status === "countered". */
+  counterPriceCents: number | null;
+  /** Optionele toelichting van de organisator bij het tegenbod. */
+  counterNote: string | null;
+  /** Wanneer het huidige tegenbod is verstuurd. */
+  counteredAt: string | null;
 }
 
 export interface Shortlist {
@@ -573,7 +581,9 @@ export interface AppNotification {
     | "verification_revoked"
     | "dispute_filed"
     | "dispute_resolved"
-    | "dispute_dismissed";
+    | "dispute_dismissed"
+    | "counter_offer_received"
+    | "counter_offer_response";
   title: string;
   body: string;
   read: boolean;
