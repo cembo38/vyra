@@ -98,6 +98,11 @@ export default async function ProfilePage(props: PageProps<"/profile">) {
           {errorCode === "role" && (
             <div className="mb-4 rounded-xl bg-danger-50 px-4 py-2.5 text-sm text-danger">Kies minstens één van de twee opties.</div>
           )}
+          {errorCode === "role-save-failed" && (
+            <div className="mb-4 rounded-xl bg-danger-50 px-4 py-2.5 text-sm text-danger">
+              Het opslaan van je rol is niet gelukt. Probeer het nog eens, of neem contact op als dit blijft gebeuren.
+            </div>
+          )}
 
           <form action={updateRoleAction} className="space-y-3">
             <label className="flex items-start gap-3 rounded-xl border border-line-soft px-4 py-3 has-[:checked]:border-sage has-[:checked]:bg-sage-50">

@@ -208,7 +208,18 @@ export async function updateRoleAction(formData: FormData) {
   if (!asOrganizer && !asSupplier) redirect("/profile?error=role");
 
   const role = asOrganizer && asSupplier ? "both" : asSupplier ? "supplier" : "customer";
-  await updateUser(user.id, { role });
+  const updated = await updateUser(user.id, { role });
+  // Verifieer dat de rol ook écht is weggeschreven i.p.v. blind "opgeslagen"
+  // te melden. Concrete aanleiding: migratie 0011's `profiles_protect_admin_
+  // columns`-trigger zette `role` een tijd lang bij ELKE niet-service-role-
+  // update stilzwijgend terug naar de oude waarde (bedoeld om zelfpromotie
+  // naar 'admin' te blokkeren, maar greep te breed) — de Supabase-update zelf
+  // gaf daarbij geen foutmelding, dus deze pagina redirecte hoe dan ook naar
+  // "opgeslagen" terwijl het vinkje na een herlaadbeurt gewoon terugsprong.
+  // Zie migratie 0026 voor de eigenlijke fix aan de trigger; deze check is
+  // een extra vangnet zodat een toekomstige, andere schrijf-blokkade nooit
+  // meer stilzwijgend een foutieve succesmelding oplevert.
+  if (!updated || updated.role !== role) redirect("/profile?error=role-save-failed");
   revalidatePath("/", "layout");
   redirect("/profile?saved=1");
 }
