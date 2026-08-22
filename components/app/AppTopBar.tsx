@@ -12,15 +12,17 @@ export async function AppTopBar() {
   if (!user) return null;
   const [notifications, supplier] = await Promise.all([getNotifications(user.id), getSupplierAccountByOwner(user.id)]);
 
+  // "Leveranciersportaal"/"Ook leverancier worden?" stond eerder als los
+  // item tussen deze navigatiepunten — voor iemand met beide rollen voelde
+  // dat als twee werelden door elkaar in dezelfde lijst. Heeft iemand al
+  // een echt leveranciersprofiel, dan wisselt hij/zij voortaan via het
+  // aparte `roleSwitch`-knopje in NavShell; heeft iemand er nog geen, dan
+  // blijft "leverancier worden" bereikbaar via `secondaryAction` — een
+  // apart, groen-geaccentueerd punt onderaan het menu i.p.v. ertussenin.
   const items: NavShellItem[] = [
     { href: "/events", label: "Mijn evenementen", icon: <CalendarHeart className="size-5 shrink-0" /> },
     { href: "/leveranciers", label: "Leveranciers zoeken", icon: <Search className="size-5 shrink-0" /> },
     { href: "/mijn-leveranciers", label: "Mijn leveranciers", icon: <Heart className="size-5 shrink-0" /> },
-    {
-      href: supplier ? "/supplier/dashboard" : "/supplier/onboarding",
-      label: supplier ? "Leveranciersportaal" : "Ook leverancier worden?",
-      icon: <Store className="size-5 shrink-0" />,
-    },
     // Het belletje opende een uitklappaneel dat door een positioneringsbug
     // (deels) buiten beeld viel — zie NotificationsBell.tsx. Ook los daarvan
     // is een volwaardige pagina prettiger om oudere notificaties in terug te
@@ -33,6 +35,8 @@ export async function AppTopBar() {
       items={items}
       logo={<Logo />}
       menuLabel="Ontdek leveranciers"
+      roleSwitch={supplier ? { active: "organizer", organizerHref: "/events", supplierHref: "/supplier/dashboard" } : undefined}
+      secondaryAction={!supplier ? { href: "/supplier/onboarding", label: "Ook leverancier worden?", icon: <Store className="size-5 shrink-0" /> } : undefined}
       primaryAction={{ href: "/events/new", label: "Nieuw evenement", icon: <Plus className="size-4" /> }}
       search={{ action: "/leveranciers", name: "q", placeholder: "Zoek een leverancier of dienst..." }}
       utilityRight={

@@ -1,13 +1,18 @@
 import Link from "next/link";
 import { Logo } from "@/components/marketing/Logo";
 import { UserAvatar } from "@/components/ui/Avatar";
-import { Badge } from "@/components/ui/Badge";
 import { NotificationsBell } from "@/components/app/NotificationsBell";
 import { NavShell, type NavShellItem } from "@/components/app/NavShell";
 import { AppNotification, UserAccount, SupplierAccount } from "@/lib/types";
 import { logoutAction } from "@/lib/actions/auth-actions";
-import { LogOut, LayoutDashboard, Inbox, MessageSquare, ShoppingBag, CalendarDays, CalendarHeart, User, Bell } from "lucide-react";
+import { LogOut, LayoutDashboard, Inbox, MessageSquare, ShoppingBag, CalendarDays, User, Bell } from "lucide-react";
 
+// "Mijn evenementen" stond eerder als los kruispunt-item tussen deze
+// leveranciersportaal-punten — voelde als twee werelden door elkaar in
+// dezelfde lijst. Wisselen naar de organisatorkant gaat voortaan via het
+// aparte `roleSwitch`-knopje in NavShell (hieronder, altijd zichtbaar: elke
+// leverancier kan sowieso ook gewoon zelf evenementen plannen, dat is nooit
+// aan een rol gekoppeld geweest — zie lib/actions/auth-actions.ts).
 const ITEMS: NavShellItem[] = [
   { href: "/supplier/dashboard", label: "Dashboard", icon: <LayoutDashboard className="size-5 shrink-0" /> },
   // Het belletje rechtsboven/onderin opende een uitklappaneel dat door een
@@ -23,7 +28,6 @@ const ITEMS: NavShellItem[] = [
   // footer — makkelijk over het hoofd te zien. Nu ook als volwaardig
   // navigatie-item, net als de rest.
   { href: "/supplier/profile", label: "Bedrijfsprofiel", icon: <User className="size-5 shrink-0" /> },
-  { href: "/events", label: "Mijn evenementen", icon: <CalendarHeart className="size-5 shrink-0" /> },
 ];
 
 // `supplier` wordt hier niet meer gebruikt (zie hieronder), maar blijft in
@@ -34,7 +38,7 @@ export function SupplierTopBar({ user, notifications }: { user: UserAccount; sup
       items={ITEMS}
       logo={<Logo />}
       menuLabel="Leveranciersportaal"
-      badge={<Badge tone="sage">Leveranciersportaal</Badge>}
+      roleSwitch={{ active: "supplier", organizerHref: "/events", supplierHref: "/supplier/dashboard" }}
       utilityRight={
         <>
           {/* Alleen in de topbalk (>= md) — "Berichten" staat al als

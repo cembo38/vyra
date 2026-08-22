@@ -24,13 +24,46 @@ export interface NavShellItem {
   icon: ReactNode;
 }
 
+/**
+ * Klein, apart wisselknopje tussen de organisator- en leveranciersweergave
+ * — zie de toelichting bij `roleSwitch` hieronder voor de aanleiding.
+ */
+export interface NavShellRoleSwitch {
+  active: "organizer" | "supplier";
+  organizerHref: string;
+  supplierHref: string;
+}
+
 interface NavShellProps {
   items: NavShellItem[];
   /** Logo (met woordmerk) — mobiele strook, drawer-header, topbalk. */
   logo: ReactNode;
-  badge?: ReactNode;
   /** Titel op de knop die in de topbalk (>= md) het uitklapmenu met `items` opent — bv. "Ontdek leveranciers" of "Leveranciersportaal". */
   menuLabel: string;
+  /**
+   * Klein segmented-knopje ("Organisator"/"Leverancier") vlak naast het
+   * uitklapmenu, alleen meegeven als iemand ECHT beide rollen heeft (dus
+   * een bestaand leveranciersprofiel) — zie AppTopBar/SupplierTopBar voor
+   * de precieze voorwaarde per kant.
+   *
+   * Aanleiding: `items` bevatte voorheen een los kruispunt-item
+   * ("Leveranciersportaal" tussen de organisator-punten, of "Mijn
+   * evenementen" tussen de leveranciersportaal-punten) — voor iemand met
+   * beide rollen voelde dat als twee werelden door elkaar in één lijst
+   * (expliciet zo benoemd: "dat zit er rommelig uit"). Met dit knopje
+   * ernaast toont `items` voortaan ALTIJD alleen de punten van de huidige
+   * weergave, en gebeurt het wisselen zelf via een eigen, duidelijk
+   * zichtbaar controletje in plaats van als item tussen de rest.
+   */
+  roleSwitch?: NavShellRoleSwitch;
+  /**
+   * Visueel afwijkend (groen, met scheidingslijn erboven) item onderaan het
+   * uitklapmenu/de drawer — voor een actie die niet bij de gewone
+   * navigatie hoort maar ook geen los kruispunt is, zoals "Ook leverancier
+   * worden?" voor wie nog geen leveranciersprofiel heeft (en dus geen
+   * `roleSwitch` krijgt, want er is nog niets om naar te wisselen).
+   */
+  secondaryAction?: { href: string; label: string; icon: ReactNode };
   primaryAction?: { href: string; label: string; icon?: ReactNode };
   /**
    * Optioneel zoekveld in de topbalk (>= md) — alleen meegeven als er
@@ -79,7 +112,18 @@ const NAV_MENU_OVERLAY_SOURCE = "nav-menu";
  * anders dan bij de vorige `position: fixed`-zijbalk — geen aparte
  * offset-klasse meer toe te passen.
  */
-export function NavShell({ items, logo, badge, menuLabel, primaryAction, search, utilityRight, utilityLeft, footerExtra }: NavShellProps) {
+export function NavShell({
+  items,
+  logo,
+  menuLabel,
+  roleSwitch,
+  secondaryAction,
+  primaryAction,
+  search,
+  utilityRight,
+  utilityLeft,
+  footerExtra,
+}: NavShellProps) {
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -144,6 +188,33 @@ export function NavShell({ items, logo, badge, menuLabel, primaryAction, search,
     });
   }
 
+  const roleSwitchPill = roleSwitch && (
+    <div className="flex shrink-0 items-center gap-0.5 rounded-full bg-paper-dim p-1" role="tablist" aria-label="Weergave wisselen">
+      <Link
+        href={roleSwitch.organizerHref}
+        role="tab"
+        aria-selected={roleSwitch.active === "organizer"}
+        className={cn(
+          "rounded-full px-3 py-1.5 text-xs font-bold transition-colors duration-[var(--duration-swift)]",
+          roleSwitch.active === "organizer" ? "bg-paper text-ink shadow-[0_1px_3px_rgba(36,39,26,0.12)]" : "text-ink-faint hover:text-ink"
+        )}
+      >
+        Organisator
+      </Link>
+      <Link
+        href={roleSwitch.supplierHref}
+        role="tab"
+        aria-selected={roleSwitch.active === "supplier"}
+        className={cn(
+          "rounded-full px-3 py-1.5 text-xs font-bold transition-colors duration-[var(--duration-swift)]",
+          roleSwitch.active === "supplier" ? "bg-paper text-ink shadow-[0_1px_3px_rgba(36,39,26,0.12)]" : "text-ink-faint hover:text-ink"
+        )}
+      >
+        Leverancier
+      </Link>
+    </div>
+  );
+
   return (
     <>
       {/* ── Mobiele topstrook (< md) ── */}
@@ -175,7 +246,7 @@ export function NavShell({ items, logo, badge, menuLabel, primaryAction, search,
             <X className="size-5" />
           </button>
         </div>
-        {badge && <div className="px-5 pt-4">{badge}</div>}
+        {roleSwitchPill && <div className="px-5 pt-4">{roleSwitchPill}</div>}
         {primaryAction && (
           <div className="px-5 pt-4">
             <LinkButton href={primaryAction.href} icon={primaryAction.icon} fullWidth variant="secondary">
@@ -200,6 +271,18 @@ export function NavShell({ items, logo, badge, menuLabel, primaryAction, search,
               </Link>
             );
           })}
+          {secondaryAction && (
+            <>
+              <div className="my-2 h-px bg-line-soft" />
+              <Link
+                href={secondaryAction.href}
+                className="flex min-h-12 items-center gap-3 rounded-xl px-3 text-[15px] font-semibold text-clay-dark transition-colors duration-[var(--duration-swift)] hover:bg-clay-50"
+              >
+                {secondaryAction.icon}
+                {secondaryAction.label}
+              </Link>
+            </>
+          )}
         </nav>
         <div className="border-t border-line-soft px-5 py-4">
           <div className="flex items-center gap-2">{utilityLeft}</div>
@@ -210,6 +293,8 @@ export function NavShell({ items, logo, badge, menuLabel, primaryAction, search,
       {/* ── Topbalk (>= md) — Vinted-achtige opzet, in Vyra-stijl ── */}
       <header className="sticky top-0 z-40 hidden items-center gap-3 border-b border-line bg-paper/90 px-5 py-2.5 backdrop-blur-md pt-[calc(var(--safe-t)+0.625rem)] md:flex">
         {logo}
+
+        {roleSwitchPill}
 
         <div className="relative shrink-0" ref={menuRef}>
           <button
@@ -229,7 +314,6 @@ export function NavShell({ items, logo, badge, menuLabel, primaryAction, search,
               data-testid="nav-menu-panel"
               className="absolute left-0 top-full z-40 mt-2 w-64 overflow-hidden rounded-2xl border border-line-soft bg-white py-1.5 shadow-[var(--shadow-pop)]"
             >
-              {badge && <div className="px-4 pb-2 pt-1.5">{badge}</div>}
               {items.map((item) => {
                 const active = isActive(item.href, pathname);
                 return (
@@ -248,6 +332,20 @@ export function NavShell({ items, logo, badge, menuLabel, primaryAction, search,
                   </Link>
                 );
               })}
+              {secondaryAction && (
+                <>
+                  <div className="my-1 mx-2 h-px bg-line-soft" />
+                  <Link
+                    href={secondaryAction.href}
+                    role="menuitem"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2.5 text-[14px] font-semibold text-clay-dark transition-colors duration-[var(--duration-swift)] hover:bg-clay-50"
+                  >
+                    {secondaryAction.icon}
+                    {secondaryAction.label}
+                  </Link>
+                </>
+              )}
             </div>
           )}
         </div>
