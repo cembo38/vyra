@@ -1,6 +1,10 @@
 {
   "crons": [
     {
+      "path": "/api/cron/recompute-response-times",
+      "schedule": "0 5 * * *"
+    },
+    {
       "path": "/api/cron/deadline-reminders",
       "schedule": "0 8 * * *"
     },
