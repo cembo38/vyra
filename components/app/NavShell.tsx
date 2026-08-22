@@ -63,6 +63,9 @@ function isActive(href: string, pathname: string) {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
+/** Herkenningslabel op eigen `vyra:overlay-open`-berichten, zie de toelichting bij de listener hieronder. */
+const NAV_MENU_OVERLAY_SOURCE = "nav-menu";
+
 /**
  * Herbruikbare navigatieschil voor de twee ingelogde portals (organisator
  * en leverancier). Onder `md` (telefoon, en iPad in smalle split-view):
@@ -115,8 +118,19 @@ export function NavShell({ items, logo, badge, menuLabel, primaryAction, search,
   // Sluit dit menu zodra ergens anders een drawer of ander paneel opent
   // (zie components/ui/Drawer.tsx) — en meld zelf ook zo'n "overlay open"
   // moment, zodat bv. een openstaand notificatiepaneel op zijn beurt sluit.
+  //
+  // LET OP: dit uitklapmenu is (voor zover bekend) het enige paneel dat
+  // het `vyra:overlay-open`-event zowel VERSTUURT als BELUISTERT — Drawer
+  // verstuurt het alleen, NotificationsBell beluistert het alleen. Zonder
+  // onderscheid hoort dit menu zijn eigen bericht en sluit het zichzelf
+  // ONMIDDELLIJK weer na het openen (geverifieerd: klikken op de knop deed
+  // zichtbaar niets, want open→eigen event→dicht gebeurde binnen dezelfde
+  // klikafhandeling). Vandaar het `detail.source`-veld hieronder: alleen
+  // een bericht van een ANDER paneel mag dit menu sluiten.
   useEffect(() => {
-    function onOtherOverlayOpen() {
+    function onOtherOverlayOpen(e: Event) {
+      const source = e instanceof CustomEvent ? (e.detail as { source?: string } | undefined)?.source : undefined;
+      if (source === NAV_MENU_OVERLAY_SOURCE) return;
       setMenuOpen(false);
     }
     window.addEventListener("vyra:overlay-open", onOtherOverlayOpen);
@@ -125,7 +139,7 @@ export function NavShell({ items, logo, badge, menuLabel, primaryAction, search,
 
   function toggleMenu() {
     setMenuOpen((v) => {
-      if (!v) window.dispatchEvent(new Event("vyra:overlay-open"));
+      if (!v) window.dispatchEvent(new CustomEvent("vyra:overlay-open", { detail: { source: NAV_MENU_OVERLAY_SOURCE } }));
       return !v;
     });
   }
