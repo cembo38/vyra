@@ -3,6 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { after } from "next/server";
 import { AI_ENABLED } from "@/lib/config";
 import { logAiInteraction } from "@/lib/data/store";
+import { looksLikeRawJson } from "@/lib/ai/text-guards";
 
 let _client: Anthropic | null = null;
 
@@ -184,14 +185,29 @@ export async function callFreeTextAI(opts: { role: string; system: string; user:
       messages: [{ role: "user", content: wrapUserContent(opts.user) }],
     });
     const textBlock = response.content.find((b) => b.type === "text");
-    const text = textBlock && textBlock.type === "text" ? textBlock.text : null;
+    const rawText = textBlock && textBlock.type === "text" ? textBlock.text : null;
+    // Vangnet (gemeld aug. 2026: de budgetpagina toonde ooit een letterlijke
+    // JSON-brij als "advies"). Hoofdoorzaak lag in een gedeelde prompt-
+    // instructie (zie SAFETY_FOOTER-fix in lib/ai/prompts.ts), maar een
+    // taalmodel volgt instructies nooit met 100% garantie — lijkt de tekst
+    // die terugkomt zelf op rauwe JSON, dan behandelen we dat hier als een
+    // mislukte aanroep i.p.v. het gewoon te tonen. De aanroeper valt dan
+    // terug op zijn eigen deterministische mock-tekst, net als bij een
+    // echte API-fout.
+    const rejectedAsJson = rawText != null && looksLikeRawJson(rawText);
+    const text = rejectedAsJson ? null : rawText;
+    if (rejectedAsJson) {
+      console.error(`[ai:${opts.role}] AI gaf rauwe JSON terug i.p.v. vrije tekst, val terug op mock-logica.`);
+    }
     after(() =>
       logAiInteraction({
         role: opts.role,
         userId: opts.context?.userId ?? null,
         eventId: opts.context?.eventId ?? null,
         input: opts.user,
-        output: text,
+        // Origineel antwoord blijft zichtbaar in het auditlog, ook als we
+        // 'm hierboven afwijzen — handig om te zien hoe vaak dit nog gebeurt.
+        output: rawText,
         succeeded: text != null,
         flagged,
       })

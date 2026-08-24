@@ -12,8 +12,12 @@ import {
 import { getBudgetAdvice } from "@/lib/ai/assistant";
 import { Card } from "@/components/ui/Card";
 import { PriorityBadge, RequirementStatusBadge, AiTag } from "@/components/ui/Badge";
+import { BudgetAllocator } from "@/components/app/BudgetAllocator";
 import { formatCurrency } from "@/lib/config";
 import { AlertTriangle, Sparkles, Wallet } from "lucide-react";
+
+/** Categorieën waarvan de prijs al vastligt via een geaccepteerde offerte — een schuif aanpassen zou daar niets meer betekenen. */
+const LOCKED_STATUSES = new Set(["confirmed", "paid", "completed"]);
 
 export default async function BudgetPage(props: PageProps<"/events/[id]/budget">) {
   const { id } = await props.params;
@@ -30,6 +34,16 @@ export default async function BudgetPage(props: PageProps<"/events/[id]/budget">
   ]);
   const requirements = allRequirements.filter((r) => r.selected);
   const advice = await getBudgetAdvice({ event, requirements, requests, offers, budget, tasks, timeline });
+
+  // Alleen categorieën die nog "open" staan horen in de schuiven hieronder —
+  // is de prijs al vastgelegd via een geaccepteerde offerte, dan verandert
+  // een schatting bijstellen niets meer aan wat je daadwerkelijk betaalt.
+  // Precies dezelfde selectie als `pendingCents` hierboven (getBudgetSummary
+  // in lib/data/store.ts), zodat het bedrag dat je hier verdeelt exact het
+  // "Verwacht"-bedrag is.
+  const allocatorItems = requirements
+    .filter((r) => r.estimatedBudgetCents != null && !LOCKED_STATUSES.has(r.status))
+    .map((r) => ({ categoryId: r.id, label: r.label, cents: r.estimatedBudgetCents! }));
 
   const committedPct = budget.totalCents ? Math.min(100, (budget.committedCents / budget.totalCents) * 100) : 0;
   const pendingPct = budget.totalCents ? Math.min(100 - committedPct, (budget.pendingCents / budget.totalCents) * 100) : 0;
@@ -70,6 +84,19 @@ export default async function BudgetPage(props: PageProps<"/events/[id]/budget">
           <p>{advice.answer}</p>
         </div>
       </Card>
+
+      {allocatorItems.length > 0 && (
+        <Card>
+          {/* Zelfde remount-op-selectiewijziging-truc als op de planpagina — zie de toelichting daar. */}
+          <BudgetAllocator
+            key={allocatorItems.map((i) => i.categoryId).join(",")}
+            eventId={id}
+            items={allocatorItems}
+            totalBudgetCents={event.budget?.totalCents ?? null}
+            variant="light"
+          />
+        </Card>
+      )}
 
       <Card>
         <h2 className="mb-4 font-display text-lg text-ink">Verdeling per categorie</h2>

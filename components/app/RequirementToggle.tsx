@@ -1,12 +1,14 @@
 "use client";
 
 import { useOptimistic, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { toggleRequirementAction } from "@/lib/actions/event-actions";
 import { cn } from "@/lib/utils";
 
 export function RequirementToggle({ eventId, categoryId, selected }: { eventId: string; categoryId: string; selected: boolean }) {
   const [optimisticSelected, setOptimisticSelected] = useOptimistic(selected);
   const [, startTransition] = useTransition();
+  const router = useRouter();
 
   return (
     <button
@@ -19,6 +21,11 @@ export function RequirementToggle({ eventId, categoryId, selected }: { eventId: 
         startTransition(async () => {
           setOptimisticSelected(next);
           await toggleRequirementAction(eventId, categoryId, next);
+          // Ververst de servergegevens: de budgetverdeling-schuiven
+          // (BudgetAllocator, elders op deze pagina) tonen precies de
+          // geselecteerde categorieën — zonder refresh() zou een schuif pas
+          // verschijnen/verdwijnen na een handmatige paginaherlading.
+          router.refresh();
         });
       }}
       className={cn(
