@@ -163,3 +163,26 @@ export async function confirmPaymentAction(paymentId: string) {
   revalidatePath(`/events/${payment.eventId}`, "layout");
   redirect(`/events/${payment.eventId}?paid=1`);
 }
+
+/**
+ * NOODREPARATIE (zie build-fout op Vercel, commits a7c3c81 t/m 90c2d19):
+ * `components/app/CounterOfferResponse.tsx` importeerde deze functie al,
+ * maar ze bestond nergens — een eerdere, nooit afgemaakte poging tot een
+ * "tegenbod"-functie (organisator stuurt een tegenbod, leverancier
+ * accepteert/wijst af). Er bestaat nog GEEN datamodel voor tegenboden
+ * (geen counterPriceCents/counterNote op OfferOption, geen manier voor een
+ * organisator om er één te versturen) en `CounterOfferResponse` wordt op
+ * dit moment nergens in de app getoond — dus dit brak alleen de build,
+ * geen enkele echte gebruiker zag ooit deze knop.
+ *
+ * Dit is bewust alleen een MINIMALE, veilige stub die de site weer laat
+ * bouwen — ze doet nog niets. Zie het rapport aan Cem voor de vraag of de
+ * tegenbod-feature nu alsnog afgemaakt moet worden (was destijds bewust
+ * overgeslagen, "minus counter-offer").
+ */
+export async function respondToCounterOfferAction(offerId: string, accept: boolean) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  void offerId;
+  void accept;
+}
