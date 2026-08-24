@@ -1,5 +1,6 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
+import { after } from "next/server";
 import { AI_ENABLED } from "@/lib/config";
 import { logAiInteraction } from "@/lib/data/store";
 
@@ -44,7 +45,12 @@ export const AI_MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5";
  * 3. Auditability: iedere AI-aanroep (rol, gebruiker, evenement, invoer,
  *    uitvoer, of het gelukt is, of hij gemarkeerd is) wordt gelogd via
  *    logAiInteraction() in de tabel ai_interaction_logs, zodat de
- *    platformbeheerder kan meelezen als er iets misgaat.
+ *    platformbeheerder kan meelezen als er iets misgaat. Deze logschrijving
+ *    staat bewust in after() (next/server) i.p.v. vóór de return: de
+ *    gebruiker hoeft niet te wachten op deze achtergrond-DB-schrijving
+ *    (scheelde merkbare "even denken"-vertraging), terwijl Vercel de
+ *    functie via waitUntil() toch open houdt totdat het loggen echt klaar
+ *    is — de log gaat dus niet verloren, hij komt alleen ná de respons.
  *
  * Dit is bewust geen garantie dat injection onmogelijk is (dat kan geen
  * enkele laag rond een taalmodel volledig garanderen), maar een
@@ -136,27 +142,31 @@ export async function callStructuredAI<T>(opts: {
     const toolUse = response.content.find((b) => b.type === "tool_use");
     if (!toolUse || toolUse.type !== "tool_use") throw new Error("Geen tool-aanroep ontvangen van AI-model");
     const data = toolUse.input as T;
-    await logAiInteraction({
-      role: opts.role,
-      userId: opts.context?.userId ?? null,
-      eventId: opts.context?.eventId ?? null,
-      input: opts.user,
-      output: JSON.stringify(data),
-      succeeded: true,
-      flagged,
-    });
+    after(() =>
+      logAiInteraction({
+        role: opts.role,
+        userId: opts.context?.userId ?? null,
+        eventId: opts.context?.eventId ?? null,
+        input: opts.user,
+        output: JSON.stringify(data),
+        succeeded: true,
+        flagged,
+      })
+    );
     return { data, usedAI: true };
   } catch (err) {
     console.error(`[ai:${opts.role}] AI-aanroep mislukt, terugvallen op mock-logica.`, err);
-    await logAiInteraction({
-      role: opts.role,
-      userId: opts.context?.userId ?? null,
-      eventId: opts.context?.eventId ?? null,
-      input: opts.user,
-      output: null,
-      succeeded: false,
-      flagged,
-    });
+    after(() =>
+      logAiInteraction({
+        role: opts.role,
+        userId: opts.context?.userId ?? null,
+        eventId: opts.context?.eventId ?? null,
+        input: opts.user,
+        output: null,
+        succeeded: false,
+        flagged,
+      })
+    );
     return { data: opts.mockFallback(), usedAI: false };
   }
 }
@@ -175,27 +185,31 @@ export async function callFreeTextAI(opts: { role: string; system: string; user:
     });
     const textBlock = response.content.find((b) => b.type === "text");
     const text = textBlock && textBlock.type === "text" ? textBlock.text : null;
-    await logAiInteraction({
-      role: opts.role,
-      userId: opts.context?.userId ?? null,
-      eventId: opts.context?.eventId ?? null,
-      input: opts.user,
-      output: text,
-      succeeded: text != null,
-      flagged,
-    });
+    after(() =>
+      logAiInteraction({
+        role: opts.role,
+        userId: opts.context?.userId ?? null,
+        eventId: opts.context?.eventId ?? null,
+        input: opts.user,
+        output: text,
+        succeeded: text != null,
+        flagged,
+      })
+    );
     return text;
   } catch (err) {
     console.error(`[ai:${opts.role}] AI-aanroep mislukt.`, err);
-    await logAiInteraction({
-      role: opts.role,
-      userId: opts.context?.userId ?? null,
-      eventId: opts.context?.eventId ?? null,
-      input: opts.user,
-      output: null,
-      succeeded: false,
-      flagged,
-    });
+    after(() =>
+      logAiInteraction({
+        role: opts.role,
+        userId: opts.context?.userId ?? null,
+        eventId: opts.context?.eventId ?? null,
+        input: opts.user,
+        output: null,
+        succeeded: false,
+        flagged,
+      })
+    );
     return null;
   }
 }

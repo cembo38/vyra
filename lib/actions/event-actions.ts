@@ -23,12 +23,22 @@ import {
 import { extractEventFields, generateNextQuestion } from "@/lib/ai/interview";
 import { generateRequirementPlan, generateTimeline, detectRisks, draftSupplierMessages } from "@/lib/ai/planning";
 import { detectChangeImpact } from "@/lib/ai/assistant";
-import { EVENT_TYPE_LABELS } from "@/lib/types";
+import { EVENT_TYPE_LABELS, EventCore } from "@/lib/types";
 import { uid } from "@/lib/utils";
 
-async function applyExtractedFields(eventId: string, extracted: Awaited<ReturnType<typeof extractEventFields>>["data"]) {
-  const event = await getEvent(eventId);
-  if (!event) return;
+/**
+ * Past de door de AI geëxtraheerde velden toe op het event, en geeft de
+ * (eventueel bijgewerkte) event-state terug — i.p.v. alleen te schrijven en
+ * de aanroeper zelf een nieuwe `getEvent()` te laten doen. `updateEvent()`
+ * haalt de rij zelf al opnieuw op na het schrijven (zie lib/data/store.ts),
+ * dus die waarde hergebruiken scheelt een volledig extra DB-round-trip per
+ * interviewbeurt (onderdeel van de "even denken"-snelheidsfix, aug. 2026).
+ * Neemt bewust het al-opgehaalde `event`-object aan i.p.v. zelf een
+ * `getEvent(eventId)` te doen — de aanroeper heeft dat toch al nodig
+ * (login-/eigenaarscheck of net aangemaakt), dus dat was een tweede
+ * overbodige lees-round-trip.
+ */
+async function applyExtractedFields(event: EventCore, extracted: Awaited<ReturnType<typeof extractEventFields>>["data"]): Promise<EventCore> {
   const patch: Parameters<typeof updateEvent>[1] = {};
 
   if (extracted.eventType && event.type === "other") patch.type = extracted.eventType;
@@ -49,19 +59,29 @@ async function applyExtractedFields(eventId: string, extracted: Awaited<ReturnTy
   if (extracted.eventName) patch.name = extracted.eventName;
   else if (event.name === "Nieuw evenement" && extracted.eventType) patch.name = `${EVENT_TYPE_LABELS[extracted.eventType]}${extracted.locationLabel ? " in " + extracted.locationLabel : ""}`;
 
-  if (Object.keys(patch).length > 0) await updateEvent(eventId, patch);
+  if (Object.keys(patch).length === 0) return event;
+  const updated = await updateEvent(event.id, patch);
+  return updated ?? event;
 }
 
 export async function startInterviewAction(description: string) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   const event = await createEvent(user.id, description);
-  await addInterviewMessage({ eventId: event.id, role: "user", text: description });
 
-  const { data: extracted } = await extractEventFields(description, { userId: user.id, eventId: event.id });
-  await applyExtractedFields(event.id, extracted);
-
-  const updatedEvent = (await getEvent(event.id))!;
+  // Het wegschrijven van het gebruikersbericht en de eerste AI-aanroep
+  // hebben niets aan elkaar nodig (extractEventFields krijgt de tekst
+  // rechtstreeks mee, niet via een DB-lees) — parallel laten lopen i.p.v.
+  // na elkaar scheelt een volledige DB-schrijfronde van de wachttijd
+  // ("even denken"-snelheidsfix, aug. 2026).
+  const [, { data: extracted }] = await Promise.all([
+    addInterviewMessage({ eventId: event.id, role: "user", text: description }),
+    extractEventFields(description, { userId: user.id, eventId: event.id }),
+  ]);
+  // applyExtractedFields() geeft de bijgewerkte event-state al terug (zie
+  // hierboven) — geen aparte `getEvent()` meer nodig zoals voorheen, dat was
+  // een overbodige derde DB-round-trip binnen deze ene interviewbeurt.
+  const updatedEvent = await applyExtractedFields(event, extracted);
   const { data: nextQ } = await generateNextQuestion(updatedEvent, await getInterviewMessages(event.id));
 
   const assistantMessage = nextQ.done
@@ -85,13 +105,16 @@ export async function continueInterviewAction(eventId: string, userMessage: stri
   const currentEvent = await getEvent(eventId);
   if (!currentEvent || currentEvent.ownerId !== user.id) redirect("/events");
 
-  await addInterviewMessage({ eventId, role: "user", text: userMessage });
-
-  const { data: extracted } = await extractEventFields(userMessage, { userId: currentEvent.ownerId, eventId });
-  await applyExtractedFields(eventId, extracted);
-
-  const updatedEvent = await getEvent(eventId);
-  if (!updatedEvent) return { assistantMessage: "Er ging iets mis — probeer het nog eens.", done: false };
+  // Zelfde snelheidsfix als in startInterviewAction hierboven: het
+  // gebruikersbericht wegschrijven en de eerste AI-aanroep hebben niets
+  // aan elkaar nodig, dus parallel i.p.v. na elkaar.
+  const [, { data: extracted }] = await Promise.all([
+    addInterviewMessage({ eventId, role: "user", text: userMessage }),
+    extractEventFields(userMessage, { userId: currentEvent.ownerId, eventId }),
+  ]);
+  // applyExtractedFields() geeft de bijgewerkte event-state al terug — geen
+  // aparte `getEvent()` meer nodig zoals voorheen.
+  const updatedEvent = await applyExtractedFields(currentEvent, extracted);
   const { data: nextQ } = await generateNextQuestion(updatedEvent, await getInterviewMessages(eventId));
 
   const assistantMessage = nextQ.done
@@ -103,13 +126,43 @@ export async function continueInterviewAction(eventId: string, userMessage: stri
   return { assistantMessage, done: nextQ.done };
 }
 
-export async function generatePlanAction(eventId: string) {
+/**
+ * Genereert alleen de categorielijst (locatie/catering/fotografie/…) en
+ * slaat die meteen op — géén conceptberichten, tijdlijn of risico's, dat
+ * blijft voor `generatePlanAction` hieronder. Cem vroeg hierom (na het
+ * "Vyra in Beweging"-voorstel op de marketinghomepage, zie Hero.tsx): hij
+ * wil dat de organisator vooraf al ziet welke categorieën de AI voorstelt
+ * — zonder daar zelf een knop voor te hoeven indrukken — en pas daarna
+ * bewust op "Zie volledige plan" klikt voor de rest (dat is de duurdere
+ * stap: 3 extra AI-aanroepen na elkaar). Dit is dus bewust de LICHTE,
+ * snelle voorproef; NewEventInterview.tsx roept dit automatisch aan zodra
+ * `done` waar wordt.
+ */
+export async function generatePlanPreviewAction(eventId: string) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   const event = await getEvent(eventId);
   if (!event || event.ownerId !== user.id) redirect("/events");
 
   const { categories } = await generateRequirementPlan(event);
+  const saved = await setRequirements(eventId, categories);
+  revalidatePath(`/events/${eventId}`, "layout");
+  return { categories: saved };
+}
+
+export async function generatePlanAction(eventId: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const event = await getEvent(eventId);
+  if (!event || event.ownerId !== user.id) redirect("/events");
+
+  // Normaal is de categorielijst hier al aanwezig — `generatePlanPreviewAction`
+  // hierboven draait automatisch zodra het interview klaar is. Dit blijft
+  // wel opnieuw genereren als vangnet (bv. een organisator die via een
+  // oude/gedeelde link rechtstreeks hier terechtkomt zonder de voorproef te
+  // hebben gezien).
+  const existing = await getRequirements(eventId);
+  const categories = existing.length > 0 ? existing : (await generateRequirementPlan(event)).categories;
 
   // Meteen ook een conceptbericht per (geselecteerde) categorie klaarzetten
   // — dit is de tekst die straks écht naar leveranciers gaat. De
