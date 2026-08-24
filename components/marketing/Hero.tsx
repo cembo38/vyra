@@ -103,7 +103,13 @@ const READY_STEP = 3 + PLAN_ROWS.length + 2; // bubble0, typing, bubble1, bubble
 
 function AiInterviewCard() {
   const reducedMotion = usePrefersReducedMotion();
-  const [step, setStep] = useState(reducedMotion ? READY_STEP : 0);
+  const [step, setStep] = useState(0);
+  // Speelde eerst automatisch af zodra de kaart in beeld kwam — Cem wees
+  // er terecht op dat dit niet overeenkomt met hoe hij de kaart in de
+  // praktijk ervaart: daar zie je de opbouw pas NA een bewuste klik (het
+  // "open AI-plan"-moment), niet meteen bij het laden/scrollen. Nu start
+  // de opbouw pas als bezoeker zelf op de knop klikt.
+  const [started, setStarted] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
   const rotateX = useMotionValue(0);
   const rotateY = useMotionValue(0);
@@ -111,9 +117,14 @@ function AiInterviewCard() {
   const springRotateY = useSpring(rotateY, { stiffness: 150, damping: 18 });
 
   useEffect(() => {
-    if (reducedMotion) return;
+    // Bij reduced-motion wordt de eindstand meteen gezet vanuit de
+    // klik-handler zelf (zie `openPlan` hieronder) i.p.v. hier synchroon in
+    // de effect-body — dat laatste triggert dezelfde
+    // `react-hooks/set-state-in-effect`-lintregel als de fix in
+    // usePrefersReducedMotion.ts hierboven al oploste.
+    if (!started || reducedMotion) return;
     const timers: ReturnType<typeof setTimeout>[] = [];
-    let t = 300;
+    let t = 200;
     timers.push(setTimeout(() => setStep(1), t)); // bubble 0
     t += 500;
     timers.push(setTimeout(() => setStep(2), t)); // typing indicator
@@ -126,7 +137,12 @@ function AiInterviewCard() {
       timers.push(setTimeout(() => setStep(5 + i), t));
     });
     return () => timers.forEach(clearTimeout);
-  }, [reducedMotion]);
+  }, [started, reducedMotion]);
+
+  function openPlan() {
+    setStarted(true);
+    if (reducedMotion) setStep(READY_STEP); // meteen de eindstand, geen typ-simulatie
+  }
 
   function handleMouseMove(e: React.MouseEvent<HTMLDivElement>) {
     if (reducedMotion || !cardRef.current) return;
@@ -159,62 +175,80 @@ function AiInterviewCard() {
         </div>
       </div>
 
-      <div className="space-y-3">
-        {CHAT_LINES.map((line, i) => {
-          const revealAt = i === 0 ? 1 : i === 1 ? 3 : 4;
-          const isBubbleVisible = step >= revealAt;
-          return (
+      {!started ? (
+        <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-line-soft bg-paper px-5 py-8 text-center">
+          <p className="text-sm text-ink-soft">
+            Zie in het echt hoe onze AI van een paar zinnen een compleet eventplan bouwt.
+          </p>
+          <button
+            type="button"
+            onClick={openPlan}
+            className="icon-pop flex items-center gap-2 rounded-full bg-ink px-5 py-2.5 text-sm font-medium text-paper"
+          >
+            <Sparkles className="size-4" />
+            Open het AI-plan
+          </button>
+        </div>
+      ) : (
+        <>
+          <div className="space-y-3">
+            {CHAT_LINES.map((line, i) => {
+              const revealAt = i === 0 ? 1 : i === 1 ? 3 : 4;
+              const isBubbleVisible = step >= revealAt;
+              return (
+                <div
+                  key={i}
+                  className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm transition-all duration-450 ease-out ${
+                    line.role === "user" ? "rounded-tl-sm bg-paper-dim text-ink" : "ml-auto rounded-tr-sm bg-ink text-paper"
+                  }`}
+                  style={{ opacity: isBubbleVisible ? 1 : 0, transform: isBubbleVisible ? "translateY(0) scale(1)" : "translateY(8px) scale(0.98)" }}
+                >
+                  {line.text}
+                </div>
+              );
+            })}
             <div
-              key={i}
-              className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm transition-all duration-450 ease-out ${
-                line.role === "user" ? "rounded-tl-sm bg-paper-dim text-ink" : "ml-auto rounded-tr-sm bg-ink text-paper"
-              }`}
-              style={{ opacity: isBubbleVisible ? 1 : 0, transform: isBubbleVisible ? "translateY(0) scale(1)" : "translateY(8px) scale(0.98)" }}
+              className="ml-auto flex w-fit items-center gap-1 rounded-2xl rounded-tr-sm bg-ink px-3.5 py-3 transition-opacity duration-300"
+              style={{ opacity: step === 2 ? 1 : 0 }}
             >
-              {line.text}
+              {[0, 1, 2].map((i) => (
+                <span
+                  key={i}
+                  className="size-1.25 rounded-full bg-paper opacity-60"
+                  style={{ animation: step === 2 ? `typing-dot 1s infinite ease-in-out ${i * 0.15}s` : "none" }}
+                />
+              ))}
             </div>
-          );
-        })}
-        <div
-          className="ml-auto flex w-fit items-center gap-1 rounded-2xl rounded-tr-sm bg-ink px-3.5 py-3 transition-opacity duration-300"
-          style={{ opacity: step === 2 ? 1 : 0 }}
-        >
-          {[0, 1, 2].map((i) => (
-            <span
-              key={i}
-              className="size-1.25 rounded-full bg-paper opacity-60"
-              style={{ animation: step === 2 ? `typing-dot 1s infinite ease-in-out ${i * 0.15}s` : "none" }}
-            />
-          ))}
-        </div>
-      </div>
+          </div>
 
-      <div className="mt-5 rounded-2xl border border-line-soft bg-paper p-4">
-        {/* flex-wrap + whitespace-nowrap: op de smalste telefoons
-            (375px) was er te weinig ruimte naast de AiTag-pil,
-            waardoor "Jouw AI-eventplan" lelijk middenin afbrak
-            ("JOUW AI-" / "EVENTPLAN"). Valt de pil nu niet meer
-            ernaast, dan zakt hij gewoon naar een eigen regel. */}
-        <div className="mb-3 flex flex-wrap items-center justify-between gap-1.5">
-          <span className="whitespace-nowrap text-xs font-medium uppercase tracking-wide text-ink-faint">Jouw AI-eventplan</span>
-          <AiTag />
-        </div>
-        <div className="space-y-2.5">
-          {PLAN_ROWS.map((c, i) => {
-            const visible = step >= 5 + i;
-            return (
-              <div
-                key={c.label}
-                className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-sm shadow-sm transition-all duration-400 ease-out"
-                style={{ opacity: visible ? 1 : 0, transform: visible ? "translateX(0)" : "translateX(-10px)" }}
-              >
-                <span className="text-ink">{c.label}</span>
-                <PriorityBadge priority={c.priority} />
-              </div>
-            );
-          })}
-        </div>
-      </div>
+          <div className="mt-5 rounded-2xl border border-line-soft bg-paper p-4">
+            {/* flex-wrap + whitespace-nowrap: op de smalste telefoons
+                (375px) was er te weinig ruimte naast de AiTag-pil,
+                waardoor "Jouw AI-eventplan" lelijk middenin afbrak
+                ("JOUW AI-" / "EVENTPLAN"). Valt de pil nu niet meer
+                ernaast, dan zakt hij gewoon naar een eigen regel. */}
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-1.5">
+              <span className="whitespace-nowrap text-xs font-medium uppercase tracking-wide text-ink-faint">Jouw AI-eventplan</span>
+              <AiTag />
+            </div>
+            <div className="space-y-2.5">
+              {PLAN_ROWS.map((c, i) => {
+                const visible = step >= 5 + i;
+                return (
+                  <div
+                    key={c.label}
+                    className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-sm shadow-sm transition-all duration-400 ease-out"
+                    style={{ opacity: visible ? 1 : 0, transform: visible ? "translateX(0)" : "translateX(-10px)" }}
+                  >
+                    <span className="text-ink">{c.label}</span>
+                    <PriorityBadge priority={c.priority} />
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </>
+      )}
     </motion.div>
   );
 }
