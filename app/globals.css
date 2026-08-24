@@ -405,3 +405,98 @@ button {
   background-repeat: no-repeat;
   background-size: 32px 100%;
 }
+
+/**
+ * ── HOMEPAGE-BEWEGING ───────────────────────────────────────────────
+ * Continue (oneindig lopende) animaties voor de marketing-homepage —
+ * los van de bestaande .lift-hover e.a. hierboven, die allemaal alleen
+ * bij hover/klik reageren. Deze lopen vanzelf door, dus staan hier
+ * gecentraliseerd zodat ze in één keer uitgezet kunnen worden voor
+ * prefers-reduced-motion (zie onderaan dit blok) i.p.v. dat elk component
+ * dat zelf opnieuw moet regelen.
+ *
+ *  - .motion-breathe   → zachte, langzame "ademende" achtergrondgloed (Hero)
+ *  - .motion-float-a/-b → onafhankelijk zwevende badge-kaartjes (Hero)
+ *  - .motion-ticker     → oneindig scrollende tekstband (EventTicker)
+ *  - .motion-icon-*     → kleine loop-animatie per "Hoe het werkt"-icoon
+ * ─────────────────────────────────────────────────────────────────── */
+@keyframes breathe {
+  0%, 100% { transform: scale(1) translate(0, 0); opacity: 0.9; }
+  50% { transform: scale(1.12) translate(2%, -3%); opacity: 1; }
+}
+.motion-breathe {
+  animation: breathe 9s ease-in-out infinite;
+}
+
+@keyframes float-a {
+  0%, 100% { transform: translateY(0) rotate(-1.5deg); }
+  50% { transform: translateY(-12px) rotate(1deg); }
+}
+@keyframes float-b {
+  0%, 100% { transform: translateY(0) rotate(1.5deg); }
+  50% { transform: translateY(10px) rotate(-1deg); }
+}
+.motion-float-a {
+  animation: float-a 5.5s ease-in-out infinite;
+}
+.motion-float-b {
+  animation: float-b 6.5s ease-in-out infinite 0.4s;
+}
+
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes ticker-scroll-reverse {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+.motion-ticker {
+  animation: ticker-scroll 26s linear infinite;
+}
+.motion-ticker-slow {
+  animation-duration: 40s;
+}
+.motion-ticker-reverse {
+  animation-name: ticker-scroll-reverse;
+}
+
+@keyframes icon-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+@keyframes icon-twinkle {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  50% { transform: scale(1.18) rotate(10deg); opacity: 0.8; }
+}
+@keyframes icon-shuffle {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  25% { transform: translateX(-3px) rotate(-3deg); }
+  75% { transform: translateX(3px) rotate(3deg); }
+}
+@keyframes icon-swipe {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(5px); }
+}
+.motion-icon-bounce { animation: icon-bounce 2.4s ease-in-out infinite; }
+.motion-icon-twinkle { animation: icon-twinkle 1.8s ease-in-out infinite; }
+.motion-icon-shuffle { animation: icon-shuffle 2.6s ease-in-out infinite; }
+.motion-icon-swipe { animation: icon-swipe 2.2s ease-in-out infinite; }
+
+/* Iedereen die minder beweging heeft aangevraagd (besturingssysteem-
+   instelling) krijgt geen van de doorlopende animaties hierboven — de
+   inhoud blijft gewoon zichtbaar, alleen statisch. Scroll-onthullingen
+   (Framer Motion whileInView in de componenten zelf) tonen in dat geval
+   direct hun eindstand i.p.v. te bewegen. */
+@media (prefers-reduced-motion: reduce) {
+  .motion-breathe,
+  .motion-float-a,
+  .motion-float-b,
+  .motion-ticker,
+  .motion-icon-bounce,
+  .motion-icon-twinkle,
+  .motion-icon-shuffle,
+  .motion-icon-swipe {
+    animation: none !important;
+  }
+}

@@ -1,4 +1,8 @@
+"use client";
+
+import { motion } from "framer-motion";
 import { ShieldCheck, Clock, Percent, HeartHandshake } from "lucide-react";
+import { usePrefersReducedMotion } from "@/lib/hooks/usePrefersReducedMotion";
 
 const items = [
   { icon: Clock, title: "Binnen 48 uur reactie", description: "Leveranciers reageren gegarandeerd snel — met duidelijke deadlines en herinneringen." },
@@ -12,19 +16,30 @@ const items = [
   { icon: HeartHandshake, title: "Jij houdt de regie", description: "De AI adviseert, jij beslist. Elke aanbeveling is aanpasbaar of af te wijzen." },
 ];
 
+/** Zelfde lichte scroll-onthulling-stagger als "Hoe het werkt", nu op de
+ * vertrouwensbalk — houdt de beweging op de pagina consistent zonder dat
+ * dit blok zelf ergens naar de kern van het motion-voorstel behoort. */
 export function TrustSection() {
+  const reducedMotion = usePrefersReducedMotion();
+
   return (
     <section className="border-y border-line-soft bg-ink py-20 text-paper sm:py-24">
       <div className="mx-auto max-w-6xl px-6">
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4">
-          {items.map((item) => (
-            <div key={item.title}>
+          {items.map((item, i) => (
+            <motion.div
+              key={item.title}
+              initial={reducedMotion ? false : { opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-80px" }}
+              transition={{ duration: 0.5, ease: "easeOut", delay: i * 0.1 }}
+            >
               <div className="flex size-10 items-center justify-center rounded-xl bg-white/10 text-clay">
                 <item.icon className="size-5" />
               </div>
               <h3 className="mt-4 font-display text-lg">{item.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-paper/65">{item.description}</p>
-            </div>
+            </motion.div>
           ))}
         </div>
       </div>
