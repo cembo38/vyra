@@ -26,7 +26,7 @@ export default function PrivacyPage() {
           <div className="px-6">
             <Section title="1. Wie is verantwoordelijk voor je gegevens">
               <p>
-                Vyra wordt op dit moment beheerd door Cem Adıyaman, handelend als particulier (nog geen KVK-inschrijving). Voor
+                Vyra wordt op dit moment beheerd door Cem Adıyaman (KVK-nummer 75334321). Voor
                 vragen over deze privacyverklaring of je gegevens kun je contact opnemen via{" "}
                 <a href="mailto:cemadiyaman91@gmail.com" className="text-clay hover:underline">cemadiyaman91@gmail.com</a>.
               </p>
