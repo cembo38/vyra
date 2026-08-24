@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { ADMIN_EMAILS } from "@/lib/config";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { geocodeLocation } from "@/lib/geo";
 import {
   approveSupplierVerification,
   rejectSupplierVerification,
@@ -12,6 +13,8 @@ import {
   resolveDispute,
   generateAndStoreDailyBriefing,
   markBriefingItemStatus,
+  listAllSupplierAccounts,
+  updateSupplierAccount,
 } from "@/lib/data/store";
 
 /**
@@ -295,4 +298,56 @@ export async function generateBriefingNowAction(): Promise<ActionResult> {
     if (!briefing) throw new Error("Kon geen rapport genereren (service-role sleutel niet geconfigureerd?).");
     revalidatePath("/admin");
   });
+}
+
+/**
+ * Eenmalige "inhaalslag" voor "Locatie op een kaart" — leveranciers die zich
+ * al vóór deze feature registreerden (of hun locatie nooit meer wijzigden)
+ * hebben nog geen lat/lng, want die worden alleen bepaald bij het
+ * aanmaken/wijzigen van het profiel (zie geocodeLocation() in lib/geo.ts,
+ * aangeroepen vanuit lib/actions/supplier-actions.ts). Zonder deze knop
+ * zouden ze pas een marker krijgen zodra ze zelf ooit hun profiel weer
+ * opslaan.
+ *
+ * Verwerkt bewust een klein aantal per klik (niet alles in één keer): het
+ * gratis Nominatim vereist ~1 aanvraag per seconde, en een groot aantal
+ * suppliers in één serverless functie-aanroep zou het tijdslimiet van
+ * Cems hostingplan kunnen raken. Simpelweg de knop nog eens klikken pakt de
+ * volgende batch op.
+ */
+const GEOCODE_BACKFILL_BATCH_SIZE = 8;
+
+export async function backfillSupplierCoordinatesAction(): Promise<
+  ActionResult & { processed?: number; geocoded?: number; remaining?: number }
+> {
+  try {
+    await requireAdmin();
+    const all = await listAllSupplierAccounts();
+    const missing = all.filter((s) => (s.lat == null || s.lng == null) && s.baseLocation.trim().length > 0);
+    const batch = missing.slice(0, GEOCODE_BACKFILL_BATCH_SIZE);
+
+    let geocoded = 0;
+    for (const supplier of batch) {
+      const coords = await geocodeLocation(supplier.baseLocation);
+      if (coords) {
+        await updateSupplierAccount(supplier.id, { lat: coords.lat, lng: coords.lng });
+        geocoded += 1;
+      } else {
+        // Onherkend adres — niet blijven proberen, anders raakt deze
+        // leverancier bij elke volgende klik weer de batch kwijt aan een
+        // adres dat toch nooit gaat lukken. lat/lng blijven dan simpelweg
+        // null (geen marker, wel gewoon vindbaar via de lijst).
+      }
+      // Fair-use van Nominatim respecteren: max. ~1 aanvraag/seconde.
+      if (batch.indexOf(supplier) < batch.length - 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1100));
+      }
+    }
+
+    revalidatePath("/admin/leveranciers");
+    revalidatePath("/leveranciers");
+    return { ok: true, processed: batch.length, geocoded, remaining: missing.length - batch.length };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Dit is niet gelukt." };
+  }
 }

@@ -1,6 +1,7 @@
 import { AdminSupplierVerificationActions } from "@/components/app/AdminSupplierVerificationActions";
 import { AdminRevokeVerificationButton } from "@/components/app/AdminRevokeVerificationButton";
 import { AdminServiceRoleBanner } from "@/components/app/AdminServiceRoleBanner";
+import { AdminGeocodeBackfillButton } from "@/components/app/AdminGeocodeBackfillButton";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { listAllSupplierAccounts } from "@/lib/data/store";
@@ -14,6 +15,9 @@ export default async function AdminSuppliersPage() {
   const suppliers = await listAllSupplierAccounts();
   const serviceRoleConfigured = isServiceRoleConfigured();
   const pendingVerifications = suppliers.filter((s) => !s.verified && s.verificationRequestedAt);
+  // "Locatie op een kaart" — leveranciers die zich vóór deze feature
+  // registreerden hebben nog geen coördinaten, zie backfillSupplierCoordinatesAction.
+  const suppliersWithoutCoords = suppliers.filter((s) => s.lat == null || s.lng == null).length;
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
@@ -25,6 +29,10 @@ export default async function AdminSuppliersPage() {
           <AdminServiceRoleBanner />
         </div>
       )}
+
+      <div className="mt-6">
+        <AdminGeocodeBackfillButton initialRemaining={suppliersWithoutCoords} />
+      </div>
 
       <div className="mt-8">
         <Card>

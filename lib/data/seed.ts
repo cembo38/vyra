@@ -74,9 +74,6 @@ function offer(params: {
     matchRationale: params.matchRationale,
     respondedAt: new Date(Date.now() - params.respondedHoursAgo * 60 * 60 * 1000).toISOString(),
     swipeDecision: params.swipeDecision ?? "none",
-    counterPriceCents: null,
-    counterNote: null,
-    counteredAt: null,
   };
 }
 

@@ -21,7 +21,7 @@ import {
 } from "@/lib/actions/supplier-actions";
 import { SPOTLIGHT_MONTHLY_QUOTA } from "@/lib/config";
 import { SUPPLIER_CATEGORY_LABELS, SupplierPackageTier } from "@/lib/types";
-import { BadgeCheck, CheckCircle2, Clock, ExternalLink, ImagePlus, Package, X } from "lucide-react";
+import { BadgeCheck, CheckCircle2, Clock, ExternalLink, ImagePlus, Lock, Package, X } from "lucide-react";
 
 const PACKAGE_TIER_LABELS: Record<SupplierPackageTier, string> = {
   basis: "Basis",
@@ -40,6 +40,7 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
   const verifyError = params.verifyError === "1";
   const verifyRequested = params.verifyRequested === "1";
   const packagesSaved = params.packagesSaved === "1";
+  const videoError = params.videoError === "1";
 
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -230,6 +231,12 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
             van je huidige abonnementsniveau. Kies hieronder een hoger niveau om de limiet te verhogen.
           </div>
         )}
+        {videoError && (
+          <div className="mt-4 rounded-xl border border-warning-50 bg-warning-50 px-3 py-2 text-sm text-warning">
+            Je overige wijzigingen zijn opgeslagen, maar de videolink werd niet herkend als een YouTube- of Vimeo-link. Probeer het
+            opnieuw met bijvoorbeeld <span className="font-mono">https://youtu.be/...</span> of <span className="font-mono">https://vimeo.com/...</span>.
+          </div>
+        )}
 
         <Card className="mt-6">
         <form action={updateSupplierProfileAction} encType="multipart/form-data" className="space-y-5">
@@ -365,6 +372,53 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
               )}
               {supplier.galleryUrls.length === 0 && (
                 <p className="flex items-center gap-1.5 text-xs text-ink-faint"><ImagePlus className="size-3.5" /> Nog geen foto&apos;s geüpload.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="border-t border-line-soft pt-5">
+            <h2 className="mb-1 text-sm font-medium uppercase tracking-wide text-ink-faint">Profiel aankleden</h2>
+            <p className="mb-3 text-xs text-ink-faint">Hoe hoger je abonnement, hoe meer je hiervan kunt gebruiken om je profiel een eigen gezicht te geven.</p>
+            <div className="space-y-4">
+              {tierDefinition.taglineEnabled ? (
+                <Field label="Korte pitch/tagline" hint='Optioneel — bv. "Al 15 jaar dé cateraar voor bruiloften in Utrecht"'>
+                  <Input name="tagline" defaultValue={supplier.tagline ?? ""} maxLength={120} />
+                </Field>
+              ) : (
+                <p className="flex items-center gap-1.5 rounded-xl border border-dashed border-line px-3 py-2.5 text-xs text-ink-faint">
+                  <Lock className="size-3.5 shrink-0" /> Korte pitch/tagline — beschikbaar vanaf het Groei-abonnement.
+                </p>
+              )}
+
+              {tierDefinition.coverPhotoEnabled ? (
+                <Field label="Coverfoto" hint="Optioneel — brede afbeelding boven je profiel, bv. 1600×500">
+                  <div className="flex items-center gap-3">
+                    {supplier.coverPhotoUrl && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={supplier.coverPhotoUrl} alt="Huidige coverfoto" className="h-12 w-20 rounded-xl border border-line object-cover" />
+                    )}
+                    <input
+                      type="file"
+                      name="coverPhoto"
+                      accept="image/*"
+                      className="block w-full text-sm text-ink-soft file:mr-3 file:rounded-full file:border-0 file:bg-paper-dim file:px-3.5 file:py-2 file:text-xs file:font-medium file:text-ink hover:file:bg-line"
+                    />
+                  </div>
+                </Field>
+              ) : (
+                <p className="flex items-center gap-1.5 rounded-xl border border-dashed border-line px-3 py-2.5 text-xs text-ink-faint">
+                  <Lock className="size-3.5 shrink-0" /> Coverfoto — beschikbaar vanaf het Pro-abonnement.
+                </p>
+              )}
+
+              {tierDefinition.introVideoEnabled ? (
+                <Field label="Introductievideo" hint="Optioneel — link naar een YouTube- of Vimeo-video">
+                  <Input name="introVideoUrl" type="url" defaultValue={supplier.introVideoUrl ?? ""} placeholder="https://youtu.be/..." />
+                </Field>
+              ) : (
+                <p className="flex items-center gap-1.5 rounded-xl border border-dashed border-line px-3 py-2.5 text-xs text-ink-faint">
+                  <Lock className="size-3.5 shrink-0" /> Introductievideo — beschikbaar vanaf het Premium-abonnement.
+                </p>
               )}
             </div>
           </div>

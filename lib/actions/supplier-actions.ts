@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { parseSupplierOfferDescription } from "@/lib/ai/supplierOffer";
 import { getCurrentUser } from "@/lib/auth";
+import { geocodeLocation } from "@/lib/geo";
 import {
   activateSpotlight,
   blockSupplierDate,
@@ -29,7 +30,7 @@ import {
 } from "@/lib/data/store";
 import { SPOTLIGHT_MONTHLY_QUOTA, SUBSCRIPTION_TIER_ORDER, SubscriptionTier } from "@/lib/config";
 import { SupplierCategory, SupplierPackage, SupplierPackageTier } from "@/lib/types";
-import { isValidKvkFormat } from "@/lib/utils";
+import { getVideoEmbedUrl, isValidKvkFormat } from "@/lib/utils";
 
 function optionalTrim(value: FormDataEntryValue | null): string | null {
   const str = String(value ?? "").trim();
@@ -103,6 +104,13 @@ export async function createSupplierProfileAction(formData: FormData) {
     );
   }
 
+  // "Locatie op een kaart" — bij onboarding is dit altijd de eerste keer dat
+  // deze locatie wordt opgeslagen, dus meteen geocoderen (via het gratis
+  // Nominatim, geen account nodig, zie lib/geo.ts). Geeft `null` terug bij
+  // een onherkend adres — dat blokkeert de onboarding niet, de leverancier
+  // verschijnt dan gewoon zonder marker op de kaart.
+  const coords = await geocodeLocation(baseLocation);
+
   await createSupplierAccount(user!.id, {
     companyName,
     contactPerson,
@@ -118,6 +126,8 @@ export async function createSupplierProfileAction(formData: FormData) {
     socialFacebook: null,
     socialInstagram: null,
     socialTiktok: null,
+    lat: coords?.lat ?? null,
+    lng: coords?.lng ?? null,
   });
 
   revalidatePath("/", "layout");
@@ -197,6 +207,52 @@ export async function updateSupplierProfileAction(formData: FormData) {
     }
   }
 
+  // "Profiel aankleden" (spec-vervolg op pakketten) — tagline/coverfoto/video
+  // zijn elk vanaf een ander abonnementsniveau bewerkbaar (zie
+  // taglineEnabled e.a. in lib/config.ts). De inputs staan alleen op het
+  // formulier als het huidige niveau ze vrijgeeft, dus we nemen het veld
+  // alleen mee in de patch als het écht is aangeboden — anders zou een
+  // ontbrekend (want niet-gerenderd) veld bij elke opslag stilzwijgend een
+  // eerder ingevulde waarde overschrijven met leeg, ook na een latere
+  // upgrade terug naar een hoger niveau.
+  let tagline: string | null | undefined;
+  if (tierDefinition.taglineEnabled) {
+    tagline = optionalTrim(formData.get("tagline"));
+  }
+
+  let coverPhotoUrl: string | undefined;
+  if (tierDefinition.coverPhotoEnabled) {
+    const coverPhotoFile = formData.get("coverPhoto");
+    if (coverPhotoFile instanceof File && coverPhotoFile.size > 0) {
+      const uploaded = await uploadSupplierFile(user!.id, coverPhotoFile, "cover");
+      if (uploaded) coverPhotoUrl = uploaded;
+      else uploadFailed = true;
+    }
+  }
+
+  let introVideoUrl: string | null | undefined;
+  let videoUrlInvalid = false;
+  if (tierDefinition.introVideoEnabled) {
+    const rawVideoUrl = optionalTrim(formData.get("introVideoUrl"));
+    if (rawVideoUrl === null) {
+      introVideoUrl = null;
+    } else if (getVideoEmbedUrl(rawVideoUrl)) {
+      introVideoUrl = rawVideoUrl;
+    } else {
+      videoUrlInvalid = true;
+    }
+  }
+
+  // "Locatie op een kaart" — alleen opnieuw geocoderen als de locatie
+  // daadwerkelijk is gewijzigd, niet bij elke profielopslag. Dit respecteert
+  // Nominatim's fair-use-beleid (het gratis geocoding-alternatief zonder
+  // account, zie lib/geo.ts) en voorkomt overbodige externe aanroepen.
+  let coords: { lat: number | null; lng: number | null } | undefined;
+  if (baseLocation !== supplier!.baseLocation) {
+    const geocoded = await geocodeLocation(baseLocation);
+    coords = { lat: geocoded?.lat ?? null, lng: geocoded?.lng ?? null };
+  }
+
   await updateSupplierAccount(supplier!.id, {
     companyName,
     contactPerson,
@@ -214,6 +270,10 @@ export async function updateSupplierProfileAction(formData: FormData) {
     socialTiktok,
     ...(logoUrl ? { logoUrl } : {}),
     ...(galleryUrls ? { galleryUrls } : {}),
+    ...(tagline !== undefined ? { tagline } : {}),
+    ...(coverPhotoUrl ? { coverPhotoUrl } : {}),
+    ...(introVideoUrl !== undefined ? { introVideoUrl } : {}),
+    ...(coords ? coords : {}),
   });
 
   revalidatePath("/supplier", "layout");
@@ -221,6 +281,7 @@ export async function updateSupplierProfileAction(formData: FormData) {
   const params = new URLSearchParams({ saved: "1" });
   if (uploadFailed) params.set("uploadError", "1");
   if (capApplied) params.set("capApplied", "1");
+  if (videoUrlInvalid) params.set("videoError", "1");
   redirect(`/supplier/profile?${params.toString()}`);
 }
 

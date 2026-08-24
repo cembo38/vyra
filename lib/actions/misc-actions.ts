@@ -1,16 +1,21 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import {
   addSupplierFavorite,
+  createSavedSearch,
+  deleteSavedSearch,
   getEvent,
+  getSavedSearchesForUser,
   markAllNotificationsRead,
   markNotificationRead,
   removeSupplierFavorite,
   toggleTaskDone,
   toggleTimelineDone,
 } from "@/lib/data/store";
+import { SupplierCategory } from "@/lib/types";
 
 /**
  * Controleerde tot nu toe nergens wie er aanriep, of dat diegene ook echt
@@ -88,4 +93,45 @@ export async function toggleSupplierFavoriteAction(supplierId: string, favorited
   revalidatePath(`/leveranciers/${supplierId}`);
   revalidatePath("/mijn-leveranciers");
   return { ok: true };
+}
+
+/**
+ * Bewaart de huidige zoekfilters van /leveranciers (Vinted-stijl "bewaar
+ * deze zoekopdracht") — een leeg filter wordt `null`, zodat "alle
+ * categorieën"/"geen locatie" ook echt zo matcht in
+ * notifyMatchingSavedSearches() (lib/data/store.ts). Slaat geen exacte
+ * duplicaten dubbel op — anders krijgt iemand die twee keer op "Bewaren"
+ * klikt straks ook twee identieke meldingen bij elke match.
+ */
+export async function saveSearchAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login?redirect=/leveranciers");
+
+  const categoryKeyRaw = String(formData.get("category") ?? "").trim();
+  const categoryKey = (categoryKeyRaw || null) as SupplierCategory | null;
+  const location = String(formData.get("location") ?? "").trim() || null;
+  const query = String(formData.get("q") ?? "").trim() || null;
+
+  const existing = await getSavedSearchesForUser(user.id);
+  const isDuplicate = existing.some(
+    (s) => s.categoryKey === categoryKey && (s.location ?? "") === (location ?? "") && (s.query ?? "") === (query ?? "")
+  );
+  if (!isDuplicate) {
+    await createSavedSearch(user.id, { categoryKey, location, query });
+  }
+  revalidatePath("/mijn-leveranciers");
+
+  const qs = new URLSearchParams();
+  if (categoryKey) qs.set("category", categoryKey);
+  if (location) qs.set("location", location);
+  if (query) qs.set("q", query);
+  qs.set("searchSaved", "1");
+  redirect(`/leveranciers?${qs.toString()}`);
+}
+
+export async function deleteSavedSearchAction(id: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  await deleteSavedSearch(id, user.id);
+  revalidatePath("/mijn-leveranciers");
 }

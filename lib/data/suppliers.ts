@@ -23,12 +23,43 @@ function nextGradient(): [string, string] {
   return g;
 }
 
-function s(partial: Omit<SupplierProfile, "photoGradient" | "initials" | "packages"> & { initials?: string; packages?: SupplierProfile["packages"] }): SupplierProfile {
+/**
+ * Vaste coördinaten voor de steden die in de demo-catalogus voorkomen —
+ * i.p.v. deze statische leveranciers live via Nominatim te geocoderen (zie
+ * lib/geo.ts), wat het testen/builden afhankelijk zou maken van een externe
+ * netwerkaanroep. Alleen voor "Locatie op een kaart": een marker op de
+ * eerste vermelde serviceArea van elke demo-leverancier.
+ */
+const CITY_COORDS: Record<string, [number, number]> = {
+  Amsterdam: [52.3676, 4.9041],
+  Amstelveen: [52.3114, 4.8628],
+  Zaandam: [52.4391, 4.8256],
+  Haarlem: [52.3874, 4.6462],
+  Utrecht: [52.0907, 5.1214],
+  Rotterdam: [51.9244, 4.4777],
+  "Den Haag": [52.0705, 4.3007],
+};
+
+function s(
+  partial: Omit<SupplierProfile, "photoGradient" | "initials" | "packages" | "tagline" | "coverPhotoUrl" | "introVideoUrl" | "lat" | "lng"> & {
+    initials?: string;
+    packages?: SupplierProfile["packages"];
+    tagline?: string | null;
+    coverPhotoUrl?: string | null;
+    introVideoUrl?: string | null;
+  }
+): SupplierProfile {
+  const coords = CITY_COORDS[partial.serviceAreas[0]] ?? null;
   return {
     ...partial,
     initials: partial.initials ?? partial.companyName.slice(0, 2).toUpperCase(),
     photoGradient: nextGradient(),
     packages: partial.packages ?? [],
+    tagline: partial.tagline ?? null,
+    coverPhotoUrl: partial.coverPhotoUrl ?? null,
+    introVideoUrl: partial.introVideoUrl ?? null,
+    lat: coords ? coords[0] : null,
+    lng: coords ? coords[1] : null,
   };
 }
 

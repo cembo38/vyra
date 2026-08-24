@@ -92,7 +92,6 @@ const offerStatusConfig: Record<OfferStatus, { label: string; tone: "neutral" | 
   accepted: { label: "Geaccepteerd", tone: "success" },
   declined: { label: "Afgewezen", tone: "neutral" },
   expired: { label: "Verlopen", tone: "danger" },
-  countered: { label: "Tegenbod verstuurd", tone: "ochre" },
 };
 
 export function OfferStatusBadge({ status }: { status: OfferStatus }) {

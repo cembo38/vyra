@@ -4,20 +4,15 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import {
-  addMessage,
-  counterOffer,
   createAndSendRequest,
   createPaymentForOffer,
   decideSwipe,
   getEvent,
   getOffer,
   getPayment,
-  getSupplierAccount,
-  getSupplierAccountByOwner,
   markPaymentPaid,
   pushNotification,
   resolveSupplierDisplay,
-  respondToCounterOffer,
   updateEvent,
   updateRequirementStatus,
 } from "@/lib/data/store";
@@ -118,99 +113,6 @@ export async function acceptOfferAction(offerId: string, plan: "full" | "deposit
   if (!payment) return;
   revalidatePath(`/events/${offer.eventId}`, "layout");
   redirect(`/events/${offer.eventId}/checkout/${payment.id}`);
-}
-
-/**
- * Organisator stuurt een tegenbod op een offerte, i.p.v. alleen te kunnen
- * shortlisten/accepteren/afwijzen. Alleen zinnig zolang er nog geen
- * definitieve beslissing is gevallen — een offerte die al geaccepteerd,
- * afgewezen, verlopen, niet-beschikbaar is, of al een openstaand tegenbod
- * heeft, kan niet nogmaals worden tegengeboden.
- */
-export async function counterOfferAction(offerId: string, counterPriceCents: number, note: string | null) {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-  const offer = await getOffer(offerId);
-  if (!offer) return null;
-  const event = await getEvent(offer.eventId);
-  if (!event || event.ownerId !== user.id) redirect("/events");
-
-  if (!Number.isFinite(counterPriceCents) || counterPriceCents <= 0) return null;
-  if (!["available", "shortlisted", "pending"].includes(offer.status)) return null;
-
-  const updated = await counterOffer(offerId, Math.round(counterPriceCents), note);
-  if (!updated) return null;
-
-  const supplier = await getSupplierAccount(offer.supplierId);
-  if (supplier) {
-    await pushNotification({
-      userId: supplier.ownerId,
-      eventId: offer.eventId,
-      type: "counter_offer_received",
-      title: "Tegenbod ontvangen",
-      body: `De organisator biedt ${formatCurrency(counterPriceCents)} voor je offerte van ${formatCurrency(offer.totalPriceCents)}.`,
-      href: `/supplier/requests/${offer.requestId}`,
-    });
-  }
-  await addMessage({
-    eventId: offer.eventId,
-    categoryKey: offer.categoryKey,
-    supplierId: offer.supplierId,
-    sender: "customer",
-    text: `Tegenbod: ${formatCurrency(counterPriceCents)} (was ${formatCurrency(offer.totalPriceCents)}).${note ? ` ${note}` : ""}`,
-  });
-
-  revalidatePath(`/events/${offer.eventId}`, "layout");
-  revalidatePath(`/supplier/requests/${offer.requestId}`);
-  return updated;
-}
-
-/**
- * Leverancier accepteert of wijst een tegenbod af. Bij accepteren wordt het
- * tegenbod het nieuwe offertebedrag (zie respondToCounterOffer() in
- * lib/data/store.ts); bij afwijzen blijft de oorspronkelijke prijs staan en
- * kan de organisator eventueel een nieuw tegenbod doen.
- */
-export async function respondToCounterOfferAction(offerId: string, accept: boolean) {
-  const user = await getCurrentUser();
-  if (!user) redirect("/login");
-  const supplier = await getSupplierAccountByOwner(user.id);
-  if (!supplier) redirect("/supplier/onboarding");
-
-  const offer = await getOffer(offerId);
-  if (!offer || offer.supplierId !== supplier.id) return null;
-  if (offer.status !== "countered") return null;
-
-  const counterPriceCents = offer.counterPriceCents;
-  const updated = await respondToCounterOffer(offerId, accept);
-  if (!updated) return null;
-
-  const event = await getEvent(offer.eventId);
-  if (event) {
-    await pushNotification({
-      userId: event.ownerId,
-      eventId: offer.eventId,
-      type: "counter_offer_response",
-      title: accept ? "Tegenbod geaccepteerd" : "Tegenbod afgewezen",
-      body: accept
-        ? `${supplier.companyName} accepteert je tegenbod van ${counterPriceCents ? formatCurrency(counterPriceCents) : ""}.`
-        : `${supplier.companyName} wijst je tegenbod af. De oorspronkelijke prijs (${formatCurrency(offer.totalPriceCents)}) blijft staan.`,
-      href: `/events/${offer.eventId}/offers/${offer.categoryKey}`,
-    });
-  }
-  await addMessage({
-    eventId: offer.eventId,
-    categoryKey: offer.categoryKey,
-    supplierId: offer.supplierId,
-    sender: "supplier",
-    text: accept
-      ? `Tegenbod geaccepteerd: ${counterPriceCents ? formatCurrency(counterPriceCents) : ""}.`
-      : `Tegenbod afgewezen. Oorspronkelijke prijs (${formatCurrency(offer.totalPriceCents)}) blijft staan.`,
-  });
-
-  revalidatePath(`/events/${offer.eventId}`, "layout");
-  revalidatePath(`/supplier/requests/${offer.requestId}`);
-  return updated;
 }
 
 /**
