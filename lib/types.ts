@@ -353,6 +353,19 @@ export interface SupplierProfile {
    */
   tierBadge?: "none" | "aanbevolen" | "elite";
   packages: SupplierPackage[];
+  /** "Profiel aankleden" (vanaf Groei/Pro/Premium, zie taglineEnabled e.a. in lib/config.ts). */
+  tagline: string | null;
+  coverPhotoUrl: string | null;
+  /** Originele YouTube/Vimeo-link zoals ingevuld — pas bij weergave omgezet naar een embed-URL via getVideoEmbedUrl(). */
+  introVideoUrl: string | null;
+  /**
+   * "Locatie op een kaart" (spec-item, Airbnb-geïnspireerd) — automatisch
+   * bepaald uit `serviceAreas`/baseLocation via geocodeLocation() in
+   * lib/geo.ts, zie ook serviceRadiusKm op SupplierAccount. Null zolang er
+   * nog niet gegeocodeerd is (bv. een adres dat Nominatim niet herkent).
+   */
+  lat: number | null;
+  lng: number | null;
 }
 
 /**
@@ -430,6 +443,19 @@ export interface SupplierAccount {
   storeOpen: boolean;
   /** Tot 3 vaste niveaus (Basis/Standaard/Premium) — alleen bewerkbaar vanaf Pro, zie packagesEnabled in lib/config.ts. */
   packages: SupplierPackage[];
+  /** "Profiel aankleden" — hoe hoger het abonnement, hoe meer hiervan bewerkbaar is, zie taglineEnabled/coverPhotoEnabled/introVideoEnabled in lib/config.ts. */
+  tagline: string | null;
+  coverPhotoUrl: string | null;
+  introVideoUrl: string | null;
+  /**
+   * "Locatie op een kaart" (spec-item, Airbnb-geïnspireerd) — coördinaten van
+   * `baseLocation`, automatisch bijgewerkt via geocodeLocation() (lib/geo.ts)
+   * zodra de leverancier zijn locatie opslaat/wijzigt. Null zolang niet (nog)
+   * gelukt gegeocodeerd — de leverancier blijft dan gewoon vindbaar via de
+   * lijstweergave, alleen zonder marker op de kaart.
+   */
+  lat: number | null;
+  lng: number | null;
   createdAt: string;
 }
 
@@ -514,6 +540,30 @@ export interface OfferOption {
   matchRationale: string;
   respondedAt: string;
   swipeDecision: "none" | "shortlisted" | "rejected";
+}
+
+export type ReviewerRole = "organizer" | "supplier";
+
+/**
+ * Eén kant van een wederzijdse beoordeling na een geaccepteerde boeking
+ * (spec-item "wederzijdse beoordelingen", Airbnb-geïnspireerd) — een
+ * boeking heeft er twee: één met reviewerRole "organizer" (de organisator
+ * beoordeelt de leverancier) en één met "supplier" (de leverancier
+ * beoordeelt de organisator). Beide blijven voor de tegenpartij verborgen
+ * tot allebei bestaan of het REVIEW_REVEAL_WINDOW_DAYS-venster is
+ * verstreken, zie isReviewRevealed() in lib/utils.ts.
+ */
+export interface Review {
+  id: string;
+  offerId: string;
+  eventId: string;
+  supplierId: string;
+  reviewerRole: ReviewerRole;
+  rating: number; // 1-5
+  comment: string | null;
+  /** Alleen relevant bij reviewerRole "supplier": leverancier meldt een organisator die niet kwam opdagen. */
+  noShow: boolean;
+  createdAt: string;
 }
 
 /** Een bewaarde zoekopdracht op /leveranciers — melding bij een matchende nieuwe leverancier (zie notifyMatchingSavedSearches() in lib/data/store.ts). */

@@ -61,3 +61,56 @@ export function isValidKvkFormat(kvk: string | null | undefined): boolean {
 export function kvkLookupUrl(kvk: string): string {
   return `https://www.kvk.nl/zoeken/?source=species&handelsnaam=&straat=&plaats=&kvknummer=${encodeURIComponent(kvk)}`;
 }
+
+/**
+ * Wederzijdse beoordelingen (spec-item, Airbnb-geïnspireerd) blijven voor de
+ * tegenpartij verborgen tot ALLEBEI hebben ingevuld — anders zou de één zijn
+ * oordeel kunnen laten afhangen van wat de ander al schreef — óf tot
+ * `windowDays` na de evenementdatum is verstreken, zodat een review niet
+ * eeuwig verborgen blijft als de andere kant nooit reageert. Puur en
+ * synchroon gehouden (net als daysUntil/hoursUntil hierboven) zodat dit
+ * zonder een echte database te testen is; `now` is injecteerbaar voor
+ * diezelfde reden. Dit is puur voor UI-teksten — de echte, afdwingbare
+ * onthullingsregel staat in reviews_revealed() (supabase/migrations/
+ * 0033_reviews.sql) via RLS. Expliciet als UTC-middernacht geparsed (niet
+ * de lokale tijdzone van de server) om gelijk op te lopen met hoe Postgres
+ * een `date`-kolom daar naar `timestamptz` casts.
+ */
+export function isReviewRevealed(hasOrganizerReview: boolean, hasSupplierReview: boolean, eventDate: string | null, windowDays: number, now: Date = new Date()): boolean {
+  if (hasOrganizerReview && hasSupplierReview) return true;
+  if (!eventDate) return false;
+  const deadline = new Date(`${eventDate}T00:00:00Z`);
+  deadline.setUTCDate(deadline.getUTCDate() + windowDays);
+  return now.getTime() > deadline.getTime();
+}
+
+/**
+ * Zet een door een leverancier ingeplakte YouTube- of Vimeo-link om naar een
+ * embed-URL (spec-item "profiel aankleden", introductievideo — beschikbaar
+ * vanaf Premium). Geeft `null` terug bij een onherkende link, zodat de
+ * Server Action een duidelijke foutmelding kan tonen i.p.v. stilzwijgend een
+ * kapotte `<iframe>` op te slaan die nergens een video toont.
+ */
+export function getVideoEmbedUrl(url: string): string | null {
+  let parsed: URL;
+  try {
+    parsed = new URL(url.trim());
+  } catch {
+    return null;
+  }
+  const host = parsed.hostname.replace(/^www\./, "");
+
+  if (host === "youtube.com" || host === "m.youtube.com") {
+    const id = parsed.pathname === "/watch" ? parsed.searchParams.get("v") : parsed.pathname.match(/^\/(embed|shorts)\/([^/]+)/)?.[2];
+    return id ? `https://www.youtube.com/embed/${id}` : null;
+  }
+  if (host === "youtu.be") {
+    const id = parsed.pathname.slice(1);
+    return id ? `https://www.youtube.com/embed/${id}` : null;
+  }
+  if (host === "vimeo.com") {
+    const id = parsed.pathname.match(/^\/(\d+)/)?.[1];
+    return id ? `https://player.vimeo.com/video/${id}` : null;
+  }
+  return null;
+}

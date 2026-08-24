@@ -1,7 +1,14 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth";
-import { getSupplierAccount, getSupplierEffectiveTierDefinition, hasOrganizerContactedSupplier, isSupplierFavorited, listEventsForUser } from "@/lib/data/store";
+import {
+  getPublicReviewsForSupplier,
+  getSupplierAccount,
+  getSupplierEffectiveTierDefinition,
+  hasOrganizerContactedSupplier,
+  isSupplierFavorited,
+  listEventsForUser,
+} from "@/lib/data/store";
 import { submitCustomSupplierRequestAction } from "@/lib/actions/supplier-actions";
 import { MarketingHeader } from "@/components/marketing/MarketingHeader";
 import { Footer } from "@/components/marketing/Footer";
@@ -11,8 +18,10 @@ import { Badge } from "@/components/ui/Badge";
 import { SupplierAvatar } from "@/components/ui/Avatar";
 import { Field, Input, Select, Textarea } from "@/components/ui/Form";
 import { FavoriteSupplierButton } from "@/components/app/FavoriteSupplierButton";
+import { SupplierMap } from "@/components/ui/SupplierMap";
 import { formatCurrency } from "@/lib/config";
 import { SUPPLIER_CATEGORY_LABELS, SupplierPackageTier } from "@/lib/types";
+import { formatDateNL, getVideoEmbedUrl } from "@/lib/utils";
 import { CheckCircle2, Clock, Crown, ExternalLink, Link2, Lock, MapPin, MoonStar, Package, ShieldCheck, Sparkles, Star } from "lucide-react";
 
 const PACKAGE_TIER_LABELS: Record<SupplierPackageTier, string> = {
@@ -48,9 +57,23 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
   const tierDefinition = await tierDefinitionPromise;
 
   const categories = supplier.categories.length > 0 ? supplier.categories : [supplier.category];
+  // "Profiel aankleden" — introVideoUrl is de originele, door de leverancier
+  // ingevulde link; hier pas omgezet naar een embed-URL. Bewaard blijft
+  // gewoon getoond als een gewone (niet-embedbare) link stond nooit in de
+  // database, want getVideoEmbedUrl valideert dit al bij het opslaan.
+  const videoEmbedUrl = supplier.introVideoUrl ? getVideoEmbedUrl(supplier.introVideoUrl) : null;
+  // Wederzijdse beoordelingen (spec-item, Airbnb-geïnspireerd) — alleen de
+  // al onthulde organisator-beoordelingen, zie getPublicReviewsForSupplier().
+  const publicReviews = await getPublicReviewsForSupplier(supplier.id, 10);
 
   const main = (
     <div className="mx-auto max-w-3xl px-4 py-10">
+      {supplier.coverPhotoUrl && (
+        <div className="mb-4 aspect-[16/5] overflow-hidden rounded-2xl border border-line">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={supplier.coverPhotoUrl} alt="" className="h-full w-full object-cover" />
+        </div>
+      )}
       <Card>
         <div className="flex flex-wrap items-start gap-5">
           <SupplierAvatar
@@ -62,6 +85,7 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
           />
           <div className="min-w-0 flex-1">
             <h1 className="font-display text-2xl text-ink">{supplier.companyName}</h1>
+            {supplier.tagline && <p className="mt-0.5 text-sm italic text-ink-soft">{supplier.tagline}</p>}
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
               {categories.map((c) => (
                 <Badge key={c} tone="sage">{SUPPLIER_CATEGORY_LABELS[c]}</Badge>
@@ -148,7 +172,34 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
             ))}
           </div>
         )}
+
+        {videoEmbedUrl && (
+          <div className="mt-5 aspect-video overflow-hidden rounded-xl border border-line">
+            <iframe
+              src={videoEmbedUrl}
+              title={`Introductievideo van ${supplier.companyName}`}
+              className="h-full w-full"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          </div>
+        )}
       </Card>
+
+      {supplier.lat != null && supplier.lng != null && (
+        <Card className="mt-6">
+          <h2 className="font-display text-lg text-ink">Werkgebied</h2>
+          <p className="mt-1 text-sm text-ink-faint">
+            {supplier.baseLocation} — tot ongeveer {supplier.serviceRadiusKm} km hier vandaan (bijv. voor bezorging of aanrijtijd).
+          </p>
+          <SupplierMap
+            className="mt-4 overflow-hidden rounded-xl border border-line"
+            height="16rem"
+            radiusKm={supplier.serviceRadiusKm}
+            markers={[{ id: supplier.id, lat: supplier.lat, lng: supplier.lng, label: supplier.companyName }]}
+          />
+        </Card>
+      )}
 
       {supplier.packages.length > 0 && (
         <Card className="mt-6">
@@ -163,6 +214,32 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
                 <p className="mt-1.5 font-medium text-ink">{pkg.name}</p>
                 {pkg.description && <p className="mt-1 flex-1 text-sm text-ink-soft">{pkg.description}</p>}
                 <p className="mt-3 font-display text-lg text-ink">{formatCurrency(pkg.priceCents)}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {publicReviews.length > 0 && (
+        <Card className="mt-6">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="font-display text-lg text-ink">Beoordelingen</h2>
+            <span className="flex items-center gap-1 text-sm text-ink-soft">
+              <Star className="size-4 fill-ochre text-ochre" /> {supplier.ratingAvg.toFixed(1)} ({supplier.ratingCount})
+            </span>
+          </div>
+          <div className="mt-4 space-y-3">
+            {publicReviews.map((r) => (
+              <div key={r.id} className="border-t border-line-soft pt-3 first:border-t-0 first:pt-0">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-0.5">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <Star key={n} className={n <= r.rating ? "size-3.5 fill-ochre text-ochre" : "size-3.5 text-line"} />
+                    ))}
+                  </div>
+                  <span className="text-xs text-ink-faint">{formatDateNL(r.createdAt)}</span>
+                </div>
+                {r.comment && <p className="mt-1.5 text-sm text-ink-soft">{r.comment}</p>}
               </div>
             ))}
           </div>

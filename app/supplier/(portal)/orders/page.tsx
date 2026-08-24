@@ -3,10 +3,12 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { DisputeReporter } from "@/components/app/DisputeReporter";
+import { ReviewComposer } from "@/components/app/ReviewComposer";
 import { getCurrentUser } from "@/lib/auth";
-import { getDisputesForSupplier, getSupplierAccountByOwner, getSupplierOrders } from "@/lib/data/store";
-import { Dispute, EVENT_TYPE_LABELS } from "@/lib/types";
-import { formatCurrency } from "@/lib/config";
+import { getDisputesForSupplier, getSupplierAccountByOwner, getSupplierOrders, getReviewsForOffer } from "@/lib/data/store";
+import { Dispute, EVENT_TYPE_LABELS, Review } from "@/lib/types";
+import { formatCurrency, REVIEW_REVEAL_WINDOW_DAYS } from "@/lib/config";
+import { isReviewRevealed } from "@/lib/utils";
 import { CalendarCheck } from "lucide-react";
 
 export const metadata = { title: "Orders — Vyra voor leveranciers" };
@@ -31,6 +33,12 @@ export default async function SupplierOrdersPage() {
   const past = orders
     .filter((o) => o.event?.date && new Date(o.event.date) < today)
     .sort((a, b) => (b.event?.date ?? "").localeCompare(a.event?.date ?? ""));
+
+  // Wederzijdse beoordelingen (spec-item, Airbnb-geïnspireerd) — alleen
+  // relevant voor afgeronde boekingen, dus alleen hier opgehaald.
+  const reviewsByOffer = new Map<string, Review[]>(
+    await Promise.all(past.map(async (o) => [o.offer.id, await getReviewsForOffer(o.offer.id)] as [string, Review[]]))
+  );
 
   // Het volledige bedrag (totalCents), niet alleen het supplier-deel na
   // commissie — zolang Vyra zelf geen betalingen verwerkt, ontvangt de
@@ -75,7 +83,7 @@ export default async function SupplierOrdersPage() {
       {past.length > 0 && (
         <>
           <h2 className="mb-3 mt-10 font-display text-lg text-ink">Afgerond ({past.length})</h2>
-          <OrderTable orders={past} supplierId={supplier.id} disputesByPayment={disputesByPayment} />
+          <OrderTable orders={past} supplierId={supplier.id} disputesByPayment={disputesByPayment} reviewsByOffer={reviewsByOffer} />
         </>
       )}
     </div>
@@ -86,10 +94,13 @@ function OrderTable({
   orders,
   supplierId,
   disputesByPayment,
+  reviewsByOffer,
 }: {
   orders: Awaited<ReturnType<typeof getSupplierOrders>>;
   supplierId: string;
   disputesByPayment: Map<string, Dispute[]>;
+  /** Alleen meegegeven voor afgeronde boekingen — activeert de beoordeling-UI hieronder. */
+  reviewsByOffer?: Map<string, Review[]>;
 }) {
   return (
     <div className="space-y-2">
@@ -122,6 +133,22 @@ function OrderTable({
               disputes={disputesByPayment.get(payment.id) ?? []}
             />
           )}
+          {reviewsByOffer && event?.date && (() => {
+            const reviews = reviewsByOffer.get(offer.id) ?? [];
+            const ownReview = reviews.find((rv) => rv.reviewerRole === "supplier") ?? null;
+            const counterpartReview = reviews.find((rv) => rv.reviewerRole === "organizer") ?? null;
+            const revealed = isReviewRevealed(Boolean(counterpartReview), Boolean(ownReview), event.date, REVIEW_REVEAL_WINDOW_DAYS);
+            return (
+              <ReviewComposer
+                offerId={offer.id}
+                reviewerRole="supplier"
+                ownReview={ownReview}
+                counterpartReview={counterpartReview}
+                counterpartLabel="de organisator"
+                revealed={revealed}
+              />
+            );
+          })()}
         </Card>
       ))}
     </div>

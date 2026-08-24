@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { ReactNode } from "react";
 import { notFound } from "next/navigation";
-import { getEvent, getOffersForEvent, getPaymentsForOffer, getRequirements, resolveSupplierDisplay } from "@/lib/data/store";
+import { getEvent, getOffersForEvent, getPaymentsForOffer, getRequirements, getReviewsForOffer, resolveSupplierDisplay } from "@/lib/data/store";
 import { Card } from "@/components/ui/Card";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { LinkButton } from "@/components/ui/Button";
-import { formatCurrency } from "@/lib/config";
+import { ReviewComposer } from "@/components/app/ReviewComposer";
+import { formatCurrency, REVIEW_REVEAL_WINDOW_DAYS } from "@/lib/config";
+import { isReviewRevealed } from "@/lib/utils";
 import { CheckCircle2, Heart, Hourglass, Sparkles, XCircle } from "lucide-react";
 
 export default async function ShortlistPage(props: PageProps<"/events/[id]/shortlist">) {
@@ -40,6 +42,7 @@ export default async function ShortlistPage(props: PageProps<"/events/[id]/short
           const rejected = categoryOffers.filter((o) => o.swipeDecision === "rejected");
 
           let rows: { icon: ReactNode; label: string; sub: string; href: string }[] = [];
+          let reviewBlock: ReactNode = null;
 
           if (accepted) {
             const s = await resolveSupplierDisplay(accepted.supplierId);
@@ -52,6 +55,29 @@ export default async function ShortlistPage(props: PageProps<"/events/[id]/short
             const primaryPayment = payments.find((p) => p.installment !== "balance") ?? payments[0];
             const href = primaryPayment ? `/events/${id}/checkout/${primaryPayment.id}` : `/events/${id}/offers/${r.categoryKey}`;
             rows.push({ icon: <CheckCircle2 className="size-5 text-success" />, label: s?.companyName ?? "Leverancier", sub: `Geselecteerd · ${formatCurrency(accepted.totalPriceCents)}`, href });
+
+            // Wederzijdse beoordelingen (spec-item, Airbnb-geïnspireerd) —
+            // pas zinvol zodra de evenementdatum echt is geweest, zelfde
+            // "< vandaag"-grens als de aankomend/afgerond-indeling op de
+            // orders-pagina van een leverancier.
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (event.date && new Date(event.date) < today) {
+              const reviews = await getReviewsForOffer(accepted.id);
+              const ownReview = reviews.find((rv) => rv.reviewerRole === "organizer") ?? null;
+              const counterpartReview = reviews.find((rv) => rv.reviewerRole === "supplier") ?? null;
+              const revealed = isReviewRevealed(Boolean(ownReview), Boolean(counterpartReview), event.date, REVIEW_REVEAL_WINDOW_DAYS);
+              reviewBlock = (
+                <ReviewComposer
+                  offerId={accepted.id}
+                  reviewerRole="organizer"
+                  ownReview={ownReview}
+                  counterpartReview={counterpartReview}
+                  counterpartLabel={s?.companyName ?? "de leverancier"}
+                  revealed={revealed}
+                />
+              );
+            }
           } else if (shortlisted.length > 0) {
             rows = await Promise.all(shortlisted.map(async (o) => {
               const s = await resolveSupplierDisplay(o.supplierId);
@@ -82,6 +108,7 @@ export default async function ShortlistPage(props: PageProps<"/events/[id]/short
                   </p>
                 )}
               </div>
+              {reviewBlock}
             </div>
           );
         }))}

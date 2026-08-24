@@ -46,6 +46,8 @@ import {
   RequestTarget,
   RequirementCategory,
   RequirementPriority,
+  Review,
+  ReviewerRole,
   RiskFlag,
   RsvpStatus,
   SavedSearch,
@@ -284,6 +286,11 @@ function rowToSupplierAccount(r: Row): SupplierAccount {
     subscriptionTier: (r.subscription_tier ?? "starter") as SubscriptionTier,
     storeOpen: r.store_open ?? true,
     packages: (r.packages ?? []) as SupplierPackage[],
+    tagline: r.tagline ?? null,
+    coverPhotoUrl: r.cover_photo_url ?? null,
+    introVideoUrl: r.intro_video_url ?? null,
+    lat: r.lat ?? null,
+    lng: r.lng ?? null,
     createdAt: r.created_at,
   };
 }
@@ -742,7 +749,7 @@ async function notifyMatchingSavedSearches(supplier: SupplierAccount): Promise<v
 }
 
 /** Uploadt een logo/foto naar de "supplier-media"-opslagruimte en geeft de publieke URL terug (of null bij een fout). */
-export async function uploadSupplierFile(ownerId: string, file: File, folder: "logo" | "gallery"): Promise<string | null> {
+export async function uploadSupplierFile(ownerId: string, file: File, folder: "logo" | "gallery" | "cover"): Promise<string | null> {
   if (!file || file.size === 0) return null;
   const supabase = await sb();
   const ext = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
@@ -808,6 +815,11 @@ export async function supplierAccountToProfileShape(account: SupplierAccount): P
     logoUrl: account.logoUrl,
     tierBadge: tierDefinition.badge,
     packages: account.packages,
+    tagline: account.tagline,
+    coverPhotoUrl: account.coverPhotoUrl,
+    introVideoUrl: account.introVideoUrl,
+    lat: account.lat,
+    lng: account.lng,
   };
 }
 
@@ -839,6 +851,9 @@ interface SupplierProfilePatch {
   socialFacebook: string | null;
   socialInstagram: string | null;
   socialTiktok: string | null;
+  /** "Locatie op een kaart" — coördinaten van `baseLocation`, vooraf bepaald in de actie-laag via geocodeLocation() (lib/geo.ts). Null als geocoding niet lukte. */
+  lat?: number | null;
+  lng?: number | null;
 }
 
 export async function createSupplierAccount(ownerId: string, patch: SupplierProfilePatch): Promise<SupplierAccount> {
@@ -863,6 +878,8 @@ export async function createSupplierAccount(ownerId: string, patch: SupplierProf
       social_facebook: patch.socialFacebook,
       social_instagram: patch.socialInstagram,
       social_tiktok: patch.socialTiktok,
+      lat: patch.lat ?? null,
+      lng: patch.lng ?? null,
     })
     .select()
     .single();
@@ -876,7 +893,13 @@ export async function createSupplierAccount(ownerId: string, patch: SupplierProf
 
 export async function updateSupplierAccount(
   supplierId: string,
-  patch: Partial<SupplierProfilePatch> & { logoUrl?: string | null; galleryUrls?: string[] }
+  patch: Partial<SupplierProfilePatch> & {
+    logoUrl?: string | null;
+    galleryUrls?: string[];
+    tagline?: string | null;
+    coverPhotoUrl?: string | null;
+    introVideoUrl?: string | null;
+  }
 ): Promise<SupplierAccount | null> {
   const supabase = await sb();
   const update: Row = {};
@@ -902,6 +925,11 @@ export async function updateSupplierAccount(
   if (patch.socialTiktok !== undefined) update.social_tiktok = patch.socialTiktok;
   if (patch.logoUrl !== undefined) update.logo_url = patch.logoUrl;
   if (patch.galleryUrls !== undefined) update.gallery_urls = patch.galleryUrls;
+  if (patch.tagline !== undefined) update.tagline = patch.tagline;
+  if (patch.coverPhotoUrl !== undefined) update.cover_photo_url = patch.coverPhotoUrl;
+  if (patch.introVideoUrl !== undefined) update.intro_video_url = patch.introVideoUrl;
+  if (patch.lat !== undefined) update.lat = patch.lat;
+  if (patch.lng !== undefined) update.lng = patch.lng;
   const { data, error } = await supabase.from("suppliers").update(update).eq("id", supplierId).select().single();
   if (error || !data) return null;
   return rowToSupplierAccount(data);
@@ -1712,6 +1740,120 @@ export async function acceptOffer(offerId: string): Promise<OfferOption | null> 
 export async function getShortlistForEvent(eventId: string): Promise<OfferOption[]> {
   const offers = await getOffersForEvent(eventId);
   return offers.filter((o) => o.swipeDecision === "shortlisted" || o.status === "accepted" || o.status === "shortlisted");
+}
+
+/* ------------------------------------------------------------------ */
+/* REVIEWS (wederzijdse beoordelingen)                                 */
+/*                                                                       */
+/* Zie supabase/migrations/0033_reviews.sql voor de RLS-policies: de     */
+/* "verborgen tot allebei hebben ingevuld (of de deadline verstrijkt)"-  */
+/* regel leeft daar in een SECURITY DEFINER-functie (reviews_revealed),  */
+/* niet hier in TypeScript — dezelfde tegen-RLS-recursie-aanpak als      */
+/* is_event_owner()/is_supplier_targeted_for_event() (migratie 0009).    */
+/* Deze functies gebruiken daarom gewoon de sessie-client (`sb()`), net  */
+/* als de rest van dit bestand: de database is hier de bron van waarheid */
+/* over wat deze gebruiker mag lezen, niet applicatiecode.               */
+/* ------------------------------------------------------------------ */
+
+function rowToReview(r: Row): Review {
+  return {
+    id: r.id,
+    offerId: r.offer_id,
+    eventId: r.event_id,
+    supplierId: r.supplier_id,
+    reviewerRole: r.reviewer_role,
+    rating: r.rating,
+    comment: r.comment ?? null,
+    noShow: r.no_show ?? false,
+    createdAt: r.created_at,
+  };
+}
+
+/** Beide kanten (0, 1 of 2 rijen — RLS bepaalt wat déze gebruiker op dit moment mag zien) van de beoordeling voor één boeking. */
+export async function getReviewsForOffer(offerId: string): Promise<Review[]> {
+  const supabase = await sb();
+  const { data } = await supabase.from("reviews").select("*").eq("offer_id", offerId);
+  return (data ?? []).map(rowToReview);
+}
+
+/**
+ * Herberekent suppliers.rating_avg/rating_count uit alle organisator-
+ * beoordelingen voor deze leverancier — hiermee wordt het sterrencijfer dat
+ * al overal op het platform wordt getoond eindelijk een écht, ingevuld
+ * cijfer i.p.v. los sierraad zonder schrijf-flow erachter. Gebruikt bewust
+ * de service-role client: bij een organisator-beoordeling is de aanroeper
+ * NOOIT de eigenaar van de leverancier ("suppliers: eigenaar wijzigt"
+ * zou een gewone sessie hier blokkeren) — zelfde smalle, gedocumenteerde
+ * uitzondering als pushNotification() hierboven (het doel-id komt nooit
+ * uit gebruikersinvoer, hier: `offer.supplierId`, al legitiem opgehaald
+ * via de RLS-beschermde offers-tabel).
+ */
+async function recomputeSupplierRating(supplierId: string): Promise<void> {
+  const admin = createSupabaseAdminClient();
+  if (!admin) return;
+  const { data } = await admin.from("reviews").select("rating").eq("supplier_id", supplierId).eq("reviewer_role", "organizer");
+  const ratings = (data ?? []).map((r: Row) => r.rating as number);
+  const ratingCount = ratings.length;
+  const ratingAvg = ratingCount > 0 ? ratings.reduce((sum, r) => sum + r, 0) / ratingCount : 0;
+  await admin.from("suppliers").update({ rating_avg: ratingAvg, rating_count: ratingCount }).eq("id", supplierId);
+}
+
+export interface SubmitReviewInput {
+  offerId: string;
+  eventId: string;
+  supplierId: string;
+  reviewerRole: ReviewerRole;
+  rating: number;
+  comment: string | null;
+  noShow: boolean;
+}
+
+/**
+ * Slaat één kant van een beoordeling op. Geeft `null` terug bij een dubbele
+ * beoordeling (de unique-constraint op offer_id+reviewer_role), een
+ * geweigerde RLS-check, of een opslagfout — de aanroepende actie toont dan
+ * een duidelijke melding i.p.v. stilzwijgend te falen.
+ */
+export async function submitReview(input: SubmitReviewInput): Promise<Review | null> {
+  const supabase = await sb();
+  const { data, error } = await supabase
+    .from("reviews")
+    .insert({
+      offer_id: input.offerId,
+      event_id: input.eventId,
+      supplier_id: input.supplierId,
+      reviewer_role: input.reviewerRole,
+      rating: input.rating,
+      comment: input.comment,
+      no_show: input.noShow,
+    })
+    .select()
+    .single();
+  if (error || !data) return null;
+  if (input.reviewerRole === "organizer") await recomputeSupplierRating(input.supplierId);
+  return rowToReview(data);
+}
+
+/**
+ * Openbare, al onthulde organisator-beoordelingen voor het
+ * leveranciersprofiel (nieuwste eerst) — precies het gat dat het
+ * onderzoeksvoorstel benoemde: een sterrenscore die je ook daadwerkelijk
+ * kunt nalezen, niet alleen een los cijfer. Werkt ook voor uitgelogde
+ * bezoekers: de RLS-policy "reviews: openbaar zodra onthuld" staat select
+ * hiervan toe zonder sessie.
+ */
+export async function getPublicReviewsForSupplier(supplierId: string, limit = 20): Promise<Review[]> {
+  const supabase = await sb();
+  const { data } = await supabase
+    .from("reviews")
+    .select("*")
+    .eq("supplier_id", supplierId)
+    .eq("reviewer_role", "organizer")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  // Geen extra filtering nodig: de RLS-policy hierboven laat sowieso alleen
+  // al-onthulde rijen door.
+  return (data ?? []).map(rowToReview);
 }
 
 /* ------------------------------------------------------------------ */

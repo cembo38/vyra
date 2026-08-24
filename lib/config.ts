@@ -51,6 +51,15 @@ export const SUBSCRIPTION_TIER_ORDER: SubscriptionTier[] = ["starter", "groei", 
 export const SPOTLIGHT_DURATION_DAYS = 3;
 
 /**
+ * Wederzijdse beoordelingen blijven voor de tegenpartij verborgen tot
+ * allebei hebben ingevuld, óf tot dit aantal dagen na de evenementdatum is
+ * verstreken — zodat een review niet eeuwig kan blijven hangen als de
+ * andere kant nooit reageert. Zelfde 14-dagen-venster als Airbnb. Zie
+ * isReviewRevealed() in lib/utils.ts.
+ */
+export const REVIEW_REVEAL_WINDOW_DAYS = 14;
+
+/**
  * Hoeveel spotlights een leverancier per kalendermaand gratis mag activeren
  * — 0 voor Starter/Groei (geen toegang), oplopend voor de drie hoogste
  * niveaus (op verzoek: Pro 1x, Premium 2x, Enterprise 4x per maand). De
@@ -104,6 +113,10 @@ export interface SubscriptionTierDefinition {
   dedicatedAccountManager: boolean;
   /** Pakketten (Basis/Standaard/Premium) op het profiel — zie SupplierPackage in lib/types.ts. */
   packagesEnabled: boolean;
+  /** "Profiel aankleden" — hoe hoger het abonnement, hoe meer hiervan beschikbaar is (zie SupplierAccount.tagline/coverPhotoUrl/introVideoUrl). */
+  taglineEnabled: boolean;
+  coverPhotoEnabled: boolean;
+  introVideoEnabled: boolean;
   /** Progressief, net als belastingschijven — elk deel van het boekingsbedrag valt in zijn eigen schijf. */
   commissionTiers: CommissionBracket[];
   /** Weergavetekst voor de vergelijkingstabel op het leveranciersprofiel. */
@@ -130,6 +143,9 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
     personalSupportLine: false,
     dedicatedAccountManager: false,
     packagesEnabled: false,
+    taglineEnabled: false,
+    coverPhotoEnabled: false,
+    introVideoEnabled: false,
     commissionTiers: [
       { uptoCents: 50_000, rate: 0.06 }, // €0 – €500: 6%
       { uptoCents: 200_000, rate: 0.045 }, // €500 – €2.000: 4,5%
@@ -160,6 +176,9 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
     personalSupportLine: false,
     dedicatedAccountManager: false,
     packagesEnabled: false,
+    taglineEnabled: true,
+    coverPhotoEnabled: false,
+    introVideoEnabled: false,
     commissionTiers: [
       { uptoCents: 50_000, rate: 0.04 },
       { uptoCents: 200_000, rate: 0.03 },
@@ -172,6 +191,7 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
       "Werkgebied tot 50 km",
       "Hogere positie in de matching",
       "Inzicht: je reactiesnelheid t.o.v. je categoriegemiddelde",
+      "Korte pitch/tagline op je profiel",
       "Verlaagde gestaffelde commissie (4% → 1%)",
     ],
   },
@@ -191,6 +211,9 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
     personalSupportLine: false,
     dedicatedAccountManager: false,
     packagesEnabled: true,
+    taglineEnabled: true,
+    coverPhotoEnabled: true,
+    introVideoEnabled: false,
     commissionTiers: [{ uptoCents: null, rate: 0 }],
     perks: [
       "Onbeperkt categorieën",
@@ -200,6 +223,7 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
       "Sterkere positie in de matching",
       "Volledig inzicht: reactiesnelheid, acceptatiegraad én beoordeling t.o.v. je categoriegemiddelde",
       "Pakketten (Basis/Standaard/Premium) op je profiel",
+      "Coverfoto boven je profiel",
       "0% commissie op boekingen",
     ],
   },
@@ -219,6 +243,9 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
     personalSupportLine: true,
     dedicatedAccountManager: false,
     packagesEnabled: true,
+    taglineEnabled: true,
+    coverPhotoEnabled: true,
+    introVideoEnabled: true,
     commissionTiers: [{ uptoCents: null, rate: 0 }],
     perks: [
       "Alles van Pro",
@@ -226,6 +253,7 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
       "\"Vyra Elite Partner\"-badge",
       "Werkgebied tot 150 km",
       "Persoonlijke supportlijn",
+      "Introductievideo op je profiel",
       "0% commissie op boekingen",
     ],
   },
@@ -245,6 +273,9 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
     personalSupportLine: true,
     dedicatedAccountManager: true,
     packagesEnabled: true,
+    taglineEnabled: true,
+    coverPhotoEnabled: true,
+    introVideoEnabled: true,
     commissionTiers: [{ uptoCents: null, rate: 0 }],
     perks: [
       "Alles van Premium",
@@ -280,6 +311,9 @@ export const TRIAL_TIER_DEFINITION: SubscriptionTierDefinition = {
   personalSupportLine: true,
   dedicatedAccountManager: false,
   packagesEnabled: true,
+  taglineEnabled: true,
+  coverPhotoEnabled: true,
+  introVideoEnabled: true,
   commissionTiers: [{ uptoCents: null, rate: 0 }],
   perks: [
     `Je eerste ${TRIAL_BOOKING_COUNT} boekingen volledig gratis, 0% commissie`,
