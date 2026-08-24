@@ -56,7 +56,21 @@ export default async function PlanPage(props: PageProps<"/events/[id]/plan">) {
 
         {allocatorItems.length > 0 ? (
           <div className="mt-6 border-t border-white/10 pt-6">
-            <BudgetAllocator eventId={id} items={allocatorItems} totalBudgetCents={event.budget?.totalCents ?? null} />
+            {/*
+              `key` is bewust de set geselecteerde categorie-id's, niet
+              "allocator" o.i.d. — verandert die set (een categorie aan- of
+              uitzetten via RequirementToggle hiernaast, dat nu ook
+              router.refresh() aanroept), dan mount React dit component
+              helemaal opnieuw met de nieuwe lijst, zodat er meteen een
+              schuif bij verschijnt of verdwijnt i.p.v. pas na een
+              handmatige paginaherlading.
+            */}
+            <BudgetAllocator
+              key={allocatorItems.map((i) => i.categoryId).join(",")}
+              eventId={id}
+              items={allocatorItems}
+              totalBudgetCents={event.budget?.totalCents ?? null}
+            />
           </div>
         ) : (
           <div className="mt-6 inline-block rounded-xl bg-white/10 px-5 py-3">

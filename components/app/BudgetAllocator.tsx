@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, RotateCcw } from "lucide-react";
 import { updateRequirementBudgetsAction } from "@/lib/actions/event-actions";
@@ -42,16 +42,57 @@ const SEGMENT_COLORS = [
  * biedt een "AI-voorstel"-knop om alles weer terug te zetten naar wat er
  * oorspronkelijk gegenereerd was.
  */
+/**
+ * Twee kleurthema's: "dark" voor op de donkere AI-eventplan-hero
+ * (app/events/[id]/plan/page.tsx), "light" voor op de lichte budgetpagina
+ * (app/events/[id]/budget/page.tsx, gemeld aug. 2026 — Cem wilde de
+ * schuiven ook daar zien, niet alleen op de planpagina).
+ */
+const THEME = {
+  dark: {
+    heading: "text-white",
+    subtext: "text-white/60",
+    trackBg: "bg-white/10",
+    itemLabel: "text-white/80",
+    amount: "text-white",
+    controlText: "text-white/70",
+    resetBtn: "border border-white/20 hover:bg-white/10",
+    footerBorder: "border-white/10",
+    footerLabel: "text-white/60",
+    // Kleuren voor de .budget-slider-track/thumb (globals.css) — een kale
+    // <input type="range"> valt terug op de systeem-eigen trackkleur van de
+    // browser i.p.v. hierop aan te sluiten, vandaar expliciet.
+    sliderTrackColor: "rgba(255, 255, 255, 0.15)",
+    sliderThumbColor: "#ffffff",
+  },
+  light: {
+    heading: "text-ink",
+    subtext: "text-ink-faint",
+    trackBg: "bg-paper-dim",
+    itemLabel: "text-ink-soft",
+    amount: "text-ink",
+    controlText: "text-ink-faint",
+    resetBtn: "border border-line hover:bg-paper-dim",
+    footerBorder: "border-line-soft",
+    footerLabel: "text-ink-faint",
+    sliderTrackColor: "var(--color-line-soft)",
+    sliderThumbColor: "var(--color-clay)",
+  },
+} as const;
+
 export function BudgetAllocator({
   eventId,
   items: initialItems,
   totalBudgetCents,
+  variant = "dark",
 }: {
   eventId: string;
-  /** Alleen geselecteerde categorieën mét een bekende schatting — zie app/events/[id]/plan/page.tsx. */
+  /** Alleen geselecteerde categorieën mét een bekende schatting — zie app/events/[id]/plan/page.tsx en app/events/[id]/budget/page.tsx. */
   items: AllocatorItem[];
   totalBudgetCents: number | null;
+  variant?: "dark" | "light";
 }) {
+  const t = THEME[variant];
   const [items, setItems] = useState(initialItems);
   const [saving, startSaveTransition] = useTransition();
   const [justSaved, setJustSaved] = useState(false);
@@ -102,18 +143,20 @@ export function BudgetAllocator({
     scheduleSave(initialItems);
   }
 
+  if (items.length === 0) return null;
+
   return (
     <div>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-white">Budgetverdeling</p>
-          <p className="mt-0.5 text-xs text-white/60">
+          <p className={`text-sm font-medium ${t.heading}`}>Budgetverdeling</p>
+          <p className={`mt-0.5 text-xs ${t.subtext}`}>
             {hasFixedTotal
               ? "Sleep om je budget zelf over de categorieën te verdelen — de andere schuiven passen zich vanzelf aan."
               : "Je hebt nog geen totaalbudget opgegeven, dus dit zijn losse richtbedragen per categorie die je zelf kunt aanpassen."}
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-white/70">
+        <div className={`flex items-center gap-2 text-xs ${t.controlText}`}>
           {saving && <Loader2 className="size-3.5 animate-spin" />}
           {!saving && justSaved && (
             <span className="flex items-center gap-1">
@@ -121,18 +164,14 @@ export function BudgetAllocator({
             </span>
           )}
           {changedFromAi && !saving && (
-            <button
-              type="button"
-              onClick={resetToAiSuggestion}
-              className="flex items-center gap-1 rounded-full border border-white/20 px-2.5 py-1 hover:bg-white/10"
-            >
+            <button type="button" onClick={resetToAiSuggestion} className={`flex items-center gap-1 rounded-full px-2.5 py-1 ${t.resetBtn}`}>
               <RotateCcw className="size-3" /> AI-voorstel terugzetten
             </button>
           )}
         </div>
       </div>
 
-      <div className="mt-4 flex h-2.5 overflow-hidden rounded-full bg-white/10">
+      <div className={`mt-4 flex h-2.5 overflow-hidden rounded-full ${t.trackBg}`}>
         {items.map((it, i) => (
           <div
             key={it.categoryId}
@@ -151,11 +190,11 @@ export function BudgetAllocator({
           return (
             <div key={it.categoryId}>
               <div className="mb-1 flex items-center justify-between text-xs">
-                <span className="flex items-center gap-1.5 text-white/80">
+                <span className={`flex items-center gap-1.5 ${t.itemLabel}`}>
                   <span className="size-2 rounded-full" style={{ backgroundColor: SEGMENT_COLORS[i % SEGMENT_COLORS.length] }} />
                   {it.label}
                 </span>
-                <span className="font-medium text-white">{formatCurrency(it.cents)}</span>
+                <span className={`font-medium ${t.amount}`}>{formatCurrency(it.cents)}</span>
               </div>
               <input
                 type="range"
@@ -164,7 +203,8 @@ export function BudgetAllocator({
                 step={100}
                 value={it.cents}
                 onChange={(e) => handleSlide(i, Number(e.target.value))}
-                className="h-6 w-full cursor-pointer accent-white"
+                className="budget-slider h-6 w-full cursor-pointer"
+                style={{ "--slider-track-color": t.sliderTrackColor, "--slider-thumb-color": t.sliderThumbColor } as CSSProperties}
                 aria-label={`Budget voor ${it.label}`}
               />
             </div>
@@ -172,9 +212,9 @@ export function BudgetAllocator({
         })}
       </div>
 
-      <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3 text-xs text-white/60">
+      <div className={`mt-3 flex items-center justify-between border-t pt-3 text-xs ${t.footerBorder} ${t.footerLabel}`}>
         <span>Totaal verdeeld</span>
-        <span className="font-medium text-white">
+        <span className={`font-medium ${t.amount}`}>
           {formatCurrency(total)}
           {hasFixedTotal && ` van ${formatCurrency(totalBudgetCents!)} budget`}
         </span>
