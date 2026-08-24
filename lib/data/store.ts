@@ -514,6 +514,21 @@ export async function updateRequirementDraftMessage(eventId: string, categoryId:
   await supabase.from("event_requirements").update({ draft_message: draftMessage }).eq("id", categoryId).eq("event_id", eventId);
 }
 
+/**
+ * Slaat een handmatig aangepaste budgetverdeling op (spec-item: schuiven
+ * boven op de planpagina, gemeld aug. 2026, zie BudgetAllocator.tsx) — één
+ * ronde voor alle gewijzigde categorieën tegelijk i.p.v. losse aanroepen per
+ * schuif, want tijdens het slepen kunnen meerdere categorieën tegelijk
+ * verschuiven (de andere schuiven vangen het verschil proportioneel op).
+ */
+export async function updateRequirementBudgets(eventId: string, updates: { categoryId: string; estimatedBudgetCents: number }[]): Promise<RequirementCategory[]> {
+  const supabase = await sb();
+  await Promise.all(
+    updates.map((u) => supabase.from("event_requirements").update({ estimated_budget_cents: u.estimatedBudgetCents }).eq("id", u.categoryId).eq("event_id", eventId))
+  );
+  return getRequirements(eventId);
+}
+
 export async function updateRequirementStatus(eventId: string, categoryKey: SupplierCategory, status: RequirementCategory["status"]): Promise<RequirementCategory[]> {
   const supabase = await sb();
   await supabase.from("event_requirements").update({ status }).eq("event_id", eventId).eq("category_key", categoryKey);

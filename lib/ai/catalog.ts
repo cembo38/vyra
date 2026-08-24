@@ -197,7 +197,13 @@ export function getTemplateForType(type: EventType): Template[] {
 }
 
 export function buildDefaultRequirements(event: EventCore): RequirementCategory[] {
-  const template = getTemplateForType(event.type);
+  const rawTemplate = getTemplateForType(event.type);
+  // FIX (gemeld aug. 2026): een organisator die al aangaf het evenement bij
+  // zichzelf thuis te houden ("locatieType" = "home") kreeg via deze
+  // mock-fallback tóch een "venue"-categorie voorgesteld — er hoeft dan
+  // geen locatie gehuurd te worden. Dezelfde deterministische logica die de
+  // echte AI nu ook krijgt (zie REQUIREMENT_GENERATOR_PROMPT).
+  const template = event.locationType === "home" ? rawTemplate.filter((t) => t.categoryKey !== "venue") : rawTemplate;
   const totalBudget = event.budget?.totalCents ?? null;
   const totalWeight = template.reduce((sum, t) => sum + t.weight, 0);
 
@@ -224,4 +230,36 @@ export function buildDefaultRequirements(event: EventCore): RequirementCategory[
 
 export function priorityRank(p: RequirementPriority) {
   return priorityWeight[p];
+}
+
+/**
+ * Zorgt dat de door de AI voorgestelde categoriebudgetten nooit boven het
+ * daadwerkelijke totaalbudget van de organisator uitkomen — ongeacht wat het
+ * taalmodel zelf aan schattingen teruggeeft.
+ *
+ * BUG (gemeld aug. 2026): een organisator met een budget van €500 kreeg een
+ * AI-plan met een totaal van ruim €4.400 — de systeeminstructie vraagt het
+ * model al om schattingen "ongeveer" het totaalbudget te laten benaderen,
+ * maar dat is bij een taalmodel nooit een garantie (zeker niet bij een klein
+ * budget t.o.v. realistische Nederlandse marktprijzen). Deze functie is het
+ * harde vangnet daarachter: ligt de som van de geselecteerde categorieën
+ * boven het opgegeven totaalbudget, dan wordt elke schatting naar
+ * verhouding omlaag geschaald zodat de som weer exact op het totaalbudget
+ * uitkomt — dezelfde proportionele aanpak als `buildDefaultRequirements`
+ * hierboven. Blijft de AI toevallig al onder budget, dan gebeurt er niets:
+ * dat is geen fout, dat is ruimte over. Staat hier (i.p.v. in
+ * lib/ai/planning.ts, waar hij gebruikt wordt) omdat dit bestand geen
+ * "server-only" importeert — geldberekeningen als deze horen daarom bij de
+ * losstaande logica die vitest wél kan testen (zie vitest.config.ts).
+ */
+export function capEstimatesToBudget<T extends { selected: boolean; estimatedBudgetCents: number | null }>(
+  categories: T[],
+  totalBudgetCents: number | null | undefined
+): T[] {
+  if (!totalBudgetCents || totalBudgetCents <= 0) return categories;
+  const selectedSum = categories.filter((c) => c.selected).reduce((sum, c) => sum + (c.estimatedBudgetCents ?? 0), 0);
+  if (selectedSum <= totalBudgetCents) return categories;
+
+  const factor = totalBudgetCents / selectedSum;
+  return categories.map((c) => (c.estimatedBudgetCents != null ? { ...c, estimatedBudgetCents: Math.round(c.estimatedBudgetCents * factor) } : c));
 }

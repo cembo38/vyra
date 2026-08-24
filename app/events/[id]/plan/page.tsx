@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/Card";
 import { PriorityBadge } from "@/components/ui/Badge";
 import { RequirementToggle } from "@/components/app/RequirementToggle";
 import { RequirementDraftEditor } from "@/components/app/RequirementDraftEditor";
+import { BudgetAllocator } from "@/components/app/BudgetAllocator";
 import { LinkButton } from "@/components/ui/Button";
 import { confirmRequirementsAction } from "@/lib/actions/event-actions";
 import { formatCurrency } from "@/lib/config";
@@ -36,24 +37,34 @@ export default async function PlanPage(props: PageProps<"/events/[id]/plan">) {
 
   const selectedCount = requirements.filter((r) => r.selected).length;
   const totalEstimated = requirements.filter((r) => r.selected).reduce((sum, r) => sum + (r.estimatedBudgetCents ?? 0), 0);
+  // Alleen categorieën die je ook echt gaat aanvragen én waar de AI een
+  // concrete schatting voor kon geven horen thuis in de schuiven hieronder
+  // — een "null"-schatting (zeldzaam, alleen als iets echt onmogelijk in te
+  // schatten was) heeft niets om te verdelen.
+  const allocatorItems = requirements
+    .filter((r) => r.selected && r.estimatedBudgetCents != null)
+    .map((r) => ({ categoryId: r.id, label: r.label, cents: r.estimatedBudgetCents! }));
 
   return (
     <div className="space-y-8">
       <Card className="bg-ink text-paper">
-        <div className="flex flex-wrap items-center justify-between gap-6">
-          <div>
-            <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/80">
-              <Sparkles className="size-3.5" /> AI-eventplan
-            </div>
-            <h1 className="font-display text-2xl">Ik raad {requirements.length} categorieën aan voor {event.name}</h1>
-            <p className="mt-1.5 text-sm text-white/70">Je hebt er {selectedCount} geselecteerd. Je kunt elke aanbeveling zelf aan- of uitzetten.</p>
+        <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/80">
+          <Sparkles className="size-3.5" /> AI-eventplan
+        </div>
+        <h1 className="font-display text-2xl">Ik raad {requirements.length} categorieën aan voor {event.name}</h1>
+        <p className="mt-1.5 text-sm text-white/70">Je hebt er {selectedCount} geselecteerd. Je kunt elke aanbeveling zelf aan- of uitzetten.</p>
+
+        {allocatorItems.length > 0 ? (
+          <div className="mt-6 border-t border-white/10 pt-6">
+            <BudgetAllocator eventId={id} items={allocatorItems} totalBudgetCents={event.budget?.totalCents ?? null} />
           </div>
-          <div className="rounded-xl bg-white/10 px-5 py-3 text-right">
+        ) : (
+          <div className="mt-6 inline-block rounded-xl bg-white/10 px-5 py-3">
             <p className="text-xs text-white/60">Geschat totaal</p>
             <p className="font-display text-2xl">{formatCurrency(totalEstimated)}</p>
             {event.budget && <p className="text-xs text-white/60">van {formatCurrency(event.budget.totalCents)} budget</p>}
           </div>
-        </div>
+        )}
       </Card>
 
       {SECTIONS.map((section) => {

@@ -156,7 +156,14 @@ function mockExtractEventFields(description: string): ExtractedEventFields {
   // vastgelegd werd. `locationType` heeft juist een aparte "tbd"-waarde
   // voor precies dit geval ("nog te bepalen") — die stond er al in het
   // type, maar werd door de mock-extractie nooit gezet.
-  const locationType = /thuis|bij (mij|ons) thuis|in de tuin/i.test(text)
+  // "binnenshuis" toegevoegd (gemeld aug. 2026): dit is precies het
+  // eenwoordsantwoord dat de app zelf uitlokt met de vraag "Is het bij jou
+  // thuis, of zoek je een externe locatie?" (zie mockNextQuestion
+  // hieronder), maar bevat zelf geen "thuis" als losse tekenreeks (het
+  // eindigt op "...shuis", niet "...thuis") — viel dus altijd door naar
+  // `null` i.p.v. "home", waarna ook de Requirement Generator er geen
+  // rekening mee kon houden en alsnog een te huren locatie voorstelde.
+  const locationType = /thuis|binnenshuis|bij (mij|ons) thuis|in de tuin/i.test(text)
     ? "home"
     : /geen locatie|nog (geen|niks|niets)|nul locaties|nog te (bepalen|zoeken|kiezen)|weet.*nog niet.*locatie|locatie.*weet.*nog niet/i.test(text)
       ? "tbd"
@@ -271,6 +278,7 @@ export async function generateNextQuestion(event: EventCore, history: AiIntervie
     guestCountChildren: event.guestCountChildren,
     location: event.locationLabel,
     locationType: event.locationType,
+    indoorOutdoor: event.indoorOutdoor,
     date: event.date,
     monthHint: event.monthHint,
     formality: event.formality,

@@ -1,7 +1,7 @@
 import "server-only";
 import { callStructuredAI } from "@/lib/ai/client";
 import { REQUIREMENT_GENERATOR_PROMPT, TIMELINE_ASSISTANT_PROMPT, RISK_DETECTION_PROMPT, REQUEST_MESSAGE_DRAFTER_PROMPT } from "@/lib/ai/prompts";
-import { ALL_SUPPLIER_CATEGORIES, buildDefaultRequirements, TYPICAL_CATEGORY_COST_CENTS } from "@/lib/ai/catalog";
+import { ALL_SUPPLIER_CATEGORIES, buildDefaultRequirements, capEstimatesToBudget, TYPICAL_CATEGORY_COST_CENTS } from "@/lib/ai/catalog";
 import { EventCore, EventTimelineItem, RequirementCategory, RequirementPriority, RiskFlag, SupplierCategory, EVENT_TYPE_LABELS, SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
 import { formatCurrency } from "@/lib/config";
 import { uid, formatDateNL } from "@/lib/utils";
@@ -48,6 +48,8 @@ export async function generateRequirementPlan(event: EventCore) {
       naam: event.name,
       gasten: (event.guestCountAdults ?? 0) + (event.guestCountChildren ?? 0),
       locatie: event.locationLabel,
+      locatieType: event.locationType,
+      binnenBuiten: event.indoorOutdoor,
       budget: event.budget?.totalCents,
       stijl: event.style,
       formaliteit: event.formality,
@@ -80,7 +82,7 @@ export async function generateRequirementPlan(event: EventCore) {
     status: "suggested",
   }));
 
-  return { categories, usedAI };
+  return { categories: capEstimatesToBudget(categories, event.budget?.totalCents), usedAI };
 }
 
 /* ------------------------------------------------------------------ */

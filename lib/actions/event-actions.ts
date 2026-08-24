@@ -18,6 +18,7 @@ import {
   setTimeline,
   toggleRequirementSelection,
   updateEvent,
+  updateRequirementBudgets,
   updateRequirementDraftMessage,
 } from "@/lib/data/store";
 import { extractEventFields, generateNextQuestion } from "@/lib/ai/interview";
@@ -227,6 +228,32 @@ export async function updateRequirementDraftAction(eventId: string, categoryId: 
   if (!event || event.ownerId !== user.id) redirect("/events");
 
   await updateRequirementDraftMessage(eventId, categoryId, draftMessage);
+}
+
+/**
+ * Slaat de handmatige budgetverdeling op vanaf de schuiven bovenaan de
+ * planpagina (BudgetAllocator.tsx) — Cem vroeg hierom nadat bleek dat het
+ * AI-plan het opgegeven budget niet altijd goed volgde: hiermee kan de
+ * organisator de verdeling over categorieën zelf naar smaak bijstellen,
+ * ongeacht wat de AI oorspronkelijk voorstelde.
+ */
+export async function updateRequirementBudgetsAction(eventId: string, updates: { categoryId: string; estimatedBudgetCents: number }[]) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const event = await getEvent(eventId);
+  if (!event || event.ownerId !== user.id) redirect("/events");
+
+  // Nooit ongefilterd doorgeven aan de database — een negatief of niet-
+  // numeriek bedrag kan hooguit via een handmatige aanroep buiten de UI om
+  // binnenkomen (de sliders zelf klemmen dit al af), maar dit is de plek
+  // waar dat hard afgedwongen wordt.
+  const clean = updates
+    .filter((u) => Number.isFinite(u.estimatedBudgetCents))
+    .map((u) => ({ categoryId: u.categoryId, estimatedBudgetCents: Math.max(0, Math.round(u.estimatedBudgetCents)) }));
+  if (clean.length === 0) return;
+
+  await updateRequirementBudgets(eventId, clean);
+  revalidatePath(`/events/${eventId}`, "layout");
 }
 
 export async function confirmRequirementsAction(eventId: string) {

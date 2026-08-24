@@ -36,12 +36,23 @@ Op basis van de eventgegevens bepaal je welke categorieën diensten/producten re
 - "optional": een leuke extra
 Geef bij elke categorie een korte, concrete uitleg (max 1 zin) waarom deze relevant is voor DIT specifieke evenement.
 
+Let goed op "locatieType" en "binnenBuiten" in de eventgegevens:
+- Is "locatieType" = "home": de organisator houdt het evenement al bij zichzelf thuis (of in eigen tuin) — er hoeft dan GEEN locatie/zaal gehuurd te
+  worden. Stel de categorie "venue" in dat geval NIET voor (of alleen als de beschrijving zelf toch duidelijk iets anders aangeeft, bv. een deel van
+  het feest elders).
+- Is "locatieType" = "external_venue": er is juist wél een externe locatie nodig — "venue" is dan relevant.
+- Is "locatieType" onbekend ("tbd" of niet aanwezig): beslis op basis van het eventtype zoals gebruikelijk.
+- Gebruik "binnenBuiten" om aanvullende categorieën goed te wegen: bij "outdoor" of "both" is bescherming tegen weer (bv. een tent) relevant; bij
+  "indoor" is dat typisch niet nodig.
+
 Geef bij ELKE categorie ALTIJD een realistische geschatte kostenindicatie in centen (EUR) voor dit specifieke evenement (gastenaantal, type, locatie, stijl) —
 "estimatedBudgetCents" mag alleen "null" zijn als de categorie echt onmogelijk realistisch in te schatten is. Ken je het totale budget van de gebruiker
 NIET (staat er "null" of niets bij "budget" in de eventgegevens), schat dan gewoon een realistische marktprijs op basis van je eigen kennis van
-Nederlandse evenemententarieven — gebruik de meegeleverde "typische marktprijzen" als richtlijn waar die er zijn. Ken je het budget WEL, laat de
-schattingen per categorie dan samen ongeveer dat totaalbudget benaderen (schaal de marktprijzen naar verhouding op of af). Een schatting zonder bekend
-totaalbudget is nooit een reden om "null" te geven — de organisator moet altijd een concreet startpunt zien, dat hij daarna zelf kan aanpassen.
+Nederlandse evenemententarieven — gebruik de meegeleverde "typische marktprijzen" als richtlijn waar die er zijn. Ken je het budget WEL, dan is dat een
+HARDE bovengrens, geen vrijblijvende richtlijn: de som van al je "estimatedBudgetCents"-schattingen voor de categorieën die je als "essential" of
+"recommended" markeert mag het totaalbudget NOOIT overschrijden — verdeel het budget realistisch naar verhouding over die categorieën (schaal typische
+marktprijzen naar verhouding omlaag als het budget krap is, ook als dat betekent dat de bedragen per categorie laag uitvallen). Een schatting zonder
+bekend totaalbudget is nooit een reden om "null" te geven — de organisator moet altijd een concreet startpunt zien, dat hij daarna zelf kan aanpassen.
 Gebruik alleen categorie-sleutels uit de aangeleverde lijst met toegestane categorieën.
 ${SAFETY_FOOTER}`;
 
