@@ -5,25 +5,30 @@ import { revalidatePath } from "next/cache";
 import { parseSupplierOfferDescription } from "@/lib/ai/supplierOffer";
 import { getCurrentUser } from "@/lib/auth";
 import {
+  activateSpotlight,
   blockSupplierDate,
   blockSupplierDateRange,
+  countSpotlightActivationsThisMonth,
   createSupplierAccount,
+  getActiveSpotlightsForSupplier,
   getRequest,
   getSupplierAccount,
   getSupplierAccountByOwner,
   getSupplierEffectiveTierDefinition,
   pushNotification,
   requestSupplierVerification,
+  resolveEffectiveSupplierTier,
   sendCustomSupplierRequest,
   setSupplierStoreOpen,
   setSupplierSubscriptionTier,
   submitSupplierOffer,
   unblockSupplierDate,
   updateSupplierAccount,
+  updateSupplierPackages,
   uploadSupplierFile,
 } from "@/lib/data/store";
-import { SUBSCRIPTION_TIER_ORDER, SubscriptionTier } from "@/lib/config";
-import { SupplierCategory } from "@/lib/types";
+import { SPOTLIGHT_MONTHLY_QUOTA, SUBSCRIPTION_TIER_ORDER, SubscriptionTier } from "@/lib/config";
+import { SupplierCategory, SupplierPackage, SupplierPackageTier } from "@/lib/types";
 import { isValidKvkFormat } from "@/lib/utils";
 
 function optionalTrim(value: FormDataEntryValue | null): string | null {
@@ -338,6 +343,86 @@ export async function setSubscriptionTierAction(tier: SubscriptionTier): Promise
   revalidatePath("/supplier/profile");
   revalidatePath(`/leveranciers/${supplier.id}`);
   return { ok: true };
+}
+
+/**
+ * Leverancier zet één van zijn eigen categorieën 3 dagen "in de spotlight"
+ * (hoger + met badge in de openbare /leveranciers-zoekresultaten) — zelfde
+ * `{ ok, error }`-vorm als `setSubscriptionTierAction`. Beschikbaar vanaf
+ * Pro, met een oplopende maandelijkse limiet (zie SPOTLIGHT_MONTHLY_QUOTA in
+ * lib/config.ts) — tijdens de proefperiode krijgt een leverancier, net als
+ * bij de rest van het platform, de Enterprise-hoeveelheid.
+ */
+export async function activateSpotlightAction(categoryKey: SupplierCategory): Promise<{ ok: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Niet ingelogd." };
+  const supplier = await getSupplierAccountByOwner(user.id);
+  if (!supplier) return { ok: false, error: "Geen leveranciersaccount gevonden." };
+
+  if (!(supplier.categories as string[]).includes(categoryKey)) {
+    return { ok: false, error: "Dit is niet een van je eigen categorieën." };
+  }
+
+  const tier = await resolveEffectiveSupplierTier(supplier.id);
+  const quota = SPOTLIGHT_MONTHLY_QUOTA[tier];
+  if (quota <= 0) {
+    return { ok: false, error: "Spotlights zijn beschikbaar vanaf het Pro-abonnement. Kies hierboven een hoger niveau om deze functie te gebruiken." };
+  }
+
+  const active = await getActiveSpotlightsForSupplier(supplier.id);
+  if (active.some((s) => s.categoryKey === categoryKey)) {
+    return { ok: false, error: "Deze categorie staat al in de spotlight." };
+  }
+
+  const usedThisMonth = await countSpotlightActivationsThisMonth(supplier.id);
+  if (usedThisMonth >= quota) {
+    return { ok: false, error: `Je hebt je limiet van ${quota} spotlight${quota !== 1 ? "s" : ""} deze maand al gebruikt.` };
+  }
+
+  const spotlight = await activateSpotlight(supplier.id, categoryKey);
+  if (!spotlight) return { ok: false, error: "Activeren is niet gelukt. Probeer het nog eens." };
+
+  revalidatePath("/supplier/profile");
+  revalidatePath("/leveranciers");
+  revalidatePath(`/leveranciers/${supplier.id}`);
+  return { ok: true };
+}
+
+/**
+ * Leverancier stelt tot 3 vaste pakketten (Basis/Standaard/Premium) samen —
+ * spec-item "pakketten i.p.v. een platte lijst" (Fiverr/Etsy-stijl,
+ * beschikbaar vanaf Pro, zie packagesEnabled in lib/config.ts). Zelfde
+ * formuliervorm (plain <form action>) als updateSupplierProfileAction, dus
+ * ook hetzelfde redirect-patroon i.p.v. { ok, error }.
+ */
+export async function updateSupplierPackagesAction(formData: FormData) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+
+  const supplier = await getSupplierAccountByOwner(user!.id);
+  if (!supplier) redirect("/supplier/onboarding");
+
+  // Server-side poort, net als bij de categorie-/foto-limieten hierboven:
+  // de UI toont het formulier al niet zonder packagesEnabled, maar dat is
+  // met devtools te omzeilen.
+  const tierDefinition = await getSupplierEffectiveTierDefinition(supplier!.id);
+  if (!tierDefinition.packagesEnabled) redirect("/supplier/profile");
+
+  const tierKeys: SupplierPackageTier[] = ["basis", "standaard", "premium"];
+  const packages: SupplierPackage[] = [];
+  for (const tier of tierKeys) {
+    const name = String(formData.get(`package_${tier}_name`) ?? "").trim();
+    if (!name) continue; // lege naam = dit niveau bewust niet aanbieden
+    const description = String(formData.get(`package_${tier}_description`) ?? "").trim();
+    const priceEuros = Number(formData.get(`package_${tier}_price`) ?? 0);
+    if (!Number.isFinite(priceEuros) || priceEuros <= 0) continue;
+    packages.push({ tier, name, description, priceCents: Math.round(priceEuros * 100) });
+  }
+
+  await updateSupplierPackages(supplier!.id, packages);
+  revalidatePath("/supplier/profile");
+  revalidatePath(`/leveranciers/${supplier!.id}`);
+  redirect("/supplier/profile?packagesSaved=1");
 }
 
 export async function removeSupplierGalleryImageAction(imageUrl: string) {

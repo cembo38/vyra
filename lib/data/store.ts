@@ -6,6 +6,7 @@ import {
   EffectiveSupplierTier,
   EMAIL_ENABLED,
   ORGANIZER_STALLED_DAYS,
+  SPOTLIGHT_DURATION_DAYS,
   SUPPLIER_RESPONSE_WINDOW_HOURS,
   SubscriptionTier,
   TRIAL_BOOKING_COUNT,
@@ -47,7 +48,9 @@ import {
   RequirementPriority,
   RiskFlag,
   RsvpStatus,
+  SavedSearch,
   ServiceRequest,
+  Spotlight,
   SUPPLIER_CATEGORY_LABELS,
   SupplierAccount,
   SupplierBlockedDate,
@@ -55,6 +58,7 @@ import {
   SupplierFavorite,
   SupplierLead,
   SupplierOrder,
+  SupplierPackage,
   SupplierProfile,
   UserAccount,
 } from "@/lib/types";
@@ -202,9 +206,6 @@ function rowToOffer(r: Row): OfferOption {
     matchRationale: r.match_rationale ?? "",
     respondedAt: r.responded_at,
     swipeDecision: r.swipe_decision,
-    counterPriceCents: r.counter_price_cents ?? null,
-    counterNote: r.counter_note ?? null,
-    counteredAt: r.countered_at ?? null,
   };
 }
 
@@ -282,6 +283,7 @@ function rowToSupplierAccount(r: Row): SupplierAccount {
     galleryUrls: r.gallery_urls ?? [],
     subscriptionTier: (r.subscription_tier ?? "starter") as SubscriptionTier,
     storeOpen: r.store_open ?? true,
+    packages: (r.packages ?? []) as SupplierPackage[],
     createdAt: r.created_at,
   };
 }
@@ -584,6 +586,77 @@ export async function searchSupplierAccounts(filters: {
   return results;
 }
 
+function rowToSpotlight(r: Row): Spotlight {
+  return {
+    id: r.id,
+    supplierId: r.supplier_id,
+    categoryKey: r.category_key,
+    startedAt: r.started_at,
+    expiresAt: r.expires_at,
+  };
+}
+
+/** Alle op dit moment actieve spotlights van deze leverancier (voor het eigen profiel — zie SpotlightPanel). */
+export async function getActiveSpotlightsForSupplier(supplierId: string): Promise<Spotlight[]> {
+  const supabase = await sb();
+  const { data } = await supabase
+    .from("spotlights")
+    .select("*")
+    .eq("supplier_id", supplierId)
+    .gt("expires_at", new Date().toISOString())
+    .order("expires_at", { ascending: true });
+  return (data ?? []).map(rowToSpotlight);
+}
+
+/**
+ * Voor de openbare /leveranciers-zoekpagina: welke van deze leveranciers
+ * hebben op dit moment een actieve spotlight? Als `categoryKey` is
+ * meegegeven (de organisator filtert op een categorie) telt alleen een
+ * spotlight VOOR precies die categorie mee — anders telt elke actieve
+ * spotlight van die leverancier mee.
+ */
+export async function getActiveSpotlightSupplierIds(supplierIds: string[], categoryKey?: SupplierCategory): Promise<Set<string>> {
+  if (supplierIds.length === 0) return new Set();
+  const supabase = await sb();
+  let query = supabase.from("spotlights").select("supplier_id").in("supplier_id", supplierIds).gt("expires_at", new Date().toISOString());
+  if (categoryKey) query = query.eq("category_key", categoryKey);
+  const { data } = await query;
+  return new Set((data ?? []).map((r: Row) => r.supplier_id as string));
+}
+
+/** Hoeveel spotlights deze leverancier deze kalendermaand al heeft geactiveerd — tegen SPOTLIGHT_MONTHLY_QUOTA in lib/config.ts. */
+export async function countSpotlightActivationsThisMonth(supplierId: string): Promise<number> {
+  const supabase = await sb();
+  const now = new Date();
+  const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)).toISOString();
+  const { count } = await supabase
+    .from("spotlights")
+    .select("id", { count: "exact", head: true })
+    .eq("supplier_id", supplierId)
+    .gte("started_at", startOfMonth);
+  return count ?? 0;
+}
+
+/**
+ * Activeert een spotlight — puur de schrijfactie, zonder validatie (quota,
+ * of de leverancier deze categorie überhaupt aanbiedt, of er al een actieve
+ * spotlight op deze categorie staat). Die checks horen bij de aanroeper
+ * (activateSpotlightAction in lib/actions/supplier-actions.ts) omdat ze om
+ * duidelijke foutmeldingen aan de leverancier vragen.
+ */
+export async function activateSpotlight(supplierId: string, categoryKey: SupplierCategory): Promise<Spotlight | null> {
+  const supabase = await sb();
+  const startedAt = new Date();
+  const expiresAt = new Date(startedAt.getTime() + SPOTLIGHT_DURATION_DAYS * 24 * 60 * 60 * 1000);
+  const { data, error } = await supabase
+    .from("spotlights")
+    .insert({ supplier_id: supplierId, category_key: categoryKey, started_at: startedAt.toISOString(), expires_at: expiresAt.toISOString() })
+    .select()
+    .single();
+  if (error || !data) return null;
+  return rowToSpotlight(data);
+}
+
 /**
  * Alleen id + createdAt van elke vindbare ("open") leverancier — precies
  * genoeg voor de sitemap (spec-item #49), geen reden om daar het hele
@@ -596,6 +669,76 @@ export async function listOpenSupplierIdsForSitemap(): Promise<{ id: string; cre
   const supabase = await sb();
   const { data } = await supabase.from("suppliers").select("id, created_at").eq("store_open", true);
   return (data ?? []).map((r: Row) => ({ id: r.id, createdAt: r.created_at }));
+}
+
+function rowToSavedSearch(r: Row): SavedSearch {
+  return {
+    id: r.id,
+    userId: r.user_id,
+    categoryKey: r.category_key ?? null,
+    location: r.location ?? null,
+    query: r.query ?? null,
+    createdAt: r.created_at,
+  };
+}
+
+/** Alle bewaarde zoekopdrachten van deze organisator (nieuwste eerst) — zie app/mijn-leveranciers/page.tsx. */
+export async function getSavedSearchesForUser(userId: string): Promise<SavedSearch[]> {
+  const supabase = await sb();
+  const { data } = await supabase.from("saved_searches").select("*").eq("user_id", userId).order("created_at", { ascending: false });
+  return (data ?? []).map(rowToSavedSearch);
+}
+
+export async function createSavedSearch(
+  userId: string,
+  filters: { categoryKey: SupplierCategory | null; location: string | null; query: string | null }
+): Promise<SavedSearch | null> {
+  const supabase = await sb();
+  const { data, error } = await supabase
+    .from("saved_searches")
+    .insert({ user_id: userId, category_key: filters.categoryKey, location: filters.location, query: filters.query })
+    .select()
+    .single();
+  if (error || !data) return null;
+  return rowToSavedSearch(data);
+}
+
+export async function deleteSavedSearch(id: string, userId: string): Promise<void> {
+  const supabase = await sb();
+  await supabase.from("saved_searches").delete().eq("id", id).eq("user_id", userId);
+}
+
+/**
+ * Meldt organisatoren wier bewaarde zoekopdracht bij deze NIEUWE leverancier
+ * past — aangeroepen vanuit createSupplierAccount() bij het aanmelden.
+ * Categorie moet overeenkomen (of de zoekopdracht had geen categoriefilter);
+ * een bewaarde locatie moet voorkomen in de vestigingsplaats of het
+ * werkgebied van de leverancier. Vrije zoektekst weegt bewust NIET mee in de
+ * match (te onbetrouwbaar tegen een nog vers profiel zonder reviews/
+ * portfolio) — die staat alleen ter herkenning bij de organisator zelf, zie
+ * `describeSearch()` op app/mijn-leveranciers/page.tsx.
+ */
+async function notifyMatchingSavedSearches(supplier: SupplierAccount): Promise<void> {
+  const supabase = await sb();
+  const { data } = await supabase.from("saved_searches").select("*");
+  const searches = (data ?? []).map(rowToSavedSearch);
+  if (searches.length === 0) return;
+
+  const locationHaystack = [supplier.baseLocation, ...supplier.serviceAreas].join(" ").toLowerCase();
+  for (const search of searches) {
+    const categoryMatches = !search.categoryKey || (supplier.categories as string[]).includes(search.categoryKey);
+    const locationMatches = !search.location || locationHaystack.includes(search.location.toLowerCase());
+    if (!categoryMatches || !locationMatches) continue;
+
+    await pushNotification({
+      userId: search.userId,
+      eventId: null,
+      type: "saved_search_match",
+      title: "Nieuwe leverancier gevonden",
+      body: `${supplier.companyName}${search.categoryKey ? ` (${SUPPLIER_CATEGORY_LABELS[search.categoryKey]})` : ""} past bij een bewaarde zoekopdracht van jou.`,
+      href: `/leveranciers/${supplier.id}`,
+    });
+  }
 }
 
 /** Uploadt een logo/foto naar de "supplier-media"-opslagruimte en geeft de publieke URL terug (of null bij een fout). */
@@ -664,6 +807,7 @@ export async function supplierAccountToProfileShape(account: SupplierAccount): P
     isReal: true,
     logoUrl: account.logoUrl,
     tierBadge: tierDefinition.badge,
+    packages: account.packages,
   };
 }
 
@@ -725,7 +869,9 @@ export async function createSupplierAccount(ownerId: string, patch: SupplierProf
   if (error || !data) throw new Error(error?.message ?? "Kon leveranciersprofiel niet aanmaken");
   // Rol bijwerken zodat de rest van de app (redirects e.d.) weet dat dit een leverancier is.
   await supabase.from("profiles").update({ role: "supplier" }).eq("id", ownerId);
-  return rowToSupplierAccount(data);
+  const account = rowToSupplierAccount(data);
+  await notifyMatchingSavedSearches(account);
+  return account;
 }
 
 export async function updateSupplierAccount(
@@ -757,6 +903,14 @@ export async function updateSupplierAccount(
   if (patch.logoUrl !== undefined) update.logo_url = patch.logoUrl;
   if (patch.galleryUrls !== undefined) update.gallery_urls = patch.galleryUrls;
   const { data, error } = await supabase.from("suppliers").update(update).eq("id", supplierId).select().single();
+  if (error || !data) return null;
+  return rowToSupplierAccount(data);
+}
+
+/** Eigen, smal-scoped functie (net als hierboven) voor het Pro-perk "pakketten" — validatie (tier-gate, max 3, prijs) leeft in de Server Action, dit is een pure update. */
+export async function updateSupplierPackages(supplierId: string, packages: SupplierPackage[]): Promise<SupplierAccount | null> {
+  const supabase = await sb();
+  const { data, error } = await supabase.from("suppliers").update({ packages }).eq("id", supplierId).select().single();
   if (error || !data) return null;
   return rowToSupplierAccount(data);
 }
@@ -1555,48 +1709,6 @@ export async function acceptOffer(offerId: string): Promise<OfferOption | null> 
   return offer;
 }
 
-/**
- * Organisator stuurt een tegenbod op een offerte. Alleen zinnig zolang de
- * offerte nog niet is geaccepteerd/afgewezen/verlopen — de aanroepende
- * action (counterOfferAction in lib/actions/marketplace-actions.ts) bewaakt
- * die statusovergang, hier wordt alleen de rij bijgewerkt.
- */
-export async function counterOffer(offerId: string, counterPriceCents: number, note: string | null): Promise<OfferOption | null> {
-  const supabase = await sb();
-  const { data, error } = await supabase
-    .from("offers")
-    .update({ status: "countered", counter_price_cents: counterPriceCents, counter_note: note, countered_at: new Date().toISOString() })
-    .eq("id", offerId)
-    .select()
-    .single();
-  if (error || !data) return null;
-  return rowToOffer(data);
-}
-
-/**
- * Leverancier reageert op een tegenbod. Bij accepteren wordt het tegenbod
- * het nieuwe `total_price_cents` (dit bedrag drijft vervolgens de hele
- * betaalketen aan, zie createPaymentForOffer() die dit veld leest) — bij
- * afwijzen blijft de oorspronkelijke prijs staan. In beide gevallen gaat de
- * offerte terug naar "available" zodat de organisator weer normaal kan
- * shortlisten/accepteren/opnieuw een tegenbod doen, en worden de drie
- * tegenbod-velden weer leeggemaakt (voorkomt dat een oud tegenbod na een
- * latere ronde per ongeluk opnieuw getoond wordt).
- */
-export async function respondToCounterOffer(offerId: string, accept: boolean): Promise<OfferOption | null> {
-  const supabase = await sb();
-  const current = await getOffer(offerId);
-  if (!current || current.status !== "countered") return null;
-
-  const patch: Row = { status: "available", counter_price_cents: null, counter_note: null, countered_at: null };
-  if (accept && current.counterPriceCents != null) {
-    patch.total_price_cents = current.counterPriceCents;
-  }
-  const { data, error } = await supabase.from("offers").update(patch).eq("id", offerId).select().single();
-  if (error || !data) return null;
-  return rowToOffer(data);
-}
-
 export async function getShortlistForEvent(eventId: string): Promise<OfferOption[]> {
   const offers = await getOffersForEvent(eventId);
   return offers.filter((o) => o.swipeDecision === "shortlisted" || o.status === "accepted" || o.status === "shortlisted");
@@ -2345,14 +2457,7 @@ async function pushNotificationOnce(
  * voelt al snel als spam, en niet elke melding (bv. "notitie bijgewerkt")
  * is dringend genoeg om iemands inbox te storen.
  */
-const EMAIL_NOTIFICATION_TYPES = new Set<AppNotification["type"]>([
-  "new_request",
-  "new_offer",
-  "supplier_responded",
-  "deadline_approaching",
-  "counter_offer_received",
-  "counter_offer_response",
-]);
+const EMAIL_NOTIFICATION_TYPES = new Set<AppNotification["type"]>(["new_request", "new_offer", "supplier_responded", "deadline_approaching"]);
 
 export async function pushNotification(n: Omit<AppNotification, "id" | "createdAt" | "read">): Promise<AppNotification | null> {
   const supabase = await sb();

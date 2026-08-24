@@ -47,6 +47,25 @@ export type EffectiveSupplierTier = "trial" | SubscriptionTier;
 
 export const SUBSCRIPTION_TIER_ORDER: SubscriptionTier[] = ["starter", "groei", "pro", "premium", "enterprise"];
 
+/** Hoeveel dagen een geactiveerde "spotlight" actief blijft — zie lib/data/store.ts (activateSpotlight, getActiveSpotlightsForSupplier). */
+export const SPOTLIGHT_DURATION_DAYS = 3;
+
+/**
+ * Hoeveel spotlights een leverancier per kalendermaand gratis mag activeren
+ * — 0 voor Starter/Groei (geen toegang), oplopend voor de drie hoogste
+ * niveaus (op verzoek: Pro 1x, Premium 2x, Enterprise 4x per maand). De
+ * proefperiode krijgt, net als de rest van het platform (zie
+ * TRIAL_TIER_DEFINITION), de Enterprise-hoeveelheid.
+ */
+export const SPOTLIGHT_MONTHLY_QUOTA: Record<EffectiveSupplierTier, number> = {
+  trial: 4,
+  starter: 0,
+  groei: 0,
+  pro: 1,
+  premium: 2,
+  enterprise: 4,
+};
+
 export const SUBSCRIPTION_TIER_LABELS: Record<SubscriptionTier, string> = {
   starter: "Starter",
   groei: "Groei",
@@ -83,6 +102,8 @@ export interface SubscriptionTierDefinition {
   badge: "none" | "aanbevolen" | "elite";
   personalSupportLine: boolean;
   dedicatedAccountManager: boolean;
+  /** Pakketten (Basis/Standaard/Premium) op het profiel — zie SupplierPackage in lib/types.ts. */
+  packagesEnabled: boolean;
   /** Progressief, net als belastingschijven — elk deel van het boekingsbedrag valt in zijn eigen schijf. */
   commissionTiers: CommissionBracket[];
   /** Weergavetekst voor de vergelijkingstabel op het leveranciersprofiel. */
@@ -108,6 +129,7 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
     badge: "none",
     personalSupportLine: false,
     dedicatedAccountManager: false,
+    packagesEnabled: false,
     commissionTiers: [
       { uptoCents: 50_000, rate: 0.06 }, // €0 – €500: 6%
       { uptoCents: 200_000, rate: 0.045 }, // €500 – €2.000: 4,5%
@@ -137,6 +159,7 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
     badge: "none",
     personalSupportLine: false,
     dedicatedAccountManager: false,
+    packagesEnabled: false,
     commissionTiers: [
       { uptoCents: 50_000, rate: 0.04 },
       { uptoCents: 200_000, rate: 0.03 },
@@ -167,6 +190,7 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
     badge: "aanbevolen",
     personalSupportLine: false,
     dedicatedAccountManager: false,
+    packagesEnabled: true,
     commissionTiers: [{ uptoCents: null, rate: 0 }],
     perks: [
       "Onbeperkt categorieën",
@@ -175,6 +199,7 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
       "\"Aanbevolen\"-badge op je profiel en in matching",
       "Sterkere positie in de matching",
       "Volledig inzicht: reactiesnelheid, acceptatiegraad én beoordeling t.o.v. je categoriegemiddelde",
+      "Pakketten (Basis/Standaard/Premium) op je profiel",
       "0% commissie op boekingen",
     ],
   },
@@ -193,6 +218,7 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
     badge: "elite",
     personalSupportLine: true,
     dedicatedAccountManager: false,
+    packagesEnabled: true,
     commissionTiers: [{ uptoCents: null, rate: 0 }],
     perks: [
       "Alles van Pro",
@@ -218,6 +244,7 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
     badge: "elite",
     personalSupportLine: true,
     dedicatedAccountManager: true,
+    packagesEnabled: true,
     commissionTiers: [{ uptoCents: null, rate: 0 }],
     perks: [
       "Alles van Premium",
@@ -252,6 +279,7 @@ export const TRIAL_TIER_DEFINITION: SubscriptionTierDefinition = {
   badge: "none",
   personalSupportLine: true,
   dedicatedAccountManager: false,
+  packagesEnabled: true,
   commissionTiers: [{ uptoCents: null, rate: 0 }],
   perks: [
     `Je eerste ${TRIAL_BOOKING_COUNT} boekingen volledig gratis, 0% commissie`,

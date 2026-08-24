@@ -23,11 +23,12 @@ function nextGradient(): [string, string] {
   return g;
 }
 
-function s(partial: Omit<SupplierProfile, "photoGradient" | "initials"> & { initials?: string }): SupplierProfile {
+function s(partial: Omit<SupplierProfile, "photoGradient" | "initials" | "packages"> & { initials?: string; packages?: SupplierProfile["packages"] }): SupplierProfile {
   return {
     ...partial,
     initials: partial.initials ?? partial.companyName.slice(0, 2).toUpperCase(),
     photoGradient: nextGradient(),
+    packages: partial.packages ?? [],
   };
 }
 

@@ -309,6 +309,16 @@ export const SUPPLIER_CATEGORY_LABELS: Record<SupplierCategory, string> = {
   av_equipment: "AV-apparatuur",
 };
 
+/** Eén van maximaal 3 vaste niveaus (Fiverr/Etsy-stijl) die een leverancier op zijn profiel kan zetten — zie packagesEnabled in lib/config.ts (Pro-perk). */
+export type SupplierPackageTier = "basis" | "standaard" | "premium";
+
+export interface SupplierPackage {
+  tier: SupplierPackageTier;
+  name: string;
+  description: string;
+  priceCents: number;
+}
+
 export interface SupplierProfile {
   id: string;
   companyName: string;
@@ -342,6 +352,7 @@ export interface SupplierProfile {
    * een offerte/leverancier aan een organisator wordt getoond (OfferBrowser).
    */
   tierBadge?: "none" | "aanbevolen" | "elite";
+  packages: SupplierPackage[];
 }
 
 /**
@@ -417,6 +428,8 @@ export interface SupplierAccount {
   subscriptionTier: SubscriptionTier;
   /** "Winkel open/gesloten" — zet de leverancier zelf uit als hij tijdelijk geen nieuwe aanvragen kan aannemen (spec-item #55). Gesloten = niet zichtbaar in zoeken/matching. */
   storeOpen: boolean;
+  /** Tot 3 vaste niveaus (Basis/Standaard/Premium) — alleen bewerkbaar vanaf Pro, zie packagesEnabled in lib/config.ts. */
+  packages: SupplierPackage[];
   createdAt: string;
 }
 
@@ -474,9 +487,7 @@ export type OfferStatus =
   | "shortlisted"
   | "accepted"
   | "declined"
-  | "expired"
-  /** Organisator heeft een tegenbod verstuurd; wacht op reactie van de leverancier (zie counterOffer() in lib/data/store.ts). */
-  | "countered";
+  | "expired";
 
 export interface OfferOption {
   id: string;
@@ -503,12 +514,25 @@ export interface OfferOption {
   matchRationale: string;
   respondedAt: string;
   swipeDecision: "none" | "shortlisted" | "rejected";
-  /** Voorgesteld bedrag door de organisator, alleen relevant zolang status === "countered". */
-  counterPriceCents: number | null;
-  /** Optionele toelichting van de organisator bij het tegenbod. */
-  counterNote: string | null;
-  /** Wanneer het huidige tegenbod is verstuurd. */
-  counteredAt: string | null;
+}
+
+/** Een bewaarde zoekopdracht op /leveranciers — melding bij een matchende nieuwe leverancier (zie notifyMatchingSavedSearches() in lib/data/store.ts). */
+export interface SavedSearch {
+  id: string;
+  userId: string;
+  categoryKey: SupplierCategory | null;
+  location: string | null;
+  query: string | null;
+  createdAt: string;
+}
+
+/** Eén geactiveerde "spotlight" — zie SPOTLIGHT_MONTHLY_QUOTA in lib/config.ts en activateSpotlight() in lib/data/store.ts. */
+export interface Spotlight {
+  id: string;
+  supplierId: string;
+  categoryKey: SupplierCategory;
+  startedAt: string;
+  expiresAt: string;
 }
 
 export interface Shortlist {
@@ -582,8 +606,7 @@ export interface AppNotification {
     | "dispute_filed"
     | "dispute_resolved"
     | "dispute_dismissed"
-    | "counter_offer_received"
-    | "counter_offer_response";
+    | "saved_search_match";
   title: string;
   body: string;
   read: boolean;

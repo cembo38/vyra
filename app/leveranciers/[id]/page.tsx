@@ -12,8 +12,14 @@ import { SupplierAvatar } from "@/components/ui/Avatar";
 import { Field, Input, Select, Textarea } from "@/components/ui/Form";
 import { FavoriteSupplierButton } from "@/components/app/FavoriteSupplierButton";
 import { formatCurrency } from "@/lib/config";
-import { SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
-import { CheckCircle2, Clock, Crown, ExternalLink, Link2, Lock, MapPin, MoonStar, ShieldCheck, Sparkles, Star } from "lucide-react";
+import { SUPPLIER_CATEGORY_LABELS, SupplierPackageTier } from "@/lib/types";
+import { CheckCircle2, Clock, Crown, ExternalLink, Link2, Lock, MapPin, MoonStar, Package, ShieldCheck, Sparkles, Star } from "lucide-react";
+
+const PACKAGE_TIER_LABELS: Record<SupplierPackageTier, string> = {
+  basis: "Basis",
+  standaard: "Standaard",
+  premium: "Premium",
+};
 
 export const metadata = { title: "Leveranciersprofiel — Vyra" };
 
@@ -143,6 +149,25 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
           </div>
         )}
       </Card>
+
+      {supplier.packages.length > 0 && (
+        <Card className="mt-6">
+          <h2 className="font-display text-lg text-ink">Pakketten</h2>
+          <p className="mt-1 text-sm text-ink-faint">Vaste niveaus van {supplier.companyName} — kies wat het best bij jouw evenement past, of vraag hieronder maatwerk aan.</p>
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            {supplier.packages.map((pkg) => (
+              <div key={pkg.tier} className="flex flex-col rounded-xl border border-line p-4">
+                <span className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-ink-faint">
+                  <Package className="size-3.5" /> {PACKAGE_TIER_LABELS[pkg.tier]}
+                </span>
+                <p className="mt-1.5 font-medium text-ink">{pkg.name}</p>
+                {pkg.description && <p className="mt-1 flex-1 text-sm text-ink-soft">{pkg.description}</p>}
+                <p className="mt-3 font-display text-lg text-ink">{formatCurrency(pkg.priceCents)}</p>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <Card className="mt-6">
         <h2 className="font-display text-lg text-ink">Vraag maatwerk aan</h2>
