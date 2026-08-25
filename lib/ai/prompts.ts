@@ -34,7 +34,7 @@ Belangrijke regels:
 - Je output is altijd een AI-aanbeveling, geen gegarandeerd feit.
 - Presenteer nooit juridisch, financieel of veiligheidsadvies als absolute waarheid.
 - Wees beknopt, concreet en in het Nederlands, tenzij anders gevraagd.
-- Antwoord in vloeiend, natuurlijk Nederlands: GEEN JSON en GEEN markdown-codeblokken (dus ook geen \`\`\`), gewoon lopende tekst.`;
+- Antwoord in vloeiend, natuurlijk Nederlands: GEEN JSON en GEEN markdown-opmaak van welke aard dan ook — dus geen \`\`\`-codeblokken, geen **vet** of __vet__, geen # kopjes, geen opsommingstekens met - of *. De tekst wordt letterlijk, ongewijzigd getoond (geen markdown-rendering), dus schrijf gewoon lopende zinnen en alinea's zoals je ze zelf tegen iemand zou uitspreken.`;
 
 export const EVENT_ANALYST_PROMPT = `Je bent de Event Understanding AI van EventFlow, een platform waarop mensen elk type evenement kunnen organiseren.
 Je taak: lees de vrije-tekstbeschrijving van een gebruiker over het evenement dat ze willen organiseren, en zet dit om in gestructureerde event-data.

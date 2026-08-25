@@ -15,6 +15,13 @@ import { cn } from "@/lib/utils";
  * limieten/commissie), maar het daadwerkelijk innen van het maandbedrag
  * loopt nog niet automatisch — dat volgt zodra er een Stripe Payment Link
  * per niveau is ingesteld (zie de toelichting onderaan).
+ *
+ * FIX (livegang-audit augustus 2026): een leverancier kon hier voorheen
+ * zelf rechtstreeks naar Enterprise upgraden, zonder ooit te betalen —
+ * `setSubscriptionTierAction` blokkeert dat nu server-side. De knoppen
+ * hieronder tonen dat ook meteen visueel: downgraden blijft altijd één
+ * klik, upgraden toont in plaats van de normale knop "Work in progress"
+ * (uitgeschakeld) totdat er een echte betaalflow is.
  */
 export function SubscriptionTierPicker({
   currentTier,
@@ -55,8 +62,8 @@ export function SubscriptionTierPicker({
           <Sparkles className="size-4 shrink-0 text-ochre" />
           <span>
             Je zit nog in je proefperiode: <strong>volledige toegang</strong> tot alle Enterprise-functies, 0% commissie. Nog{" "}
-            <strong>{trialBookingsRemaining}</strong> gratis boeking{trialBookingsRemaining !== 1 ? "en" : ""} te gaan — kies daarna
-            hieronder alvast het niveau waarmee je verder wilt.
+            <strong>{trialBookingsRemaining}</strong> gratis boeking{trialBookingsRemaining !== 1 ? "en" : ""} te gaan — upgraden naar
+            een betaald niveau kan hieronder binnenkort zelf; neem tot die tijd contact met ons op als je alvast wilt overstappen.
           </span>
         </div>
       )}
@@ -82,12 +89,14 @@ export function SubscriptionTierPicker({
           const def = SUBSCRIPTION_TIERS[key];
           const isCurrent = key === selected;
           const isBusy = pending && pendingTier === key;
+          const isLocked = SUBSCRIPTION_TIER_ORDER.indexOf(key) > SUBSCRIPTION_TIER_ORDER.indexOf(selected);
           return (
             <div
               key={key}
               className={cn(
                 "flex min-w-0 flex-col rounded-xl border p-4",
-                isCurrent ? "border-clay bg-clay/5" : "border-line-soft"
+                isCurrent ? "border-clay bg-clay/5" : "border-line-soft",
+                isLocked && "opacity-70"
               )}
             >
               <div className="flex items-center gap-1.5">
@@ -117,15 +126,15 @@ export function SubscriptionTierPicker({
               </ul>
               <button
                 type="button"
-                disabled={pending || isCurrent}
+                disabled={pending || isCurrent || isLocked}
                 onClick={() => choose(key)}
                 className={cn(
                   "lift-hover mt-4 inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium disabled:opacity-60",
-                  isCurrent ? "border border-clay/40 bg-clay-50 text-ink" : "bg-ink text-white hover:bg-ink/90"
+                  isCurrent ? "border border-clay/40 bg-clay-50 text-ink" : isLocked ? "border border-line-soft bg-paper-dim text-ink-faint" : "bg-ink text-white hover:bg-ink/90"
                 )}
               >
                 {isBusy ? <Loader2 className="size-3.5 animate-spin" /> : isCurrent ? <Check className="size-3.5" /> : null}
-                {isCurrent ? "Huidig niveau" : `Dit niveau kiezen`}
+                {isCurrent ? "Huidig niveau" : isLocked ? "Work in progress" : "Dit niveau kiezen"}
               </button>
             </div>
           );
@@ -134,9 +143,9 @@ export function SubscriptionTierPicker({
 
       {error && <p className="mt-3 text-xs text-danger">{error}</p>}
       <p className="mt-3 text-xs text-ink-faint">
-        Nog een zelfbedienings-keuze in deze pilotfase — geen automatische incasso. Je kiest hier alvast je niveau (en de bijbehorende
-        perks/limieten/commissie gelden meteen); zodra er een betaallink per niveau is ingesteld, hoor je van ons hoe je het
-        maandbedrag betaalt. Je kunt op elk moment weer wisselen.
+        Downgraden naar een lager niveau kan altijd meteen zelf, gratis en zonder wachttijd. Upgraden naar een hoger (betaald) niveau
+        staat gemarkeerd als &ldquo;Work in progress&rdquo; — dat werken we binnenkort uit met een echte betaalflow. Wil je nu al
+        upgraden, neem dan contact met ons op.
       </p>
     </div>
   );

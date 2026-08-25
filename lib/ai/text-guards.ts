@@ -27,3 +27,36 @@ export function looksLikeRawJson(text: string): boolean {
     return false;
   }
 }
+
+/**
+ * BUG (gemeld aug. 2026): de budgetpagina (en andere vrije-tekst-adviezen,
+ * gewoon via <p>{...}</p> getoond, zonder markdown-rendering) toonde
+ * letterlijke `**vet**`-sterretjes en `# Kopjes` i.p.v. opgemaakte tekst.
+ * Zelfde grondoorzoek als de rauwe-JSON-bug hierboven: FREE_TEXT_SAFETY_FOOTER
+ * in lib/ai/prompts.ts verbood alleen JSON en ```-codeblokken, niet losse
+ * markdown-opmaak binnen "gewone" tekst — dat is nu ook aangescherpt, maar
+ * een taalmodel volgt instructies nooit met 100% garantie.
+ *
+ * Bewust ANDERS dan looksLikeRawJson hierboven: die verwerpt het hele
+ * antwoord (valt terug op mock-tekst), omdat rauwe JSON een teken is dat het
+ * model de instructie volledig negeerde. Hier is de inhoud zelf meestal wél
+ * goed — alleen de opmaak niet — dus we ontsmetten in plaats van weg te
+ * gooien: een goed budgetadvies verliezen om een paar sterretjes zou een
+ * slechtere gebruikerservaring zijn dan het gewoon leesbaar maken.
+ */
+export function stripInlineMarkdown(text: string): string {
+  return (
+    text
+      // **vet** en __vet__ → vet
+      .replace(/\*\*(.+?)\*\*/g, "$1")
+      .replace(/__(.+?)__/g, "$1")
+      // # Kop, ## Kop, ... aan het begin van een regel → gewoon de tekst
+      .replace(/^#{1,6}\s+/gm, "")
+      // *cursief* en _cursief_ (los, niet al door bovenstaande opgepakt)
+      .replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, "$1")
+      .replace(/(?<![\w_])_([^_\n]+?)_(?![\w_])/g, "$1")
+      // opsommingstekens "- " of "* " aan het begin van een regel → weg (de
+      // rest van de zin blijft gewoon staan, leesbaar als lopende tekst)
+      .replace(/^[-*]\s+/gm, "")
+  );
+}

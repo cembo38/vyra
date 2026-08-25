@@ -1,7 +1,8 @@
 import { cn } from "@/lib/utils";
 import { ReactNode } from "react";
-import { Sparkles } from "lucide-react";
+import { Sparkles, CalendarDays, Store } from "lucide-react";
 import { RequirementPriority, EventStage, OfferStatus, RequirementCategory } from "@/lib/types";
+import { getNotificationContext, NOTIFICATION_CONTEXT_LABELS, NotificationContext } from "@/lib/notification-context";
 
 export function Badge({
   children,
@@ -97,4 +98,27 @@ const offerStatusConfig: Record<OfferStatus, { label: string; tone: "neutral" | 
 export function OfferStatusBadge({ status }: { status: OfferStatus }) {
   const { label, tone } = offerStatusConfig[status];
   return <Badge tone={tone}>{label}</Badge>;
+}
+
+/**
+ * Cem (aug. 2026): "ik zie mij notificaties in de leverancierspagina
+ * berichten van mij als organisator" — de notificatie-inbox is bewust één
+ * gedeelde lijst (zie lib/notification-context.ts), maar toonde geen enkel
+ * signaal welke melding bij welke rol hoort. Gebruikt in NotificationsBell
+ * (het paneel) en NotificationsList (de volledige /notifications- en
+ * /supplier/notifications-pagina's).
+ */
+const notificationContextConfig: Record<NotificationContext, { tone: "sage" | "ochre"; icon: ReactNode }> = {
+  organizer: { tone: "sage", icon: <CalendarDays className="size-3" /> },
+  supplier: { tone: "ochre", icon: <Store className="size-3" /> },
+};
+
+export function NotificationContextBadge({ href, className }: { href: string | null; className?: string }) {
+  const context = getNotificationContext({ href });
+  const { tone, icon } = notificationContextConfig[context];
+  return (
+    <Badge tone={tone} icon={icon} className={className}>
+      {NOTIFICATION_CONTEXT_LABELS[context]}
+    </Badge>
+  );
 }

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { AppNotification } from "@/lib/types";
 import { markNotificationReadAction } from "@/lib/actions/misc-actions";
 import { RealtimeRefresh } from "@/components/app/RealtimeRefresh";
+import { NotificationContextBadge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 
 function timeAgo(iso: string) {
@@ -108,7 +109,10 @@ export function NotificationsBell({
                   {!n.read && <span className="mt-1 size-1.5 shrink-0 rounded-full bg-clay" />}
                 </div>
                 <p className="mt-0.5 line-clamp-2 text-xs text-ink-soft">{n.body}</p>
-                <p className="mt-1 text-[11px] text-ink-faint">{timeAgo(n.createdAt)}</p>
+                <div className="mt-1.5 flex items-center justify-between gap-2">
+                  <NotificationContextBadge href={n.href} className="py-0.5" />
+                  <p className="text-[11px] text-ink-faint">{timeAgo(n.createdAt)}</p>
+                </div>
               </Link>
             ))}
           </div>

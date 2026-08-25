@@ -2775,15 +2775,31 @@ export async function resolveDispute(
   const [event, supplier] = await Promise.all([getEvent(dispute.eventId), getSupplierAccount(dispute.supplierId)]);
   const title = status === "resolved" ? "Geschil opgelost" : "Geschil afgewezen";
   const type: AppNotification["type"] = status === "resolved" ? "dispute_resolved" : "dispute_dismissed";
-  const recipients = [event?.ownerId, supplier?.ownerId].filter((id): id is string => !!id);
-  for (const userId of recipients) {
+  // BUG (gevonden aug. 2026, tijdens het bouwen van organisator/leverancier-
+  // contextlabels op notificaties): beide partijen kregen altijd dezelfde href
+  // naar de organisator-checkoutpagina. app/events/[id]/layout.tsx stuurt
+  // iedereen die niet event.ownerId is meteen door naar /events, dus voor de
+  // leverancier was dit een dode link naar een pagina die meteen wegstuurt.
+  // Zelfde tweeledige aanroeppatroon als hierboven bij "filed" — elke partij
+  // krijgt nu zijn eigen, werkende bestemming.
+  if (event) {
     await pushNotification({
-      userId,
+      userId: event.ownerId,
       eventId: dispute.eventId,
       type,
       title,
       body: adminResponse,
       href: `/events/${dispute.eventId}/checkout/${dispute.paymentId}`,
+    });
+  }
+  if (supplier) {
+    await pushNotification({
+      userId: supplier.ownerId,
+      eventId: dispute.eventId,
+      type,
+      title,
+      body: adminResponse,
+      href: "/supplier/orders",
     });
   }
 

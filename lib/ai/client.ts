@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { after } from "next/server";
 import { AI_ENABLED } from "@/lib/config";
 import { logAiInteraction } from "@/lib/data/store";
-import { looksLikeRawJson } from "@/lib/ai/text-guards";
+import { looksLikeRawJson, stripInlineMarkdown } from "@/lib/ai/text-guards";
 
 let _client: Anthropic | null = null;
 
@@ -195,7 +195,11 @@ export async function callFreeTextAI(opts: { role: string; system: string; user:
     // terug op zijn eigen deterministische mock-tekst, net als bij een
     // echte API-fout.
     const rejectedAsJson = rawText != null && looksLikeRawJson(rawText);
-    const text = rejectedAsJson ? null : rawText;
+    // Zelfde vangnet-aanpak als hierboven, maar dan voor losse markdown-opmaak
+    // (**vet**, # kopjes, ...) i.p.v. hele antwoorden als JSON te verwerpen:
+    // die opmaak wordt hier ontsmet in plaats van het antwoord weg te gooien,
+    // zie de toelichting bij stripInlineMarkdown() in lib/ai/text-guards.ts.
+    const text = rejectedAsJson ? null : rawText != null ? stripInlineMarkdown(rawText) : null;
     if (rejectedAsJson) {
       console.error(`[ai:${opts.role}] AI gaf rauwe JSON terug i.p.v. vrije tekst, val terug op mock-logica.`);
     }

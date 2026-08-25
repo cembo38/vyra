@@ -392,6 +392,15 @@ export async function toggleStoreOpenAction(open: boolean): Promise<{ ok: boolea
  * self-service keuze zonder automatische incasso; zie
  * `setSupplierSubscriptionTier` in lib/data/store.ts voor de volledige
  * toelichting.
+ *
+ * FIX (livegang-audit augustus 2026): dit liet een leverancier voorheen
+ * zelf ELK niveau kiezen, dus ook rechtstreeks "Enterprise" — zonder dat er
+ * ooit betaald werd. Cem heeft dit expliciet aangemerkt als iets om nu al
+ * dicht te timmeren (in tegenstelling tot bv. het abonnementensysteem zelf,
+ * wat een bewuste pilotkeuze blijft): downgraden (of hetzelfde niveau
+ * kiezen) blijft vrij self-service, maar upgraden naar een hoger niveau dan
+ * het huidige kan voorlopig niet meer via deze actie — zie de UI-kant
+ * hiervan in SubscriptionTierPicker.tsx ("Work in progress"-knop).
  */
 export async function setSubscriptionTierAction(tier: SubscriptionTier): Promise<{ ok: boolean; error?: string }> {
   if (!SUBSCRIPTION_TIER_ORDER.includes(tier)) return { ok: false, error: "Onbekend abonnementsniveau." };
@@ -399,6 +408,12 @@ export async function setSubscriptionTierAction(tier: SubscriptionTier): Promise
   if (!user) return { ok: false, error: "Niet ingelogd." };
   const supplier = await getSupplierAccountByOwner(user.id);
   if (!supplier) return { ok: false, error: "Geen leveranciersaccount gevonden." };
+
+  const currentIndex = SUBSCRIPTION_TIER_ORDER.indexOf(supplier.subscriptionTier);
+  const requestedIndex = SUBSCRIPTION_TIER_ORDER.indexOf(tier);
+  if (requestedIndex > currentIndex) {
+    return { ok: false, error: "Upgraden kan nog niet automatisch — dit werken we binnenkort uit. Neem contact met ons op om alvast te upgraden." };
+  }
 
   await setSupplierSubscriptionTier(supplier.id, tier);
   revalidatePath("/supplier/profile");

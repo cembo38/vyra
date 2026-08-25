@@ -1,10 +1,12 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { Sparkles, ArrowUp, Loader2, AlertTriangle } from "lucide-react";
-import { startInterviewAction, continueInterviewAction, generatePlanAction } from "@/lib/actions/event-actions";
+import { startInterviewAction, continueInterviewAction, generatePlanPreviewAction, generatePlanAction } from "@/lib/actions/event-actions";
 import { VoiceInputButton } from "@/components/app/VoiceInputButton";
+import { AiTag, PriorityBadge } from "@/components/ui/Badge";
 import { MAX_INTERVIEW_QUESTIONS } from "@/lib/config";
+import { RequirementCategory } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface ChatMessage {
@@ -46,6 +48,13 @@ export function NewEventInterview() {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const endRef = useRef<HTMLDivElement>(null);
+
+  // Vooraf al laten zien welke categorieën de AI voorstelt, i.p.v. dat de
+  // organisator eerst blind op "Bekijk mijn AI-eventplan" moet klikken —
+  // zie de toelichting bij generatePlanPreviewAction() in event-actions.ts.
+  // `null` = nog niet (geprobeerd te) laden, `[]` = geladen maar de AI
+  // stelde (zeldzaam) geen enkele categorie voor.
+  const [previewCategories, setPreviewCategories] = useState<RequirementCategory[] | null>(null);
 
   // Spec-item #56 ("er komt maar geen einde aan de vragen"): tel hoeveel
   // écht gestelde interviewvragen er tot nu toe zijn, zodat we de
@@ -91,14 +100,42 @@ export function NewEventInterview() {
     });
   }
 
-  function goToPlan() {
+  // `useCallback` met een lege dependency-array: alles wat deze functie
+  // aanraakt (startTransition, de server action, de setters) heeft een
+  // stabiele identiteit, dus deze functie zelf kan veilig in de
+  // dependency-array van het effect hieronder staan zonder dat het effect
+  // bij elke render opnieuw afgaat.
+  const loadPreview = useCallback((id: string) => {
+    startTransition(async () => {
+      setError(null);
+      try {
+        const res = await generatePlanPreviewAction(id);
+        setPreviewCategories(res.categories);
+        scrollDown();
+      } catch (err) {
+        if (isNextRedirectError(err)) throw err;
+        setError("Het opstellen van je planvoorstel lukte niet.");
+      }
+    });
+  }, []);
+
+  // Zodra het interview klaar is, meteen — zonder extra klik — de lichte
+  // categorievoorproef ophalen (zie loadPreview hierboven). Alleen als er
+  // nog geen voorproef is EN er niet al één onderweg is (`pending`),
+  // anders zou elke re-render tijdens het laden een nieuwe aanroep
+  // starten.
+  useEffect(() => {
+    if (done && eventId && previewCategories === null && !pending) loadPreview(eventId);
+  }, [done, eventId, previewCategories, pending, loadPreview]);
+
+  function goToFullPlan() {
     if (!eventId) return;
     startTransition(async () => {
       try {
         await generatePlanAction(eventId);
       } catch (err) {
         if (isNextRedirectError(err)) throw err;
-        setError("Het genereren van je plan lukte niet. Probeer het nog eens.");
+        setError("Het genereren van je volledige plan lukte niet. Probeer het nog eens.");
       }
     });
   }
@@ -136,9 +173,36 @@ export function NewEventInterview() {
             {m.text}
           </div>
         ))}
-        {pending && (
+        {pending && !done && (
           <div className="flex max-w-[85%] items-center gap-2 rounded-2xl rounded-tl-sm border border-line-soft bg-white px-4 py-3 text-ink-faint">
             <Loader2 className="size-4 animate-spin" /> Even denken…
+          </div>
+        )}
+
+        {/* De voorproef verschijnt automatisch zodra generatePlanPreviewAction
+            klaar is (zie het effect hierboven) — geen extra klik nodig. Dit
+            is precies wat Cem vroeg na het bekijken van het marketing-
+            voorstel: eerst zien wat de AI voorstelt, dan pas bewust naar het
+            volledige plan (met conceptberichten/tijdlijn/risico's). */}
+        {done && pending && previewCategories === null && (
+          <div className="flex max-w-[85%] items-center gap-2 rounded-2xl rounded-tl-sm border border-line-soft bg-white px-4 py-3 text-ink-faint">
+            <Loader2 className="size-4 animate-spin" /> Je plan wordt opgesteld…
+          </div>
+        )}
+        {previewCategories && previewCategories.length > 0 && (
+          <div className="animate-fade-in rounded-2xl border border-line-soft bg-paper p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-1.5">
+              <span className="whitespace-nowrap text-xs font-medium uppercase tracking-wide text-ink-faint">Jouw AI-eventplan</span>
+              <AiTag />
+            </div>
+            <div className="space-y-2">
+              {previewCategories.map((c) => (
+                <div key={c.id} className="flex items-center justify-between rounded-xl bg-white px-3 py-2 text-sm shadow-sm">
+                  <span className="text-ink">{c.label}</span>
+                  <PriorityBadge priority={c.priority} />
+                </div>
+              ))}
+            </div>
           </div>
         )}
         <div ref={endRef} />
@@ -169,14 +233,28 @@ export function NewEventInterview() {
           zijn eigen scroll heeft. */}
       <div className="sticky bottom-0 bg-paper pb-[max(var(--safe-b),0.75rem)] pt-1">
         {done ? (
-          <button
-            onClick={goToPlan}
-            disabled={pending}
-            className="lift-hover inline-flex w-full items-center justify-center gap-2 rounded-xl bg-clay px-6 py-3.5 text-sm font-medium text-white shadow-sm hover:bg-clay-dark disabled:opacity-60 disabled:pointer-events-none"
-          >
-            {pending ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-            Bekijk mijn AI-eventplan
-          </button>
+          previewCategories === null ? (
+            // Voorproef laadt (of mislukte en wacht op een herhaalde poging
+            // — pending is dan weer false, dus de knop wordt weer klikbaar
+            // i.p.v. voor altijd "Even denken" te blijven tonen).
+            <button
+              onClick={() => eventId && loadPreview(eventId)}
+              disabled={pending}
+              className="lift-hover inline-flex w-full items-center justify-center gap-2 rounded-xl bg-clay px-6 py-3.5 text-sm font-medium text-white shadow-sm hover:bg-clay-dark disabled:opacity-60 disabled:pointer-events-none"
+            >
+              {pending ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+              {pending ? "Je plan wordt opgesteld…" : "Opnieuw proberen"}
+            </button>
+          ) : (
+            <button
+              onClick={goToFullPlan}
+              disabled={pending}
+              className="lift-hover inline-flex w-full items-center justify-center gap-2 rounded-xl bg-clay px-6 py-3.5 text-sm font-medium text-white shadow-sm hover:bg-clay-dark disabled:opacity-60 disabled:pointer-events-none"
+            >
+              {pending ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+              Zie volledige plan
+            </button>
+          )
         ) : (
           <form
             onSubmit={(e) => {

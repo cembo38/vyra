@@ -7,6 +7,7 @@ import { CheckCheck, Loader2 } from "lucide-react";
 import { AppNotification } from "@/lib/types";
 import { markAllNotificationsReadAction, markNotificationReadAction } from "@/lib/actions/misc-actions";
 import { RealtimeRefresh } from "@/components/app/RealtimeRefresh";
+import { NotificationContextBadge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 
 function timeAgo(iso: string) {
@@ -83,6 +84,7 @@ export function NotificationsList({ userId, notifications }: { userId: string; n
                   </div>
                 </div>
                 <p className="mt-1 text-sm text-ink-soft">{n.body}</p>
+                <NotificationContextBadge href={n.href} className="mt-2" />
               </>
             );
             const className = cn(

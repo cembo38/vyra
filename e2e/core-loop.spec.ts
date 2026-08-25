@@ -48,14 +48,21 @@ async function startNewEvent(page: Page) {
 }
 
 /**
- * Doorloopt het AI-interview tot de "Bekijk mijn AI-eventplan"-knop
- * verschijnt. Het exacte aantal vervolgvragen ligt niet vast — een echte
- * AI-aanroep (Cem heeft een echte ANTHROPIC_API_KEY geconfigureerd)
- * beslist zelf wanneer ze genoeg weet, zie generateNextQuestion() in
+ * Doorloopt het AI-interview tot de "Zie volledige plan"-knop verschijnt.
+ * Het exacte aantal vervolgvragen ligt niet vast — een echte AI-aanroep
+ * (Cem heeft een echte ANTHROPIC_API_KEY geconfigureerd) beslist zelf
+ * wanneer ze genoeg weet, zie generateNextQuestion() in
  * lib/ai/interview.ts. Deze helper wacht daarom per beurt op óf een
  * nieuwe assistent-bubbel óf de plan-knop, i.p.v. een vast aantal beurten
  * te verwachten, met een ruime bovengrens als vangnet tegen een
  * eindeloze lus.
+ *
+ * Sinds de categorie-voorproef (Cem vroeg hierom na het "Vyra in
+ * Beweging"-voorstel op de homepage) verschijnt er ná "done" éérst
+ * automatisch een lichte AI-voorproef — pas zodra díe klaar is, toont de
+ * knop hieronder "Zie volledige plan" i.p.v. de tussentijdse "Je plan
+ * wordt opgesteld…"-staat. `planButton` wacht dus terecht op de
+ * EIND-tekst, niet op het moment dat "done" zelf waar wordt.
  */
 async function completeInterview(page: Page) {
   const input = page.getByPlaceholder("Typ of spreek je antwoord in…");
@@ -63,7 +70,7 @@ async function completeInterview(page: Page) {
   await input.fill("Ik organiseer een verjaardagsfeest voor 30 gasten in Amsterdam, ergens in september.");
   await input.press("Enter");
 
-  const planButton = page.getByRole("button", { name: "Bekijk mijn AI-eventplan" });
+  const planButton = page.getByRole("button", { name: "Zie volledige plan" });
   const assistantBubbles = page.locator(".rounded-tl-sm.bg-white");
   let bubbleCount = 1; // de openingsvraag "Wat wil je organiseren?" telt al mee
 
@@ -171,7 +178,7 @@ test.describe("Kernloop: inloggen en een evenement starten", () => {
     await startNewEvent(page);
     await completeInterview(page);
 
-    await page.getByRole("button", { name: "Bekijk mijn AI-eventplan" }).click();
+    await page.getByRole("button", { name: "Zie volledige plan" }).click();
     await expect(page).toHaveURL(/\/events\/[^/]+\/plan$/, { timeout: 20_000 });
 
     // De tekst bevat het aantal geselecteerde categorieën, bv. "Bevestig
