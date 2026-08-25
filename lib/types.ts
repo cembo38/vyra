@@ -484,6 +484,27 @@ export interface SupplierOrder {
   payment: Payment | null;
 }
 
+export interface SupplierEarningsSummary {
+  paidCents: number;
+  pendingCents: number;
+  openLeadsCount: number;
+  activeOrdersCount: number;
+  upcomingThisMonthCount: number;
+}
+
+export interface SupplierPerformanceInsights {
+  avgResponseHours: number;
+  ratingAvg: number;
+  ratingCount: number;
+  /** null zolang er geen andere leveranciers in dezelfde categorie zijn om mee te vergelijken. */
+  categoryAvgResponseHours: number | null;
+  categoryAvgRating: number | null;
+  categoryPeerCount: number;
+  /** Eigen gemiddelde prijs (SupplierAccount.avgPriceCents) — voor Prijsadvies (Premium+, spec-item #57). */
+  avgPriceCents: number;
+  categoryAvgPriceCents: number | null;
+}
+
 /* ------------------------------------------------------------------ */
 /* TRANSACTION / MARKETPLACE DATA                                      */
 /* ------------------------------------------------------------------ */

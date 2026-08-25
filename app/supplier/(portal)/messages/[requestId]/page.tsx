@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
-import { getMessages, getSupplierAccountByOwner, getSupplierLead } from "@/lib/data/store";
+import { getMessages, getSupplierAccountByOwner, getSupplierEffectiveTierDefinition, getSupplierLead } from "@/lib/data/store";
 import { BackLink } from "@/components/ui/BackLink";
 import { MessageComposer } from "@/components/app/MessageComposer";
 import { RealtimeRefresh } from "@/components/app/RealtimeRefresh";
@@ -19,7 +19,10 @@ export default async function SupplierMessageThreadPage(props: PageProps<"/suppl
   const lead = await getSupplierLead(supplier.id, requestId);
   if (!lead) notFound();
 
-  const messages = await getMessages(lead.event.id, lead.request.categoryKey, supplier.id);
+  const [messages, tierDefinition] = await Promise.all([
+    getMessages(lead.event.id, lead.request.categoryKey, supplier.id),
+    getSupplierEffectiveTierDefinition(supplier.id),
+  ]);
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -68,7 +71,14 @@ export default async function SupplierMessageThreadPage(props: PageProps<"/suppl
       </div>
 
       <div className="sticky bottom-0 mt-6 border-t border-line-soft bg-paper pb-[max(var(--safe-b),0.75rem)] pt-3">
-        <MessageComposer eventId={lead.event.id} categoryKey={lead.request.categoryKey} supplierId={supplier.id} sender="supplier" />
+        <MessageComposer
+          eventId={lead.event.id}
+          categoryKey={lead.request.categoryKey}
+          supplierId={supplier.id}
+          sender="supplier"
+          requestId={lead.request.id}
+          assistantEnabled={tierDefinition.assistantTier >= 1}
+        />
       </div>
     </div>
   );

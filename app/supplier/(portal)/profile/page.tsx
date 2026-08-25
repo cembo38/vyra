@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/Badge";
 import { CollapsibleSection } from "@/components/ui/Collapsible";
 import { Field, Input, Textarea } from "@/components/ui/Form";
 import { SubscriptionTierPicker } from "@/components/app/SubscriptionTierPicker";
+import { SupplierDescriptionField } from "@/components/app/SupplierDescriptionField";
 import { getCurrentUser } from "@/lib/auth";
 import {
   getSupplierAccountByOwner,
@@ -216,9 +217,13 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
                 </Field>
               </div>
 
-              <Field label="Beschrijving" required hint="Wat maakt jouw bedrijf bijzonder? Dit zien organisatoren bij een aanvraag.">
-                <Textarea name="description" required rows={3} defaultValue={supplier.description} />
-              </Field>
+              <SupplierDescriptionField
+                defaultValue={supplier.description}
+                companyName={supplier.companyName}
+                categoryLabels={supplier.categories.map((c) => SUPPLIER_CATEGORY_LABELS[c])}
+                tagline={supplier.tagline}
+                assistantEnabled={tierDefinition.assistantTier >= 2}
+              />
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field label="Startprijs (€)" required hint="Vanaf-prijs">

@@ -19,6 +19,7 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { sendNotificationEmail } from "@/lib/email/send";
 import { BRIEFING_TEAM_MEMBERS, generateBriefingNarrative, type BriefingTeamKey } from "@/lib/ai/briefing";
+import { narrateSupplierBriefing } from "@/lib/ai/supplierAssistant";
 import {
   AdminBriefing,
   AdminBriefingItem,
@@ -57,13 +58,24 @@ import {
   SupplierAccount,
   SupplierBlockedDate,
   SupplierCategory,
+  SupplierEarningsSummary,
   SupplierFavorite,
   SupplierLead,
   SupplierOrder,
   SupplierPackage,
+  SupplierPerformanceInsights,
   SupplierProfile,
   UserAccount,
 } from "@/lib/types";
+
+// Herexport — SupplierEarningsSummary/SupplierPerformanceInsights woonden
+// voorheen hier als losse `export interface`, maar zijn verhuisd naar
+// lib/types.ts (samen met de andere Supplier*-types) zodat lib/ai/
+// supplierAssistantMock.ts (bewust GEEN "server-only", zie dat bestand) ze
+// kan importeren zonder store.ts's "server-only"-keten mee te slepen.
+// Bestaande `import { SupplierEarningsSummary } from "@/lib/data/store"`-
+// aanroepen elders in de app blijven zo werken zonder wijziging.
+export type { SupplierEarningsSummary, SupplierPerformanceInsights };
 
 /**
  * Data-laag, nu écht persistent via Supabase (Postgres) i.p.v. een
@@ -1213,6 +1225,163 @@ export async function getSupplierEffectiveTierDefinition(supplierId: string) {
   return getEffectiveTierDefinition(tier);
 }
 
+/** Welke VyrAI-assistent-feature een aanroep telt — puur informatief, zie migratie 0036. */
+export type SupplierAssistantFeature = "chat" | "reply_draft" | "offer_helper" | "briefing" | "price_advice" | "profile_text";
+
+/**
+ * Hoeveel VyrAI-assistent-aanroepen (alle features samen) deze leverancier
+ * vandaag al heeft gedaan — tegen `assistantDailyLimit` in lib/config.ts.
+ * Gebruikt de gewone sessie-client (RLS "eigenaar leest eigen gebruik",
+ * migratie 0036) — bewust GEEN service-role nodig, zie de toelichting in
+ * die migratie.
+ */
+export async function countSupplierAssistantUsageToday(supplierId: string): Promise<number> {
+  const supabase = await sb();
+  const now = new Date();
+  const startOfDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString();
+  const { count } = await supabase
+    .from("supplier_assistant_usage")
+    .select("id", { count: "exact", head: true })
+    .eq("supplier_id", supplierId)
+    .gte("created_at", startOfDay);
+  return count ?? 0;
+}
+
+/**
+ * Logt één VyrAI-assistent-aanroep (voor de dagelijkse limiet hierboven).
+ * Best-effort: een schrijffout hier mag de assistent-functie zelf nooit
+ * laten crashen — zelfde aanpak als logAiInteraction() hieronder. Als
+ * loggen faalt, telt deze aanroep simpelweg niet mee voor de limiet (fail
+ * open, niet fail closed) — een betalende klant mag nooit onterecht
+ * geblokkeerd worden door een logging-storing.
+ */
+export async function logSupplierAssistantUsage(supplierId: string, feature: SupplierAssistantFeature): Promise<void> {
+  try {
+    const supabase = await sb();
+    await supabase.from("supplier_assistant_usage").insert({ supplier_id: supplierId, feature });
+  } catch (err) {
+    console.error("[supplier_assistant_usage] Kon gebruik niet loggen.", err);
+  }
+}
+
+/**
+ * Centrale limietcontrole voor élke VyrAI-assistent-feature — geeft
+ * `{ allowed: true }` of `{ allowed: false, reason }` terug, nooit een
+ * exception (dezelfde "nooit crashen op een AI-randgeval"-filosofie als
+ * lib/ai/client.ts). Controleert zowel of het abonnement er überhaupt
+ * toegang toe heeft (`assistantTier`) als de dagelijkse limiet
+ * (`assistantDailyLimit`, null = onbeperkt). Logt het gebruik ZELF niet —
+ * dat doet de aanroeper pas na een geslaagde AI-aanroep, via
+ * logSupplierAssistantUsage(), zodat een geweigerde aanroep niet toch nog
+ * meetelt.
+ */
+export async function checkSupplierAssistantAccess(
+  supplierId: string,
+  requiredTier: 1 | 2 = 1
+): Promise<{ allowed: true } | { allowed: false; reason: "geen_toegang" | "limiet_bereikt" }> {
+  const tierDefinition = await getSupplierEffectiveTierDefinition(supplierId);
+  if (tierDefinition.assistantTier < requiredTier) {
+    return { allowed: false, reason: "geen_toegang" };
+  }
+  if (tierDefinition.assistantDailyLimit == null) {
+    return { allowed: true };
+  }
+  const usedToday = await countSupplierAssistantUsageToday(supplierId);
+  if (usedToday >= tierDefinition.assistantDailyLimit) {
+    return { allowed: false, reason: "limiet_bereikt" };
+  }
+  return { allowed: true };
+}
+
+function todayDateStr(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/**
+ * Signalen voor de dagelijkse prioriteitenbriefing (Premium+, spec-item
+ * #57): korte, feitelijke Nederlandse zinnen, geen AI — de narratieve toon
+ * komt pas bij narrateSupplierBriefing() (lib/ai/supplierAssistant.ts).
+ * Bewust dezelfde soort signalen als de admin-briefing (verlopende
+ * termijnen, stilgevallen zaken), maar dan geschaald naar wat één
+ * leverancier zelf kan beïnvloeden.
+ */
+async function computeSupplierBriefingSignals(supplierId: string): Promise<string[]> {
+  const [leads, orders] = await Promise.all([getSupplierLeads(supplierId), getSupplierOrders(supplierId)]);
+  const now = Date.now();
+  const signals: string[] = [];
+
+  const pending = leads.filter((l) => l.target.status === "pending");
+  const expiringSoon = pending.filter((l) => {
+    const hoursLeft = (new Date(l.request.deadlineAt).getTime() - now) / (1000 * 60 * 60);
+    return hoursLeft > 0 && hoursLeft <= 24;
+  });
+  for (const lead of expiringSoon) {
+    signals.push(
+      `Aanvraag "${SUPPLIER_CATEGORY_LABELS[lead.request.categoryKey]}" voor ${lead.event.name} verloopt over minder dan 24 uur — nog geen reactie verstuurd.`
+    );
+  }
+  if (pending.length > expiringSoon.length) {
+    const restCount = pending.length - expiringSoon.length;
+    signals.push(`Nog ${restCount} andere openstaande aanvra${restCount === 1 ? "ag wacht" : "gen wachten"} op een reactie.`);
+  }
+
+  const upcomingWeek = orders.filter((o) => {
+    if (!o.event?.date) return false;
+    const daysUntil = (new Date(o.event.date).getTime() - now) / (1000 * 60 * 60 * 24);
+    return daysUntil >= 0 && daysUntil <= 7;
+  });
+  for (const order of upcomingWeek) {
+    signals.push(`Boeking "${SUPPLIER_CATEGORY_LABELS[order.offer.categoryKey]}" voor ${order.event!.name} vindt binnen 7 dagen plaats.`);
+  }
+
+  return signals;
+}
+
+function rowToSupplierDailyBriefing(r: Row): { narrative: string; usedAI: boolean; briefingDate: string } {
+  return { narrative: r.narrative, usedAI: r.used_ai, briefingDate: r.briefing_date };
+}
+
+/** Alleen lezen — geeft null als er voor vandaag nog geen briefing is gegenereerd. Geen AI-aanroep, dus geen impact op de dagelijkse limiet. */
+export async function getCachedSupplierBriefing(supplierId: string): Promise<{ narrative: string; usedAI: boolean } | null> {
+  const supabase = await sb();
+  const { data } = await supabase
+    .from("supplier_daily_briefings")
+    .select("narrative, used_ai, briefing_date")
+    .eq("supplier_id", supplierId)
+    .eq("briefing_date", todayDateStr())
+    .maybeSingle();
+  return data ? rowToSupplierDailyBriefing(data) : null;
+}
+
+/**
+ * Genereert (en cachet) de dagelijkse briefing voor vandaag. Idempotent per
+ * kalenderdag: geeft de al-gecachete versie terug als die er al is (zonder
+ * opnieuw AI aan te roepen of de dagelijkse limiet te tellen) — de
+ * aanroepende server action (generateSupplierBriefingAction) telt alleen
+ * verbruik bij `cached: false`.
+ */
+export async function generateAndCacheSupplierBriefing(supplierId: string, ownerId: string): Promise<{ narrative: string; usedAI: boolean; cached: boolean }> {
+  const existing = await getCachedSupplierBriefing(supplierId);
+  if (existing) return { ...existing, cached: true };
+
+  const signals = await computeSupplierBriefingSignals(supplierId);
+  const { narrative, usedAI } = await narrateSupplierBriefing({ ownerId, signals });
+
+  const supabase = await sb();
+  // insert i.p.v. upsert: bij een gelijktijdige dubbele aanroep (bv. twee
+  // tabbladen tegelijk) wint de unique-constraint (migratie 0037) en faalt
+  // de tweede insert stil — dat is prima, we lezen daarna gewoon opnieuw de
+  // (inmiddels bestaande) gecachete rij terug i.p.v. een fout te tonen.
+  const { error } = await supabase
+    .from("supplier_daily_briefings")
+    .insert({ supplier_id: supplierId, briefing_date: todayDateStr(), narrative, signal_count: signals.length, used_ai: usedAI });
+  if (error) {
+    const cached = await getCachedSupplierBriefing(supplierId);
+    if (cached) return { ...cached, cached: true };
+  }
+  return { narrative, usedAI, cached: false };
+}
+
 /** Voor weergave op het leveranciersprofiel: huidige laag + hoeveel proefboekingen er nog over zijn. */
 export async function getSupplierCommissionStatus(supplierId: string): Promise<{
   tier: EffectiveSupplierTier;
@@ -1468,14 +1637,6 @@ export async function getSupplierOrders(supplierId: string): Promise<SupplierOrd
   }));
 }
 
-export interface SupplierEarningsSummary {
-  paidCents: number;
-  pendingCents: number;
-  openLeadsCount: number;
-  activeOrdersCount: number;
-  upcomingThisMonthCount: number;
-}
-
 export async function getSupplierEarningsSummary(supplierId: string): Promise<SupplierEarningsSummary> {
   const [orders, leads] = await Promise.all([getSupplierOrders(supplierId), getSupplierLeads(supplierId)]);
   // totalCents (het volledige, afgesproken bedrag), niet supplierAmountCents
@@ -1500,16 +1661,6 @@ export async function getSupplierEarningsSummary(supplierId: string): Promise<Su
   };
 }
 
-export interface SupplierPerformanceInsights {
-  avgResponseHours: number;
-  ratingAvg: number;
-  ratingCount: number;
-  /** null zolang er geen andere leveranciers in dezelfde categorie zijn om mee te vergelijken. */
-  categoryAvgResponseHours: number | null;
-  categoryAvgRating: number | null;
-  categoryPeerCount: number;
-}
-
 /**
  * Cem (aug. 2026): "maak analytics pagina zodat leveranciers kunnen zien
  * hoe en wat" — reactietijd en beoordeling staan al écht bij (avg_response_
@@ -1530,22 +1681,32 @@ export async function getSupplierPerformanceInsights(supplierId: string): Promis
   const supabase = await sb();
   const { data: own } = await supabase
     .from("suppliers")
-    .select("avg_response_hours, rating_avg, rating_count, category")
+    .select("avg_response_hours, rating_avg, rating_count, avg_price_cents, category")
     .eq("id", supplierId)
     .single();
 
   if (!own) {
-    return { avgResponseHours: 24, ratingAvg: 0, ratingCount: 0, categoryAvgResponseHours: null, categoryAvgRating: null, categoryPeerCount: 0 };
+    return {
+      avgResponseHours: 24,
+      ratingAvg: 0,
+      ratingCount: 0,
+      categoryAvgResponseHours: null,
+      categoryAvgRating: null,
+      categoryPeerCount: 0,
+      avgPriceCents: 0,
+      categoryAvgPriceCents: null,
+    };
   }
 
   const { data: peers } = await supabase
     .from("suppliers")
-    .select("avg_response_hours, rating_avg, rating_count")
+    .select("avg_response_hours, rating_avg, rating_count, avg_price_cents")
     .eq("category", own.category)
     .neq("id", supplierId);
 
   const peerRows = peers ?? [];
   const peersWithRatings = peerRows.filter((p: Row) => (p.rating_count ?? 0) > 0);
+  const peersWithPricing = peerRows.filter((p: Row) => (p.avg_price_cents ?? 0) > 0);
 
   return {
     avgResponseHours: own.avg_response_hours ?? 24,
@@ -1558,6 +1719,12 @@ export async function getSupplierPerformanceInsights(supplierId: string): Promis
         ? peersWithRatings.reduce((sum: number, p: Row) => sum + Number(p.rating_avg ?? 0), 0) / peersWithRatings.length
         : null,
     categoryPeerCount: peerRows.length,
+    avgPriceCents: own.avg_price_cents ?? 0,
+    // Alleen leveranciers met een daadwerkelijk ingevulde gemiddelde prijs
+    // (>0) tellen mee — anders trekt een lege/0-prijs (bv. een net
+    // aangemaakt profiel) het categoriegemiddelde onterecht omlaag.
+    categoryAvgPriceCents:
+      peersWithPricing.length > 0 ? peersWithPricing.reduce((sum: number, p: Row) => sum + (p.avg_price_cents ?? 0), 0) / peersWithPricing.length : null,
   };
 }
 

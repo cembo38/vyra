@@ -7,8 +7,17 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { DeadlineCountdown } from "@/components/ui/Countdown";
 import { StoreOpenToggle } from "@/components/app/StoreOpenToggle";
+import { SupplierAssistantWidget } from "@/components/app/SupplierAssistantWidget";
+import { SupplierBriefingCard } from "@/components/app/SupplierBriefingCard";
 import { getCurrentUser } from "@/lib/auth";
-import { getSupplierAccountByOwner, getSupplierEarningsSummary, getSupplierLeads, getSupplierOrders } from "@/lib/data/store";
+import {
+  getCachedSupplierBriefing,
+  getSupplierAccountByOwner,
+  getSupplierEarningsSummary,
+  getSupplierEffectiveTierDefinition,
+  getSupplierLeads,
+  getSupplierOrders,
+} from "@/lib/data/store";
 import { formatCurrency } from "@/lib/config";
 import { EVENT_TYPE_LABELS, SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
 import { CalendarClock, CheckCircle2, Clock, Inbox, TrendingUp, Wallet } from "lucide-react";
@@ -21,10 +30,12 @@ export default async function SupplierDashboardPage() {
   const supplier = await getSupplierAccountByOwner(user.id);
   if (!supplier) redirect("/supplier/onboarding");
 
-  const [summary, leads, orders] = await Promise.all([
+  const [summary, leads, orders, tierDefinition, cachedBriefing] = await Promise.all([
     getSupplierEarningsSummary(supplier.id),
     getSupplierLeads(supplier.id),
     getSupplierOrders(supplier.id),
+    getSupplierEffectiveTierDefinition(supplier.id),
+    getCachedSupplierBriefing(supplier.id),
   ]);
 
   const openLeads = leads.filter((l) => l.target.status === "pending").slice(0, 5);
@@ -77,6 +88,11 @@ export default async function SupplierDashboardPage() {
           Dit bedrag betaalt de organisator rechtstreeks aan jou — Vyra verwerkt op dit moment nog geen betalingen. Automatische uitbetaling via Vyra volgt zodra online betalen beschikbaar is.
         </p>
       </Card>
+
+      <div className="mt-6 flex flex-col gap-6">
+        <SupplierAssistantWidget enabled={tierDefinition.assistantTier >= 1} />
+        {tierDefinition.assistantTier >= 2 && <SupplierBriefingCard initialNarrative={cachedBriefing?.narrative ?? null} />}
+      </div>
 
       <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>

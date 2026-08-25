@@ -6,7 +6,7 @@ import { DeadlineCountdown } from "@/components/ui/Countdown";
 import { BackLink } from "@/components/ui/BackLink";
 import { SupplierOfferForm } from "@/components/app/SupplierOfferForm";
 import { getCurrentUser } from "@/lib/auth";
-import { getSupplierAccountByOwner, getSupplierLead, getSupplierOfferForRequest } from "@/lib/data/store";
+import { getSupplierAccountByOwner, getSupplierEffectiveTierDefinition, getSupplierLead, getSupplierOfferForRequest } from "@/lib/data/store";
 import { EVENT_TYPE_LABELS, SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
 import { formatCurrency } from "@/lib/config";
 import { CheckCircle2, MapPin, MessageSquare, Users } from "lucide-react";
@@ -24,7 +24,10 @@ export default async function SupplierRequestDetailPage(props: PageProps<"/suppl
   const lead = await getSupplierLead(supplier.id, id);
   if (!lead) notFound();
 
-  const existingOffer = await getSupplierOfferForRequest(supplier.id, id);
+  const [existingOffer, tierDefinition] = await Promise.all([
+    getSupplierOfferForRequest(supplier.id, id),
+    getSupplierEffectiveTierDefinition(supplier.id),
+  ]);
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -94,7 +97,12 @@ export default async function SupplierRequestDetailPage(props: PageProps<"/suppl
             </div>
           </Card>
         ) : (
-          <SupplierOfferForm requestId={lead.request.id} eventId={lead.event.id} categoryKey={lead.request.categoryKey} />
+          <SupplierOfferForm
+            requestId={lead.request.id}
+            eventId={lead.event.id}
+            categoryKey={lead.request.categoryKey}
+            assistantEnabled={tierDefinition.assistantTier >= 1}
+          />
         )}
       </div>
     </div>

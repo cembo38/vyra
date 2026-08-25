@@ -2,9 +2,11 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { getCurrentUser } from "@/lib/auth";
-import { getSupplierAccountByOwner, getSupplierPerformanceInsights } from "@/lib/data/store";
+import { getSupplierAccountByOwner, getSupplierEffectiveTierDefinition, getSupplierPerformanceInsights } from "@/lib/data/store";
+import { buildSupplierPriceAdvice } from "@/lib/ai/supplierAssistantMock";
+import { formatCurrency } from "@/lib/config";
 import { SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
-import { Clock, Star, TrendingDown, TrendingUp } from "lucide-react";
+import { Clock, Lock, Sparkles, Star, TrendingDown, TrendingUp } from "lucide-react";
 import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
@@ -24,8 +26,12 @@ export default async function SupplierAnalyticsPage() {
   const supplier = await getSupplierAccountByOwner(user.id);
   if (!supplier) redirect("/supplier/onboarding");
 
-  const insights = await getSupplierPerformanceInsights(supplier.id);
+  const [insights, tierDefinition] = await Promise.all([
+    getSupplierPerformanceInsights(supplier.id),
+    getSupplierEffectiveTierDefinition(supplier.id),
+  ]);
   const categoryLabel = SUPPLIER_CATEGORY_LABELS[supplier.category];
+  const priceAdviceEnabled = tierDefinition.assistantTier >= 2;
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -94,6 +100,32 @@ export default async function SupplierAnalyticsPage() {
         </Card>
       </div>
 
+      <Card className={cn("mt-6", !priceAdviceEnabled && "border-dashed bg-paper-dim")}>
+        <div className="flex items-center justify-between gap-2">
+          <MetricHeader icon={<Sparkles className="motion-icon-twinkle size-4" />} label="VyrAI Prijsadvies" />
+          {!priceAdviceEnabled && (
+            <Link href="/supplier/profile" className="flex items-center gap-1 text-xs font-medium text-clay hover:underline">
+              <Lock className="size-3" /> Vanaf Premium
+            </Link>
+          )}
+        </div>
+        {priceAdviceEnabled ? (
+          insights.categoryAvgPriceCents == null ? (
+            <p className="mt-3 text-sm text-ink-faint">{buildSupplierPriceAdvice(insights.avgPriceCents, insights.categoryAvgPriceCents)}</p>
+          ) : (
+            <>
+              <p className="mt-3 text-sm text-ink-soft">{buildSupplierPriceAdvice(insights.avgPriceCents, insights.categoryAvgPriceCents)}</p>
+              <div className="mt-4 space-y-2.5">
+                <PriceBenchmarkBar label="Jij" cents={insights.avgPriceCents} maxCents={Math.max(insights.avgPriceCents, insights.categoryAvgPriceCents)} tone="clay" />
+                <PriceBenchmarkBar label="Categoriegemiddelde" cents={insights.categoryAvgPriceCents} maxCents={Math.max(insights.avgPriceCents, insights.categoryAvgPriceCents)} tone="neutral" />
+              </div>
+            </>
+          )
+        ) : (
+          <p className="mt-3 text-sm text-ink-soft">Zie hoe je gemiddelde prijs zich verhoudt tot andere {categoryLabel.toLowerCase()}-leveranciers, met VyrAI-advies over je prijsstelling.</p>
+        )}
+      </Card>
+
       <p className="mt-6 text-xs text-ink-faint">
         Reactietijd wordt dagelijks herberekend op basis van je echte berichten. Categoriegemiddeldes zijn gebaseerd op {insights.categoryPeerCount} andere{" "}
         {categoryLabel.toLowerCase()}-leverancier{insights.categoryPeerCount !== 1 ? "s" : ""} op Vyra. Verdiensten en boekingen vind je op je{" "}
@@ -142,6 +174,19 @@ function BenchmarkBar({
         <div className={cn("h-full rounded-full", tone === "clay" ? "bg-clay" : "bg-line")} style={{ width: `${pct}%` }} />
       </div>
       <span className="w-14 shrink-0 text-right font-medium text-ink">{Number.isInteger(hours) ? hours : hours.toFixed(1)}{suffix}</span>
+    </div>
+  );
+}
+
+function PriceBenchmarkBar({ label, cents, maxCents, tone }: { label: string; cents: number; maxCents: number; tone: "clay" | "neutral" }) {
+  const pct = maxCents > 0 ? Math.max(4, Math.min(100, (cents / maxCents) * 100)) : 0;
+  return (
+    <div className="flex items-center gap-3 text-xs">
+      <span className="w-32 shrink-0 text-ink-faint">{label}</span>
+      <div className="h-2 flex-1 overflow-hidden rounded-full bg-paper-dim">
+        <div className={cn("h-full rounded-full", tone === "clay" ? "bg-clay" : "bg-line")} style={{ width: `${pct}%` }} />
+      </div>
+      <span className="w-20 shrink-0 text-right font-medium text-ink">{formatCurrency(cents)}</span>
     </div>
   );
 }

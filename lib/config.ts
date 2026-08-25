@@ -119,6 +119,30 @@ export interface SubscriptionTierDefinition {
   introVideoEnabled: boolean;
   /** Progressief, net als belastingschijven — elk deel van het boekingsbedrag valt in zijn eigen schijf. */
   commissionTiers: CommissionBracket[];
+  /**
+   * VyrAI-assistent voor leveranciers (spec-item #57, aug. 2026) — zelfde
+   * oplopende-niveau-idioom als `insightMetrics` hierboven. 0 = geen
+   * toegang (Starter/Groei). 1 = basis: chatassistent, conceptantwoorden op
+   * berichten, offertehulp (Pro). 2 = alles van 1 plus dagelijkse
+   * prioriteitenbriefing, prijsadvies en profieltekst-hulp (Premium en
+   * hoger). Zie lib/ai/supplierAssistant.ts en de losse features in
+   * lib/ai/ voor waar dit precies op wordt gecontroleerd.
+   */
+  assistantTier: 0 | 1 | 2;
+  /**
+   * Maximum aantal VyrAI-assistent-aanroepen per kalenderdag (alle
+   * assistant-features samen — chat, conceptantwoord, offertehulp,
+   * briefing, prijsadvies, profieltekst-hulp tellen allemaal mee). `null` =
+   * onbeperkt. Zie lib/ai/supplierAssistantLimit.ts.
+   */
+  assistantDailyLimit: number | null;
+  /**
+   * "Proactieve signalen" — VyrAI seint zelf (via de bestaande
+   * notificatie-infrastructuur) als een lead dreigt te verlopen of een
+   * gesprek al een tijd stilligt, i.p.v. dat de leverancier er zelf naar
+   * moet vragen. Alleen Enterprise (en de proefperiode).
+   */
+  assistantProactiveSignals: boolean;
   /** Weergavetekst voor de vergelijkingstabel op het leveranciersprofiel. */
   perks: string[];
 }
@@ -152,6 +176,9 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
       { uptoCents: 1_000_000, rate: 0.03 }, // €2.000 – €10.000: 3%
       { uptoCents: null, rate: 0.02 }, // > €10.000: 2%
     ],
+    assistantTier: 0,
+    assistantDailyLimit: 0,
+    assistantProactiveSignals: false,
     perks: [
       "1 categorie",
       "Tot 3 foto's in je profiel",
@@ -185,6 +212,9 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
       { uptoCents: 1_000_000, rate: 0.02 },
       { uptoCents: null, rate: 0.01 },
     ],
+    assistantTier: 0,
+    assistantDailyLimit: 0,
+    assistantProactiveSignals: false,
     perks: [
       "Tot 3 categorieën",
       "Tot 10 foto's in je profiel",
@@ -215,6 +245,12 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
     coverPhotoEnabled: true,
     introVideoEnabled: false,
     commissionTiers: [{ uptoCents: null, rate: 0 }],
+    // 30/dag: ruim genoeg voor een paar chatvragen + conceptantwoorden +
+    // offertehulp per werkdag, zonder dat het aanvoelt als een harde muur —
+    // zie lib/ai/supplierAssistantLimit.ts voor hoe dit geteld wordt.
+    assistantTier: 1,
+    assistantDailyLimit: 30,
+    assistantProactiveSignals: false,
     perks: [
       "Onbeperkt categorieën",
       "Onbeperkt foto's",
@@ -225,6 +261,7 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
       "Pakketten (Basis/Standaard/Premium) op je profiel",
       "Coverfoto boven je profiel",
       "0% commissie op boekingen",
+      "VyrAI-assistent: chat, conceptantwoorden en offertehulp",
     ],
   },
   premium: {
@@ -247,6 +284,11 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
     coverPhotoEnabled: true,
     introVideoEnabled: true,
     commissionTiers: [{ uptoCents: null, rate: 0 }],
+    // 75/dag: ~2,5x de Pro-limiet, in lijn met de bredere featureset
+    // (briefing + prijsadvies + profieltekst-hulp komen erbij).
+    assistantTier: 2,
+    assistantDailyLimit: 75,
+    assistantProactiveSignals: false,
     perks: [
       "Alles van Pro",
       "Gegarandeerd bovenaan bij matching binnen je categorie en regio",
@@ -255,6 +297,7 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
       "Persoonlijke supportlijn",
       "Introductievideo op je profiel",
       "0% commissie op boekingen",
+      "VyrAI-assistent: ook dagelijkse briefing, prijsadvies en profieltekst-hulp",
     ],
   },
   enterprise: {
@@ -277,6 +320,9 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
     coverPhotoEnabled: true,
     introVideoEnabled: true,
     commissionTiers: [{ uptoCents: null, rate: 0 }],
+    assistantTier: 2,
+    assistantDailyLimit: null,
+    assistantProactiveSignals: true,
     perks: [
       "Alles van Premium",
       "Onbeperkt werkgebied",
@@ -284,6 +330,7 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
       "Rapportages op aanvraag",
       "Maatwerkafspraken mogelijk",
       "0% commissie op boekingen",
+      "VyrAI-assistent zonder dagelijkse limiet + proactieve signalen",
     ],
   },
 };
@@ -315,6 +362,9 @@ export const TRIAL_TIER_DEFINITION: SubscriptionTierDefinition = {
   coverPhotoEnabled: true,
   introVideoEnabled: true,
   commissionTiers: [{ uptoCents: null, rate: 0 }],
+  assistantTier: 2,
+  assistantDailyLimit: null,
+  assistantProactiveSignals: true,
   perks: [
     `Je eerste ${TRIAL_BOOKING_COUNT} boekingen volledig gratis, 0% commissie`,
     "Volledige toegang tot alle Enterprise-functies, zodat je eerst kunt ervaren wat Vyra voor je kan doen",

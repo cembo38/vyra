@@ -3,18 +3,32 @@
 import { useState, useTransition } from "react";
 import { Sparkles, Loader2, Send } from "lucide-react";
 import { generateSupplierOfferPreviewAction, submitSupplierOfferAction } from "@/lib/actions/supplier-actions";
+import { writeSupplierOfferTextAction } from "@/lib/actions/supplier-assistant-actions";
 import { formatCurrency } from "@/lib/config";
 import { StructuredSupplierOffer } from "@/lib/ai/supplierOffer";
 import { Badge } from "@/components/ui/Badge";
 import { Field, Input, Textarea } from "@/components/ui/Form";
 import { SupplierCategory } from "@/lib/types";
 
-export function SupplierOfferForm({ requestId, eventId, categoryKey }: { requestId: string; eventId: string; categoryKey: SupplierCategory }) {
+export function SupplierOfferForm({
+  requestId,
+  eventId,
+  categoryKey,
+  assistantEnabled = false,
+}: {
+  requestId: string;
+  eventId: string;
+  categoryKey: SupplierCategory;
+  /** Toont de "VyrAI: werk dit uit"-knop (Offertehulp, Pro+) — zie checkSupplierAssistantAccess in lib/data/store.ts. De server action controleert dit zelf ook nog eens. */
+  assistantEnabled?: boolean;
+}) {
   const [text, setText] = useState("");
   const [price, setPrice] = useState("");
   const [result, setResult] = useState<StructuredSupplierOffer | null>(null);
   const [generating, startGenerate] = useTransition();
   const [submitting, startSubmit] = useTransition();
+  const [writing, startWrite] = useTransition();
+  const [writeNote, setWriteNote] = useState<string | null>(null);
 
   return (
     <div className="rounded-2xl border border-line bg-white p-6">
@@ -26,10 +40,33 @@ export function SupplierOfferForm({ requestId, eventId, categoryKey }: { request
         Beschrijf in gewone taal wat je kunt aanbieden — de AI zet het om in een gestructureerde offerte die de organisator te zien krijgt. Controleer de prijs voordat je verstuurt.
       </p>
 
+      {assistantEnabled && (
+        <button
+          type="button"
+          disabled={!text.trim() || writing}
+          onClick={() => {
+            setWriteNote(null);
+            startWrite(async () => {
+              const res = await writeSupplierOfferTextAction(text);
+              if (res.blocked) {
+                setWriteNote(res.text);
+                return;
+              }
+              setText(res.text);
+            });
+          }}
+          className="chip-hover mb-2 inline-flex items-center gap-1.5 rounded-full border border-line bg-sage-50 px-3 py-1.5 text-xs font-medium text-sage-dark disabled:opacity-40 disabled:pointer-events-none"
+        >
+          {writing ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="motion-icon-twinkle size-3.5" />}
+          VyrAI: werk dit uit
+        </button>
+      )}
+      {writeNote && <p className="mb-2 rounded-lg bg-ochre-50 px-3 py-1.5 text-xs text-ink-soft">{writeNote}</p>}
+
       <Textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Bijv. 'Voor €6.500 kan ik volledige catering verzorgen inclusief bediening en levering, met vegetarische opties.'"
+        placeholder={assistantEnabled ? "Bijv. 'catering 50p, incl bediening+levering, 6500' — typ een paar steekwoorden en klik op 'VyrAI: werk dit uit', of schrijf het zelf helemaal uit." : "Bijv. 'Voor €6.500 kan ik volledige catering verzorgen inclusief bediening en levering, met vegetarische opties.'"}
         rows={3}
       />
       <button
