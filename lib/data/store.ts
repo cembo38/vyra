@@ -1497,6 +1497,67 @@ export async function getSupplierEarningsSummary(supplierId: string): Promise<Su
   };
 }
 
+export interface SupplierPerformanceInsights {
+  avgResponseHours: number;
+  ratingAvg: number;
+  ratingCount: number;
+  /** null zolang er geen andere leveranciers in dezelfde categorie zijn om mee te vergelijken. */
+  categoryAvgResponseHours: number | null;
+  categoryAvgRating: number | null;
+  categoryPeerCount: number;
+}
+
+/**
+ * Cem (aug. 2026): "maak analytics pagina zodat leveranciers kunnen zien
+ * hoe en wat" — reactietijd en beoordeling staan al écht bij (avg_response_
+ * hours wordt dagelijks herberekend via api/cron/recompute-response-times,
+ * rating_avg/rating_count bij elke nieuwe review, zie hieronder). Wat
+ * ontbrak was een categoriegemiddelde om jezelf tegen af te zetten — dat is
+ * hier één extra, simpele query op dezelfde tabel.
+ *
+ * BEWUST NIET meegenomen: `accepted_offer_rate` staat wel op elke
+ * leverancier (spec §53) maar wordt voor échte accounts nergens
+ * herberekend (alleen de statische demo-catalogus in lib/data/suppliers.ts
+ * heeft een zinvolle waarde) — die op deze pagina tonen zou voor iedere
+ * échte leverancier gewoon "0%" laten zien, wat als een bug zou ogen i.p.v.
+ * als inzicht. Kan alsnog toegevoegd worden zodra er een vergelijkbare
+ * cronjob voor komt.
+ */
+export async function getSupplierPerformanceInsights(supplierId: string): Promise<SupplierPerformanceInsights> {
+  const supabase = await sb();
+  const { data: own } = await supabase
+    .from("suppliers")
+    .select("avg_response_hours, rating_avg, rating_count, category")
+    .eq("id", supplierId)
+    .single();
+
+  if (!own) {
+    return { avgResponseHours: 24, ratingAvg: 0, ratingCount: 0, categoryAvgResponseHours: null, categoryAvgRating: null, categoryPeerCount: 0 };
+  }
+
+  const { data: peers } = await supabase
+    .from("suppliers")
+    .select("avg_response_hours, rating_avg, rating_count")
+    .eq("category", own.category)
+    .neq("id", supplierId);
+
+  const peerRows = peers ?? [];
+  const peersWithRatings = peerRows.filter((p: Row) => (p.rating_count ?? 0) > 0);
+
+  return {
+    avgResponseHours: own.avg_response_hours ?? 24,
+    ratingAvg: Number(own.rating_avg ?? 0),
+    ratingCount: own.rating_count ?? 0,
+    categoryAvgResponseHours:
+      peerRows.length > 0 ? peerRows.reduce((sum: number, p: Row) => sum + (p.avg_response_hours ?? 24), 0) / peerRows.length : null,
+    categoryAvgRating:
+      peersWithRatings.length > 0
+        ? peersWithRatings.reduce((sum: number, p: Row) => sum + Number(p.rating_avg ?? 0), 0) / peersWithRatings.length
+        : null,
+    categoryPeerCount: peerRows.length,
+  };
+}
+
 /* ------------------------------------------------------------------ */
 /* REQUESTS & OFFERS                                                   */
 /* ------------------------------------------------------------------ */

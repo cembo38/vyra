@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Flashlight, Loader2 } from "lucide-react";
 import { activateSpotlightAction } from "@/lib/actions/supplier-actions";
 import { SPOTLIGHT_DURATION_DAYS } from "@/lib/config";
@@ -42,7 +43,9 @@ export function SpotlightPanel({
   if (quota <= 0) {
     return (
       <div className="rounded-xl border border-dashed border-line px-4 py-5 text-center text-sm text-ink-faint">
-        Spotlights zijn beschikbaar vanaf het Pro-abonnement — kies hierboven een hoger niveau om gratis extra zichtbaarheid voor een van je categorieën te activeren.
+        Spotlights zijn beschikbaar vanaf het Pro-abonnement —{" "}
+        <Link href="/supplier/profile" className="font-medium text-clay hover:underline">kies een hoger niveau bij Abonnement</Link>{" "}
+        om gratis extra zichtbaarheid voor een van je categorieën te activeren.
       </div>
     );
   }

@@ -5,7 +5,7 @@ import { NotificationsBell } from "@/components/app/NotificationsBell";
 import { NavShell, type NavShellItem } from "@/components/app/NavShell";
 import { AppNotification, UserAccount, SupplierAccount } from "@/lib/types";
 import { logoutAction } from "@/lib/actions/auth-actions";
-import { LogOut, LayoutDashboard, Inbox, MessageSquare, ShoppingBag, CalendarDays, User, Bell } from "lucide-react";
+import { LogOut, LayoutDashboard, Inbox, MessageSquare, ShoppingBag, CalendarDays, User, Bell, Megaphone, LineChart } from "lucide-react";
 
 // "Mijn evenementen" stond eerder als los kruispunt-item tussen deze
 // leveranciersportaal-punten — voelde als twee werelden door elkaar in
@@ -24,6 +24,12 @@ const ITEMS: NavShellItem[] = [
   { href: "/supplier/messages", label: "Berichten", icon: <MessageSquare className="size-5 shrink-0" /> },
   { href: "/supplier/orders", label: "Orders", icon: <ShoppingBag className="size-5 shrink-0" /> },
   { href: "/supplier/calendar", label: "Kalender", icon: <CalendarDays className="size-5 shrink-0" /> },
+  // Cem (aug. 2026): het bedrijfsprofiel was "erg druk" — Spotlight (een
+  // promotie-actie) en prestatiecijfers (die nergens stonden) horen niet
+  // bij "wie ben je", dus kregen een eigen plek naast het profiel i.p.v.
+  // erin verstopt te zitten.
+  { href: "/supplier/marketing", label: "Marketing", icon: <Megaphone className="size-5 shrink-0" /> },
+  { href: "/supplier/analytics", label: "Analyse", icon: <LineChart className="size-5 shrink-0" /> },
   // Stond voorheen alleen als klein tekstlinkje (bedrijfsnaam) onderaan de
   // footer — makkelijk over het hoofd te zien. Nu ook als volwaardig
   // navigatie-item, net als de rest.
