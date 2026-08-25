@@ -122,7 +122,9 @@ export async function saveSearchAction(formData: FormData) {
   revalidatePath("/mijn-leveranciers");
 
   const qs = new URLSearchParams();
-  if (categoryKey) qs.set("category", categoryKey);
+  // "categories" (meervoud), niet "category" — zie parseCategories() in
+  // app/leveranciers/page.tsx sinds de multi-select categoriebalk.
+  if (categoryKey) qs.set("categories", categoryKey);
   if (location) qs.set("location", location);
   if (query) qs.set("q", query);
   qs.set("searchSaved", "1");

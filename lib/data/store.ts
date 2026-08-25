@@ -578,7 +578,8 @@ export async function getSupplierAccount(supplierId: string): Promise<SupplierAc
  * AI-matching-simulatie en heeft geen eigen profielpagina's.
  */
 export async function searchSupplierAccounts(filters: {
-  category?: SupplierCategory;
+  /** Meerdere categorieën = OF-matching (Cem, aug. 2026: "meerdere categorieën aanvinken") — een leverancier komt mee zodra hij minstens één ervan aanbiedt. */
+  categories?: SupplierCategory[];
   location?: string;
   minPriceCents?: number;
   maxPriceCents?: number;
@@ -588,7 +589,9 @@ export async function searchSupplierAccounts(filters: {
   // Een leverancier die zichzelf op "gesloten" heeft gezet (spec-item #55)
   // mag niet gevonden worden — dat is precies het doel van die schakelaar.
   let dbQuery = supabase.from("suppliers").select("*").eq("store_open", true);
-  if (filters.category) dbQuery = dbQuery.contains("categories", [filters.category]);
+  // .overlaps (Postgres &&) i.p.v. .contains (@>): "heeft minstens één van
+  // deze categorieën", niet "heeft ALLE meegegeven categorieën".
+  if (filters.categories && filters.categories.length > 0) dbQuery = dbQuery.overlaps("categories", filters.categories);
   if (filters.location) dbQuery = dbQuery.ilike("base_location", `%${filters.location}%`);
   if (filters.minPriceCents != null) dbQuery = dbQuery.gte("avg_price_cents", filters.minPriceCents);
   if (filters.maxPriceCents != null) dbQuery = dbQuery.lte("avg_price_cents", filters.maxPriceCents);
@@ -632,16 +635,16 @@ export async function getActiveSpotlightsForSupplier(supplierId: string): Promis
 
 /**
  * Voor de openbare /leveranciers-zoekpagina: welke van deze leveranciers
- * hebben op dit moment een actieve spotlight? Als `categoryKey` is
- * meegegeven (de organisator filtert op een categorie) telt alleen een
- * spotlight VOOR precies die categorie mee — anders telt elke actieve
- * spotlight van die leverancier mee.
+ * hebben op dit moment een actieve spotlight? Als `categoryKeys` is
+ * meegegeven (de organisator filtert op één of meer categorieën) telt
+ * alleen een spotlight voor één van díe categorieën mee — anders telt elke
+ * actieve spotlight van die leverancier mee.
  */
-export async function getActiveSpotlightSupplierIds(supplierIds: string[], categoryKey?: SupplierCategory): Promise<Set<string>> {
+export async function getActiveSpotlightSupplierIds(supplierIds: string[], categoryKeys?: SupplierCategory[]): Promise<Set<string>> {
   if (supplierIds.length === 0) return new Set();
   const supabase = await sb();
   let query = supabase.from("spotlights").select("supplier_id").in("supplier_id", supplierIds).gt("expires_at", new Date().toISOString());
-  if (categoryKey) query = query.eq("category_key", categoryKey);
+  if (categoryKeys && categoryKeys.length > 0) query = query.in("category_key", categoryKeys);
   const { data } = await query;
   return new Set((data ?? []).map((r: Row) => r.supplier_id as string));
 }

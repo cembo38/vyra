@@ -24,7 +24,7 @@ export function SupplierFilterPanel({
   location,
   minPriceEuros,
   maxPriceEuros,
-  category,
+  categories,
   view,
   hasFilters,
   clearHref,
@@ -38,7 +38,8 @@ export function SupplierFilterPanel({
   location: string;
   minPriceEuros: number | undefined;
   maxPriceEuros: number | undefined;
-  category: SupplierCategory | undefined;
+  /** Meerdere categorieën tegelijk aan te vinken (Cem, aug. 2026) — komma-gescheiden in het verborgen formulierveld, zie parseCategories() in app/leveranciers/page.tsx. */
+  categories: SupplierCategory[];
   view: "lijst" | "kaart";
   hasFilters: boolean;
   clearHref: string;
@@ -62,7 +63,7 @@ export function SupplierFilterPanel({
       )}
 
       <form id={formId} method="get" action="/leveranciers" className="flex flex-col gap-5">
-        <input type="hidden" name="category" value={category ?? ""} />
+        <input type="hidden" name="categories" value={categories.join(",")} />
         <input type="hidden" name="view" value={view === "kaart" ? "kaart" : ""} />
 
         <Field label="Wat zoek je?" hint="Bijv. 'live band voor bruiloft'">
@@ -102,7 +103,10 @@ export function SupplierFilterPanel({
         // toe. Krijgt dezelfde filters als verborgen velden mee zodat
         // "Bewaren" altijd de zoekopdracht bewaart die nu op het scherm staat.
         <form action={saveSearchAction} className="border-t border-line-soft pt-4">
-          <input type="hidden" name="category" value={category ?? ""} />
+          {/* saveSearchAction/SavedSearch werken nog met precies één categorie
+              (spec) — showSaveSearch staat daarom alleen aan bij 0 of 1
+              geselecteerde categorie, dus categories[0] is hier ondubbelzinnig. */}
+          <input type="hidden" name="category" value={categories[0] ?? ""} />
           <input type="hidden" name="location" value={location} />
           <input type="hidden" name="q" value={q} />
           <button type="submit" className="chip-hover flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-line py-2.5 text-xs font-semibold text-sage-dark">

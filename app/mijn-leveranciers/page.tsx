@@ -23,7 +23,11 @@ function describeSearch(s: SavedSearch): string {
 
 function searchHref(s: SavedSearch): string {
   const qs = new URLSearchParams();
-  if (s.categoryKey) qs.set("category", s.categoryKey);
+  // /leveranciers verwacht sinds de multi-select categoriebalk (aug. 2026)
+  // een komma-gescheiden `categories`-param i.p.v. het vroegere `category`
+  // — een bewaarde zoekopdracht heeft er zelf altijd maar één (zie de
+  // toelichting bij saveSearchAction), dus is dat hier gewoon één waarde.
+  if (s.categoryKey) qs.set("categories", s.categoryKey);
   if (s.location) qs.set("location", s.location);
   if (s.query) qs.set("q", s.query);
   const query = qs.toString();

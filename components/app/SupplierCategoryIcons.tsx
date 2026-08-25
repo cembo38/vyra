@@ -53,3 +53,34 @@ export const SUPPLIER_CATEGORY_ICONS: Record<SupplierCategory, LucideIcon> = {
   invitations: Mail,
   av_equipment: MonitorSpeaker,
 };
+
+/**
+ * Cem (aug. 2026): "voeg gepaste emojis toe" — voor de categoriebalk op
+ * /leveranciers (zie CategoryIconBar.tsx). Los van SUPPLIER_CATEGORY_ICONS
+ * hierboven (de Lucide-iconen in de filter-zijbalk blijven ongewijzigd) —
+ * een carrousel met 21 tikbare chips leest sneller met een emoji dan met
+ * een dunne lijntekening op zo'n kleine schaal.
+ */
+export const SUPPLIER_CATEGORY_EMOJI: Record<SupplierCategory, string> = {
+  venue: "🏛️",
+  catering: "🍽️",
+  cake: "🎂",
+  florist: "💐",
+  decoration: "🎈",
+  dj_music: "🎧",
+  band: "🎸",
+  photography: "📷",
+  videography: "🎥",
+  furniture_rental: "🪑",
+  lighting_sound: "💡",
+  cleaning: "🧹",
+  security: "🛡️",
+  staffing: "🤵",
+  transport: "🚐",
+  tent_rental: "⛺",
+  entertainment: "🎉",
+  planner: "📋",
+  photobooth: "🤳",
+  invitations: "💌",
+  av_equipment: "🎚️",
+};
