@@ -21,6 +21,8 @@ export default async function ProfilePage(props: PageProps<"/profile">) {
   return (
     <div className="min-h-screen bg-paper">
       <AppTopBar />
+      {/* md:pl-[var(--nav-sidebar-w)]: ruimte voor de permanente zijbalk, zie app/globals.css. */}
+      <div className="transition-[padding-left] duration-200 ease-in-out md:pl-[var(--nav-sidebar-w)]">
       <div className="mx-auto max-w-2xl px-6 py-10">
         <div className="mb-6 flex items-center gap-4">
           <UserAvatar firstName={user.firstName} lastName={user.lastName} color={user.avatarColor} size={56} />
@@ -131,6 +133,7 @@ export default async function ProfilePage(props: PageProps<"/profile">) {
             Je kunt op elk moment een export van je gegevens aanvragen of je account laten verwijderen. Neem hiervoor contact op — deze zelfbedieningsfuncties komen in een volgende versie.
           </p>
         </Card>
+      </div>
       </div>
     </div>
   );

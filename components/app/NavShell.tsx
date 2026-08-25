@@ -1,9 +1,9 @@
 "use client";
 
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, ChevronDown, Search } from "lucide-react";
+import { Menu, X, ChevronLeft, Search } from "lucide-react";
 import { Drawer } from "@/components/ui/Drawer";
 import { LinkButton } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
@@ -36,59 +36,49 @@ export interface NavShellRoleSwitch {
 
 interface NavShellProps {
   items: NavShellItem[];
-  /** Logo (met woordmerk) — mobiele strook, drawer-header, topbalk. */
+  /** Logo (met woordmerk) — alleen nog gebruikt in de mobiele topstrook/drawer (< md); de permanente zijbalk (>= md) rendert haar eigen, in-/uitklapbare logoblok, zie de toelichting bij `.nav-label` hieronder. */
   logo: ReactNode;
-  /** Titel op de knop die in de topbalk (>= md) het uitklapmenu met `items` opent — bv. "Ontdek leveranciers" of "Leveranciersportaal". */
+  /** Kleine, uppercase sectielabel boven de navigatielijst in de zijbalk (bv. "Ontdek leveranciers" of "Leveranciersportaal") — was voorheen de titel op de dropdown-knop, nu een groepslabel zoals bij Etsy's Shop Manager. */
   menuLabel: string;
   /**
-   * Klein segmented-knopje ("Organisator"/"Leverancier") vlak naast het
-   * uitklapmenu, alleen meegeven als iemand ECHT beide rollen heeft (dus
-   * een bestaand leveranciersprofiel) — zie AppTopBar/SupplierTopBar voor
-   * de precieze voorwaarde per kant.
-   *
-   * Aanleiding: `items` bevatte voorheen een los kruispunt-item
-   * ("Leveranciersportaal" tussen de organisator-punten, of "Mijn
-   * evenementen" tussen de leveranciersportaal-punten) — voor iemand met
-   * beide rollen voelde dat als twee werelden door elkaar in één lijst
-   * (expliciet zo benoemd: "dat zit er rommelig uit"). Met dit knopje
-   * ernaast toont `items` voortaan ALTIJD alleen de punten van de huidige
-   * weergave, en gebeurt het wisselen zelf via een eigen, duidelijk
-   * zichtbaar controletje in plaats van als item tussen de rest.
+   * Klein segmented-knopje ("Organisator"/"Leverancier") bovenin de zijbalk,
+   * alleen meegeven als iemand ECHT beide rollen heeft (dus een bestaand
+   * leveranciersprofiel) — zie AppTopBar/SupplierTopBar voor de precieze
+   * voorwaarde per kant.
    */
   roleSwitch?: NavShellRoleSwitch;
   /**
-   * Visueel afwijkend (groen, met scheidingslijn erboven) item onderaan het
-   * uitklapmenu/de drawer — voor een actie die niet bij de gewone
-   * navigatie hoort maar ook geen los kruispunt is, zoals "Ook leverancier
-   * worden?" voor wie nog geen leveranciersprofiel heeft (en dus geen
-   * `roleSwitch` krijgt, want er is nog niets om naar te wisselen).
+   * Visueel afwijkend (groen, met scheidingslijn erboven) item onderaan de
+   * navigatielijst — voor een actie die niet bij de gewone navigatie hoort
+   * maar ook geen los kruispunt is, zoals "Ook leverancier worden?" voor wie
+   * nog geen leveranciersprofiel heeft (en dus geen `roleSwitch` krijgt,
+   * want er is nog niets om naar te wisselen).
    */
   secondaryAction?: { href: string; label: string; icon: ReactNode };
   primaryAction?: { href: string; label: string; icon?: ReactNode };
   /**
-   * Optioneel zoekveld in de topbalk (>= md) — alleen meegeven als er
-   * ergens écht een pagina is die de `name`-queryparameter oppikt (bv.
-   * `/leveranciers?q=...`, zie `app/leveranciers/page.tsx`). Geen
-   * schijnfunctie: als er geen echte zoekbestemming is (zoals nu bij het
-   * leveranciersportaal, dat nog geen doorzoekbare aanvragenlijst heeft),
-   * laat deze prop dan gewoon weg i.p.v. een zoekveld te tonen dat nergens
-   * naartoe leidt.
+   * Optioneel zoekveld bovenin de zijbalk — alleen meegeven als er ergens
+   * écht een pagina is die de `name`-queryparameter oppikt (bv.
+   * `/leveranciers?q=...`, zie `app/leveranciers/page.tsx`).
    */
   search?: { action: string; name: string; placeholder: string };
   /**
-   * Notificatiebel + avatar (+ eventueel uitlogknop), kant-en-klaar
-   * meegegeven door de server-parent (die de gebruiker al heeft
-   * opgehaald) — als een al-gerenderd element, geen functie: `NavShell`
-   * is een Client Component en de parents (`AppTopBar`, `SupplierTopBar`)
-   * zijn Server Components, en een functie is niet serialiseerbaar over
-   * die grens (crasht met "Functions cannot be passed directly to Client
-   * Components", precies zoals hierboven bij `icon` al staat toegelicht).
-   * Wordt zowel in de mobiele topstrook als in de topbalk (>= md) gebruikt.
+   * Notificatiebel + avatar (+ eventueel uitlogknop) voor de MOBIELE
+   * topstrook (< md) — kant-en-klaar meegegeven door de server-parent, als
+   * een al-gerenderd element (zie de toelichting bij `icon` hierboven voor
+   * waarom dit geen functie mag zijn).
    */
   utilityRight: ReactNode;
-  /** Zelfde als `utilityRight`, maar dan voor de footer van het mobiele uitschuifmenu (< md) — die zit tegen de linkerrand, dus het paneel klapt daar naar rechts open in plaats van naar links. */
+  /**
+   * Zelfde soort inhoud als `utilityRight`, maar dan de "align left,
+   * direction up"-variant — gebruikt in zowel de footer van de mobiele
+   * drawer (< md) als de footer van de permanente zijbalk (>= md). Beide
+   * zitten tegen de linkerrand, dus een paneel dat daaruit opent hoort naar
+   * rechts/boven open te klappen — vandaar dat dezelfde prop nu op twee
+   * plekken hergebruikt wordt.
+   */
   utilityLeft: ReactNode;
-  /** Bv. een extra link — alleen in de footer van het mobiele uitschuifmenu (< md). */
+  /** Bv. een extra link — in de footer van zowel de mobiele drawer als de permanente zijbalk. */
   footerExtra?: ReactNode;
 }
 
@@ -96,21 +86,36 @@ function isActive(href: string, pathname: string) {
   return pathname === href || pathname.startsWith(href + "/");
 }
 
-/** Herkenningslabel op eigen `vyra:overlay-open`-berichten, zie de toelichting bij de listener hieronder. */
-const NAV_MENU_OVERLAY_SOURCE = "nav-menu";
+/** localStorage-sleutel voor de onthouden in-/uitgeklapt-voorkeur van de permanente zijbalk. */
+const NAV_COLLAPSE_STORAGE_KEY = "vyra:nav-collapsed";
 
 /**
  * Herbruikbare navigatieschil voor de twee ingelogde portals (organisator
- * en leverancier). Onder `md` (telefoon, en iPad in smalle split-view):
- * een hamburgermenu + uitschuifdrawer — dat loste eerder precies het
- * "geen terugknop / knoppen te groot"-probleem op en blijft ongewijzigd.
- * Vanaf `md` (tablet/desktop): geen vaste zijbalk meer, maar een rustige
- * balk BOVENAAN met een uitklapmenu, in de opzet van Vinted's topbalk
- * (Catalogus-dropdown, zoekveld, iconen rechts, groene actieknop) — zie
- * het besproken en goedgekeurde voorstel. De balk is `sticky` (neemt
- * gewoon ruimte in de normale pagina-flow in), dus pagina's hoeven —
- * anders dan bij de vorige `position: fixed`-zijbalk — geen aparte
- * offset-klasse meer toe te passen.
+ * en leverancier).
+ *
+ * Onder `md` (telefoon, en iPad in smalle split-view): een hamburgermenu +
+ * uitschuifdrawer — ongewijzigd, dat werkte al goed.
+ *
+ * Vanaf `md` (tablet/desktop): een PERMANENTE LINKERZIJBALK, zelf in-/uit
+ * te klappen (Cem, aug. 2026: "dit uitklapscherm moet links staan en
+ * uitklappen ... kijk bij concurrenten"). Dit vervangt de eerdere
+ * bovenbalk-dropdown ("Vinted-stijl") — die verborg de navigatie achter een
+ * klik en liet "waar ben ik nu" verdwijnen zodra het menu weer dichtklapte.
+ * Onderzoek (Etsy Shop Manager, en de bredere 2026-trend "terug naar
+ * collapsible left-sidebars" voor SaaS/portaaldashboards) wees allebei naar
+ * hetzelfde: een vaste, altijd-zichtbare zijbalk oriënteert beter dan een
+ * dropdown, en in-/uitklapbaar (icoon-only ↔ met labels) houdt 'm bruikbaar
+ * op een kleiner scherm. Zelfde bewezen structurele opzet als AdminShell.tsx
+ * (het zusje van deze balk in de adminomgeving) — met als extra dat de
+ * gebruiker hem hier zelf in-/uitklapt (i.p.v. dat dit puur van het
+ * breakpoint afhangt) en die keuze onthouden wordt.
+ *
+ * De in-/uitgeklapte stand wordt gespiegeld naar een `data-nav-collapsed`-
+ * attribuut op `<html>` (zie --nav-sidebar-w in app/globals.css) — dat is
+ * de brug naar de content-offset (`md:pl-[var(--nav-sidebar-w)]`) die elke
+ * portal-layout.tsx los om zijn `<main>` zet: die layout is een Server
+ * Component-sibling van deze Client Component en kan dus geen React-state
+ * delen, een CSS-variabele via een DOM-attribuut wel.
  */
 export function NavShell({
   items,
@@ -125,8 +130,7 @@ export function NavShell({
   footerExtra,
 }: NavShellProps) {
   const [open, setOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
 
   // Drawer sluiten bij navigatie. Bewust GEEN useEffect (dat zou setState
@@ -138,64 +142,56 @@ export function NavShell({
   if (pathname !== prevPathname) {
     setPrevPathname(pathname);
     setOpen(false);
-    setMenuOpen(false);
   }
 
-  // Zelfde patroon als het notificatiepaneel (`NotificationsBell.tsx`):
-  // sluiten bij een klik buiten het paneel, en bij Escape.
+  // Voorkeur ophalen ná mount (localStorage bestaat niet server-side, en
+  // <html> begint elke server-render zonder het attribuut) — dit geeft op
+  // een verse paginalaad een kort moment de uitgeklapte stand te zien vóór
+  // een eventuele eerder gekozen inklap-voorkeur wordt toegepast. Bewuste,
+  // kleine trade-off: een blokkerend script vóór de eerste verf voorkomen
+  // was hier niet de moeite waard t.o.v. de eenvoud van dit patroon.
   useEffect(() => {
-    if (!menuOpen) return;
-    function onClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    let stored: string | null = null;
+    try {
+      stored = window.localStorage.getItem(NAV_COLLAPSE_STORAGE_KEY);
+    } catch {
+      // localStorage kan geblokkeerd zijn (privénavigatie/instellingen) —
+      // val dan gewoon terug op de uitgeklapte standaardstand.
     }
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setMenuOpen(false);
+    if (stored === "true") {
+      // Bewuste, eenmalige uitzondering op react-hooks/set-state-in-effect:
+      // dit synchroniseert React-state met een externe bron (localStorage)
+      // die pas ná mount beschikbaar is — precies het soort geval waar deze
+      // regel voor bedoeld is een lint-uitzondering te krijgen, niet een
+      // afgeleide-state-anti-pattern (er is geen prop/state om dit tijdens
+      // render uit af te leiden, zoals bij het prevPathname-patroon hierboven).
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCollapsed(true);
+      document.documentElement.dataset.navCollapsed = "true";
     }
-    document.addEventListener("mousedown", onClick);
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("mousedown", onClick);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-  }, [menuOpen]);
-
-  // Sluit dit menu zodra ergens anders een drawer of ander paneel opent
-  // (zie components/ui/Drawer.tsx) — en meld zelf ook zo'n "overlay open"
-  // moment, zodat bv. een openstaand notificatiepaneel op zijn beurt sluit.
-  //
-  // LET OP: dit uitklapmenu is (voor zover bekend) het enige paneel dat
-  // het `vyra:overlay-open`-event zowel VERSTUURT als BELUISTERT — Drawer
-  // verstuurt het alleen, NotificationsBell beluistert het alleen. Zonder
-  // onderscheid hoort dit menu zijn eigen bericht en sluit het zichzelf
-  // ONMIDDELLIJK weer na het openen (geverifieerd: klikken op de knop deed
-  // zichtbaar niets, want open→eigen event→dicht gebeurde binnen dezelfde
-  // klikafhandeling). Vandaar het `detail.source`-veld hieronder: alleen
-  // een bericht van een ANDER paneel mag dit menu sluiten.
-  useEffect(() => {
-    function onOtherOverlayOpen(e: Event) {
-      const source = e instanceof CustomEvent ? (e.detail as { source?: string } | undefined)?.source : undefined;
-      if (source === NAV_MENU_OVERLAY_SOURCE) return;
-      setMenuOpen(false);
-    }
-    window.addEventListener("vyra:overlay-open", onOtherOverlayOpen);
-    return () => window.removeEventListener("vyra:overlay-open", onOtherOverlayOpen);
   }, []);
 
-  function toggleMenu() {
-    setMenuOpen((v) => {
-      if (!v) window.dispatchEvent(new CustomEvent("vyra:overlay-open", { detail: { source: NAV_MENU_OVERLAY_SOURCE } }));
-      return !v;
+  function toggleCollapse() {
+    setCollapsed((prev) => {
+      const next = !prev;
+      document.documentElement.dataset.navCollapsed = String(next);
+      try {
+        window.localStorage.setItem(NAV_COLLAPSE_STORAGE_KEY, String(next));
+      } catch {
+        // Werkt deze sessie nog gewoon, wordt alleen niet onthouden.
+      }
+      return next;
     });
   }
 
   const roleSwitchPill = roleSwitch && (
-    <div className="flex shrink-0 items-center gap-0.5 rounded-full bg-paper-dim p-1" role="tablist" aria-label="Weergave wisselen">
+    <div className="nav-collapsible flex shrink-0 items-center gap-0.5 rounded-full bg-paper-dim p-1" role="tablist" aria-label="Weergave wisselen">
       <Link
         href={roleSwitch.organizerHref}
         role="tab"
         aria-selected={roleSwitch.active === "organizer"}
         className={cn(
-          "rounded-full px-3 py-1.5 text-xs font-bold transition-colors duration-[var(--duration-swift)]",
+          "flex-1 rounded-full px-3 py-1.5 text-center text-xs font-bold transition-colors duration-[var(--duration-swift)]",
           roleSwitch.active === "organizer" ? "bg-paper text-ink shadow-[0_1px_3px_rgba(36,39,26,0.12)]" : "text-ink-faint hover:text-ink"
         )}
       >
@@ -206,7 +202,7 @@ export function NavShell({
         role="tab"
         aria-selected={roleSwitch.active === "supplier"}
         className={cn(
-          "rounded-full px-3 py-1.5 text-xs font-bold transition-colors duration-[var(--duration-swift)]",
+          "flex-1 rounded-full px-3 py-1.5 text-center text-xs font-bold transition-colors duration-[var(--duration-swift)]",
           roleSwitch.active === "supplier" ? "bg-paper text-ink shadow-[0_1px_3px_rgba(36,39,26,0.12)]" : "text-ink-faint hover:text-ink"
         )}
       >
@@ -215,9 +211,44 @@ export function NavShell({
     </div>
   );
 
+  const navList = (
+    <>
+      {items.map((item) => {
+        const active = isActive(item.href, pathname);
+        return (
+          <Link
+            key={item.href}
+            href={item.href}
+            title={item.label}
+            className={cn(
+              "nav-item flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-medium transition-colors duration-[var(--duration-swift)]",
+              active ? "bg-clay-50 text-clay-dark" : "text-ink-soft hover:bg-paper-dim hover:text-ink"
+            )}
+          >
+            {item.icon}
+            <span className="nav-label flex-1">{item.label}</span>
+          </Link>
+        );
+      })}
+      {secondaryAction && (
+        <>
+          <div className="nav-collapsible my-2 h-px bg-line-soft" />
+          <Link
+            href={secondaryAction.href}
+            title={secondaryAction.label}
+            className="nav-item flex min-h-11 items-center gap-3 rounded-xl px-3 text-sm font-semibold text-clay-dark transition-colors duration-[var(--duration-swift)] hover:bg-clay-50"
+          >
+            {secondaryAction.icon}
+            <span className="nav-label">{secondaryAction.label}</span>
+          </Link>
+        </>
+      )}
+    </>
+  );
+
   return (
     <>
-      {/* ── Mobiele topstrook (< md) ── */}
+      {/* ── Mobiele topstrook (< md) — ongewijzigd ── */}
       <header className="sticky top-0 z-40 flex items-center gap-2 border-b border-line bg-paper/90 px-3 py-2 backdrop-blur-md pt-[calc(var(--safe-t)+0.5rem)] md:hidden">
         <button
           type="button"
@@ -233,7 +264,7 @@ export function NavShell({
         <div className="ml-auto flex items-center gap-1">{utilityRight}</div>
       </header>
 
-      {/* ── Drawer (< md) ── */}
+      {/* ── Drawer (< md) — ongewijzigd ── */}
       <Drawer open={open} onClose={() => setOpen(false)} side="left" labelledBy="nav-drawer-title" testId="nav-drawer-panel">
         <div className="flex items-center justify-between border-b border-line-soft px-5 py-4">
           <div id="nav-drawer-title">{logo}</div>
@@ -246,7 +277,34 @@ export function NavShell({
             <X className="size-5" />
           </button>
         </div>
-        {roleSwitchPill && <div className="px-5 pt-4">{roleSwitchPill}</div>}
+        {roleSwitch && (
+          <div className="px-5 pt-4">
+            <div className="flex shrink-0 items-center gap-0.5 rounded-full bg-paper-dim p-1" role="tablist" aria-label="Weergave wisselen">
+              <Link
+                href={roleSwitch.organizerHref}
+                role="tab"
+                aria-selected={roleSwitch.active === "organizer"}
+                className={cn(
+                  "flex-1 rounded-full px-3 py-1.5 text-center text-xs font-bold transition-colors duration-[var(--duration-swift)]",
+                  roleSwitch.active === "organizer" ? "bg-paper text-ink shadow-[0_1px_3px_rgba(36,39,26,0.12)]" : "text-ink-faint hover:text-ink"
+                )}
+              >
+                Organisator
+              </Link>
+              <Link
+                href={roleSwitch.supplierHref}
+                role="tab"
+                aria-selected={roleSwitch.active === "supplier"}
+                className={cn(
+                  "flex-1 rounded-full px-3 py-1.5 text-center text-xs font-bold transition-colors duration-[var(--duration-swift)]",
+                  roleSwitch.active === "supplier" ? "bg-paper text-ink shadow-[0_1px_3px_rgba(36,39,26,0.12)]" : "text-ink-faint hover:text-ink"
+                )}
+              >
+                Leverancier
+              </Link>
+            </div>
+          </div>
+        )}
         {primaryAction && (
           <div className="px-5 pt-4">
             <LinkButton href={primaryAction.href} icon={primaryAction.icon} fullWidth variant="secondary">
@@ -290,70 +348,42 @@ export function NavShell({
         </div>
       </Drawer>
 
-      {/* ── Topbalk (>= md) — Vinted-achtige opzet, in Vyra-stijl ── */}
-      <header className="sticky top-0 z-40 hidden items-center gap-3 border-b border-line bg-paper/90 px-5 py-2.5 backdrop-blur-md pt-[calc(var(--safe-t)+0.625rem)] md:flex">
-        {logo}
-
-        {roleSwitchPill}
-
-        <div className="relative shrink-0" ref={menuRef}>
+      {/* ── Permanente linkerzijbalk (>= md), zelf in-/uit te klappen ── */}
+      <aside
+        data-testid="nav-sidebar"
+        className="fixed inset-y-0 left-0 z-30 hidden w-[var(--nav-sidebar-w)] flex-col border-r border-line-soft bg-paper pt-[var(--safe-t)] pb-[var(--safe-b)] transition-[width] duration-200 ease-in-out md:flex"
+      >
+        <div className="flex items-center gap-2 px-4 py-4">
+          <Link href="/" aria-label="Vyra — start" className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-ink">
+            <span className="font-display text-lg italic text-paper">V</span>
+          </Link>
+          <span className="nav-label font-display text-xl tracking-tight text-ink">Vyra</span>
           <button
             type="button"
-            onClick={toggleMenu}
-            aria-expanded={menuOpen}
-            aria-haspopup="true"
-            data-testid="nav-menu-trigger"
-            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-semibold text-ink-soft transition-colors duration-[var(--duration-swift)] hover:bg-paper-dim hover:text-ink"
+            onClick={toggleCollapse}
+            aria-label={collapsed ? "Zijbalk uitklappen" : "Zijbalk inklappen"}
+            aria-expanded={!collapsed}
+            data-testid="nav-collapse-toggle"
+            className="icon-pop ml-auto flex size-8 shrink-0 items-center justify-center rounded-full text-ink-faint hover:bg-paper-dim hover:text-ink"
           >
-            {menuLabel}
-            <ChevronDown className={cn("size-3.5 transition-transform duration-[var(--duration-swift)]", menuOpen && "rotate-180")} />
+            <ChevronLeft className={cn("size-4 transition-transform duration-200", collapsed && "rotate-180")} />
           </button>
-          {menuOpen && (
-            <div
-              role="menu"
-              data-testid="nav-menu-panel"
-              className="absolute left-0 top-full z-40 mt-2 w-64 overflow-hidden rounded-2xl border border-line-soft bg-white py-1.5 shadow-[var(--shadow-pop)]"
-            >
-              {items.map((item) => {
-                const active = isActive(item.href, pathname);
-                return (
-                  <Link
-                    key={item.href}
-                    href={item.href}
-                    role="menuitem"
-                    onClick={() => setMenuOpen(false)}
-                    className={cn(
-                      "flex items-center gap-3 px-4 py-2.5 text-[14px] font-medium transition-colors duration-[var(--duration-swift)]",
-                      active ? "bg-paper-dim text-ink" : "text-ink-soft hover:bg-paper-dim hover:text-ink"
-                    )}
-                  >
-                    {item.icon}
-                    {item.label}
-                  </Link>
-                );
-              })}
-              {secondaryAction && (
-                <>
-                  <div className="my-1 mx-2 h-px bg-line-soft" />
-                  <Link
-                    href={secondaryAction.href}
-                    role="menuitem"
-                    onClick={() => setMenuOpen(false)}
-                    className="flex items-center gap-3 px-4 py-2.5 text-[14px] font-semibold text-clay-dark transition-colors duration-[var(--duration-swift)] hover:bg-clay-50"
-                  >
-                    {secondaryAction.icon}
-                    {secondaryAction.label}
-                  </Link>
-                </>
-              )}
-            </div>
-          )}
         </div>
+
+        {roleSwitchPill && <div className="px-3 pb-3">{roleSwitchPill}</div>}
+
+        {primaryAction && (
+          <div className="nav-collapsible px-3 pb-3">
+            <LinkButton href={primaryAction.href} icon={primaryAction.icon} fullWidth variant="secondary">
+              {primaryAction.label}
+            </LinkButton>
+          </div>
+        )}
 
         {search && (
           <form
             action={search.action}
-            className="flex min-w-0 max-w-md flex-1 items-center gap-2 rounded-full bg-paper-dim px-3.5 py-2 text-sm text-ink-faint transition-shadow duration-[var(--duration-swift)] focus-within:text-ink focus-within:ring-2 focus-within:ring-clay/30"
+            className="nav-collapsible mx-3 mb-3 flex items-center gap-2 rounded-full bg-paper-dim px-3.5 py-2 text-sm text-ink-faint transition-shadow duration-[var(--duration-swift)] focus-within:text-ink focus-within:ring-2 focus-within:ring-clay/30"
           >
             <Search className="size-4 shrink-0" />
             <input
@@ -365,15 +395,15 @@ export function NavShell({
           </form>
         )}
 
-        <div className="ml-auto flex shrink-0 items-center gap-1.5">
-          {utilityRight}
-          {primaryAction && (
-            <LinkButton href={primaryAction.href} variant="secondary" size="sm" icon={primaryAction.icon} className="ml-1">
-              {primaryAction.label}
-            </LinkButton>
-          )}
+        <p className="nav-collapsible px-3 pb-1 text-[11px] font-bold uppercase tracking-wide text-ink-faint">{menuLabel}</p>
+
+        <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-1">{navList}</nav>
+
+        <div className="border-t border-line-soft px-3 py-3">
+          <div className="nav-item flex items-center gap-2">{utilityLeft}</div>
+          {footerExtra && <div className="nav-collapsible mt-3">{footerExtra}</div>}
         </div>
-      </header>
+      </aside>
     </>
   );
 }

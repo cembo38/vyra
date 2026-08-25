@@ -332,7 +332,8 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
     return (
       <div className="min-h-screen bg-paper">
         <AppTopBar />
-        {main}
+        {/* md:pl-[var(--nav-sidebar-w)]: ruimte voor de permanente zijbalk, zie app/globals.css. */}
+        <div className="transition-[padding-left] duration-200 ease-in-out md:pl-[var(--nav-sidebar-w)]">{main}</div>
       </div>
     );
   }

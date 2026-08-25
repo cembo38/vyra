@@ -62,6 +62,22 @@
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-l: env(safe-area-inset-left, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
+
+  /* Breedte van de permanente zijbalk (NavShell.tsx, >= md) — Cem (aug.
+     2026): "dit uitklapscherm moet links staan en uitklappen" i.p.v. de
+     eerdere bovenbalk-dropdown. Als CSS-variabele op :root i.p.v. React-
+     state, omdat de zijbalk zelf (diep in de boom, Client Component) en de
+     content-offset ernaast (in elke portal-layout.tsx, een Server Component
+     sibling) geen React-state kunnen delen over die grens heen — dit is de
+     brug. NavShell.tsx zet het data-attribuut hieronder bij het in-/
+     uitklappen; elke layout past `md:pl-[var(--nav-sidebar-w)]` toe zodat
+     de pagina-inhoud nooit onder/achter de zijbalk verdwijnt, ongeacht welke
+     stand hij op dit moment heeft.
+  */
+  --nav-sidebar-w: 256px;
+}
+[data-nav-collapsed="true"] {
+  --nav-sidebar-w: 76px;
 }
 
 @theme inline {
@@ -447,6 +463,29 @@ button {
     linear-gradient(to left, rgba(43, 40, 35, 0.18), transparent 100%) 100% 0 scroll;
   background-repeat: no-repeat;
   background-size: 32px 100%;
+}
+
+/**
+ * ── PERMANENTE ZIJBALK (NavShell.tsx, >= md) ───────────────────────────
+ * Zie de toelichting bij --nav-sidebar-w in het :root-blok hierboven voor
+ * waarom dit via een data-attribuut + CSS loopt i.p.v. React-state: de
+ * zijbalk en de content-offset ernaast staan in aparte Server/Client-
+ * bestanden die geen state kunnen delen. `.nav-label`/`.nav-wordmark` zijn
+ * de stukken tekst die verdwijnen in de ingeklapte (icoon-only) stand;
+ * `.nav-item` centreert zijn icoon dan, net als bij AdminShell.tsx (het
+ * bewezen zusje van deze balk in de adminomgeving).
+ */
+.nav-label {
+  display: block;
+  overflow: hidden;
+  white-space: nowrap;
+}
+[data-nav-collapsed="true"] .nav-label,
+[data-nav-collapsed="true"] .nav-collapsible {
+  display: none;
+}
+[data-nav-collapsed="true"] .nav-item {
+  justify-content: center;
 }
 
 /**

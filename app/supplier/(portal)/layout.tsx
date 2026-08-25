@@ -15,7 +15,13 @@ export default async function SupplierPortalLayout({ children }: { children: Rea
   return (
     <div className="flex min-h-screen flex-col bg-paper">
       <SupplierTopBar user={user} supplier={supplier} notifications={notifications} />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-6 py-8">{children}</main>
+      {/* Wrapper (niet de mx-auto/max-w-6xl van <main> zelf) draagt de
+          zijbalk-offset — anders zou <main> binnen zijn EIGEN, al versmalde
+          box nog eens inspringen i.p.v. als geheel naast de zijbalk te
+          schuiven. Zie --nav-sidebar-w in app/globals.css. */}
+      <div className="flex-1 transition-[padding-left] duration-200 ease-in-out md:pl-[var(--nav-sidebar-w)]">
+        <main className="mx-auto w-full max-w-6xl px-6 py-8">{children}</main>
+      </div>
     </div>
   );
 }

@@ -48,6 +48,8 @@ export default async function MyFavoriteSuppliersPage() {
   return (
     <div className="min-h-screen bg-paper">
       <AppTopBar />
+      {/* md:pl-[var(--nav-sidebar-w)]: ruimte voor de permanente zijbalk, zie app/globals.css. */}
+      <div className="transition-[padding-left] duration-200 ease-in-out md:pl-[var(--nav-sidebar-w)]">
       <div className="mx-auto max-w-6xl px-6 py-10">
         <h1 className="font-display text-3xl text-ink">Mijn leveranciers</h1>
         <p className="mt-1 text-ink-soft">Leveranciers die je hebt opgeslagen — met één klik terug naar hun profiel om opnieuw een aanvraag te sturen.</p>
@@ -130,6 +132,7 @@ export default async function MyFavoriteSuppliersPage() {
             ))}
           </div>
         )}
+      </div>
       </div>
     </div>
   );
