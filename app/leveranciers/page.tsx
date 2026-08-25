@@ -2,6 +2,7 @@ import Link from "next/link";
 import { MarketingHeader } from "@/components/marketing/MarketingHeader";
 import { Footer } from "@/components/marketing/Footer";
 import { AppTopBar } from "@/components/app/AppTopBar";
+import { BackLink } from "@/components/ui/BackLink";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { SupplierAvatar } from "@/components/ui/Avatar";
@@ -147,6 +148,16 @@ export default async function SupplierDirectoryPage(props: PageProps<"/leveranci
     // telefoon van 375px — precies het type horizontale-overflow-bug dat de
     // mobiele-navigatie-update eerder al elders in de app oploste.
     <main className="mx-auto w-full min-w-0 max-w-6xl px-6 py-10">
+      {/* Terugknop (gemeld aug. 2026 — "ik mis ook het kruimelspoor en dat je
+          terug kunt naar de pagina waar je was"): /leveranciers is vanaf veel
+          verschillende plekken bereikbaar (homepage, dashboard, een
+          leveranciersprofiel, de hoofdnavigatie), dus een vaste
+          "kruimelpad"-tekst zou hier vaak niet kloppen. BackLink lost dat op
+          zonder dat op te hoeven raden: hij gaat gewoon terug in de
+          browserhistorie (dus naar waar je écht vandaan kwam), en valt alleen
+          terug op een vaste bestemming als er geen historie is (bv. een
+          rechtstreeks geopende link) — zie components/ui/BackLink.tsx. */}
+      <BackLink fallbackHref={user ? "/events" : "/"} label="Terug" className="mb-3" />
       <h1 className="font-display text-3xl text-ink">Leveranciers zoeken</h1>
       <p className="mt-1 text-ink-soft">Filter op categorie, prijs en werkgebied — of beschrijf gewoon wat je zoekt.</p>
 

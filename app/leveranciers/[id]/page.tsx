@@ -13,6 +13,7 @@ import { submitCustomSupplierRequestAction } from "@/lib/actions/supplier-action
 import { MarketingHeader } from "@/components/marketing/MarketingHeader";
 import { Footer } from "@/components/marketing/Footer";
 import { AppTopBar } from "@/components/app/AppTopBar";
+import { BackLink } from "@/components/ui/BackLink";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { SupplierAvatar } from "@/components/ui/Avatar";
@@ -68,6 +69,13 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
 
   const main = (
     <div className="mx-auto max-w-3xl px-4 py-10">
+      {/* Terugknop (gemeld aug. 2026, samen met dezelfde vraag op
+          /leveranciers zelf — "ik mis ook het kruimelspoor"): gaat terug in
+          de browserhistorie (dus naar de zoekresultaten met de filters nog
+          intact zoals je ze had staan), en valt alleen terug op de kale
+          lijst als er geen historie is (bv. een rechtstreeks gedeelde link
+          naar dit profiel). Zie components/ui/BackLink.tsx. */}
+      <BackLink fallbackHref="/leveranciers" label="Alle leveranciers" className="mb-3" />
       {supplier.coverPhotoUrl && (
         <div className="mb-4 aspect-[16/5] overflow-hidden rounded-2xl border border-line">
           {/* eslint-disable-next-line @next/next/no-img-element */}
