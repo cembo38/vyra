@@ -256,6 +256,29 @@ export async function updateRequirementBudgetsAction(eventId: string, updates: {
   revalidatePath(`/events/${eventId}`, "layout");
 }
 
+/**
+ * Cem (aug. 2026): "maak die 500 aanpasbaar. zodat iemand ieder gewenst
+ * moment kan wijzigen" — het totaalbudget van een evenement kon tot nu toe
+ * alleen bepaald worden via het AI-interview (of impliciet via een notitie,
+ * zie addNoteAction hierboven), maar op de budgetpagina zelf ("Totaal
+ * budget"-tegel) was het puur weergave. `source: "user"` markeert daarna
+ * expliciet dat dit bedrag door de organisator zelf is ingesteld/gewijzigd,
+ * niet (meer) door de AI geschat — zelfde patroon als het bestaande
+ * `patch.budget = { totalCents, source: "user" }` in addNoteAction.
+ */
+export async function updateBudgetTotalAction(eventId: string, totalCents: number) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const event = await getEvent(eventId);
+  if (!event || event.ownerId !== user.id) redirect("/events");
+
+  if (!Number.isFinite(totalCents) || totalCents < 0) return;
+  const clean = Math.round(Math.min(totalCents, 100_000_000_00));
+
+  await updateEvent(eventId, { budget: { totalCents: clean, source: "user" } });
+  revalidatePath(`/events/${eventId}`, "layout");
+}
+
 export async function confirmRequirementsAction(eventId: string) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");

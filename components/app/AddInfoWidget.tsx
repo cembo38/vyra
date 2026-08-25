@@ -63,7 +63,7 @@ export function AddInfoWidget({ eventId }: { eventId: string }) {
       ) : (
         <div className="rounded-xl bg-sage-50 p-3 text-sm text-sage-dark">
           <div className="mb-1 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide">
-            <Sparkles className="size-3.5" /> AI-signalering
+            <Sparkles className="motion-icon-twinkle size-3.5" /> VyrAI-signalering
           </div>
           {impact}
         </div>

@@ -13,8 +13,10 @@ import { getBudgetAdvice } from "@/lib/ai/assistant";
 import { Card } from "@/components/ui/Card";
 import { PriorityBadge, RequirementStatusBadge, AiTag } from "@/components/ui/Badge";
 import { BudgetAllocator } from "@/components/app/BudgetAllocator";
+import { EditableBudgetTotal } from "@/components/app/EditableBudgetTotal";
+import { VyrAiAdvice } from "@/components/app/VyrAiAdvice";
 import { formatCurrency } from "@/lib/config";
-import { AlertTriangle, Sparkles, Wallet } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 
 /** Categorieën waarvan de prijs al vastligt via een geaccepteerde offerte — een schuif aanpassen zou daar niets meer betekenen. */
 const LOCKED_STATUSES = new Set(["confirmed", "paid", "completed"]);
@@ -57,7 +59,7 @@ export default async function BudgetPage(props: PageProps<"/events/[id]/budget">
 
       <Card>
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-4">
-          <Stat label="Totaal budget" value={formatCurrency(budget.totalCents)} icon={<Wallet className="size-4" />} />
+          <EditableBudgetTotal eventId={id} totalCents={budget.totalCents} />
           <Stat label="Gecommitteerd" value={formatCurrency(budget.committedCents)} tone="text-success" />
           <Stat label="Verwacht" value={formatCurrency(budget.pendingCents)} tone="text-ochre" />
           <Stat label="Resterend" value={formatCurrency(budget.remainingCents)} tone={budget.remainingCents < 0 ? "text-danger" : "text-ink"} />
@@ -79,10 +81,9 @@ export default async function BudgetPage(props: PageProps<"/events/[id]/budget">
           </div>
         )}
 
-        <div className="mt-5 flex items-start gap-2.5 rounded-xl bg-sage-50 px-4 py-3 text-sm text-sage-dark">
-          <Sparkles className="mt-0.5 size-4 shrink-0" />
+        <VyrAiAdvice className="mt-5">
           <p>{advice.answer}</p>
-        </div>
+        </VyrAiAdvice>
       </Card>
 
       {allocatorItems.length > 0 && (
@@ -119,7 +120,7 @@ export default async function BudgetPage(props: PageProps<"/events/[id]/budget">
         </div>
         )}
         <div className="mt-4 flex items-center gap-1.5 text-xs text-ink-faint">
-          <AiTag /> Budgetverdeling is een AI-aanbeveling op basis van je eventgegevens — pas het gerust aan.
+          <AiTag /> Budgetverdeling is VyrAI-advies op basis van je eventgegevens — pas het gerust aan.
         </div>
       </Card>
     </div>

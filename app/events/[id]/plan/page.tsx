@@ -49,7 +49,7 @@ export default async function PlanPage(props: PageProps<"/events/[id]/plan">) {
     <div className="space-y-8">
       <Card className="bg-ink text-paper">
         <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/80">
-          <Sparkles className="size-3.5" /> AI-eventplan
+          <Sparkles className="motion-icon-twinkle size-3.5" /> VyrAI-eventplan
         </div>
         <h1 className="font-display text-2xl">Ik raad {requirements.length} categorieën aan voor {event.name}</h1>
         <p className="mt-1.5 text-sm text-white/70">Je hebt er {selectedCount} geselecteerd. Je kunt elke aanbeveling zelf aan- of uitzetten.</p>
@@ -102,7 +102,7 @@ export default async function PlanPage(props: PageProps<"/events/[id]/plan">) {
                     <RequirementToggle eventId={id} categoryId={r.id} selected={r.selected} />
                   </div>
                   <div className="mt-3 flex items-start gap-1.5 rounded-xl bg-sage-50 px-3 py-2 text-xs text-sage-dark">
-                    <Sparkles className="mt-0.5 size-3.5 shrink-0" />
+                    <Sparkles className="motion-icon-twinkle mt-0.5 size-3.5 shrink-0" />
                     <p>{r.aiRationale}</p>
                   </div>
                   {r.selected && (

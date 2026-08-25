@@ -32,10 +32,16 @@ export function Badge({
   );
 }
 
-/** Onderscheidt AI-gegenereerde aanbevelingen visueel van user/supplier-data (spec §34). */
-export function AiTag({ children = "AI-aanbeveling", className }: { children?: ReactNode; className?: string }) {
+/**
+ * Onderscheidt AI-gegenereerde aanbevelingen visueel van user/supplier-data
+ * (spec §34). Cem (aug. 2026): "gebruik overal 'VyrAI' bij alles wat AI
+ * gegenereerd is met een glinster" — vandaar de merknaam als default-tekst
+ * en `.motion-icon-twinkle` (bestaande, prefers-reduced-motion-veilige
+ * animatie, zie app/globals.css) op het sterretje.
+ */
+export function AiTag({ children = "VyrAI", className }: { children?: ReactNode; className?: string }) {
   return (
-    <Badge tone="sage" icon={<Sparkles className="size-3" />} className={className}>
+    <Badge tone="sage" icon={<Sparkles className="motion-icon-twinkle size-3" />} className={className}>
       {children}
     </Badge>
   );

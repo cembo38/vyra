@@ -44,9 +44,9 @@ export default async function SupplierMessageThreadPage(props: PageProps<"/suppl
           <div key={m.id}>
             {m.sender === "ai_summary" ? (
               <div className="flex items-start gap-2 rounded-2xl bg-sage-50 px-4 py-3 text-sm text-sage-dark">
-                <Sparkles className="mt-0.5 size-4 shrink-0" />
+                <Sparkles className="motion-icon-twinkle mt-0.5 size-4 shrink-0" />
                 <div>
-                  <p className="mb-0.5 text-xs font-medium uppercase tracking-wide">AI-samenvatting</p>
+                  <p className="mb-0.5 text-xs font-medium uppercase tracking-wide">VyrAI-samenvatting</p>
                   <p>{m.text}</p>
                 </div>
               </div>
