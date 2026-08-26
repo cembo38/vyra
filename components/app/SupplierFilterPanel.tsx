@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { BookmarkPlus, Search as SearchIcon } from "lucide-react";
-import { Field, Input } from "@/components/ui/Form";
+import { BookmarkPlus, Search as SearchIcon, ShieldCheck } from "lucide-react";
+import { Field, Input, Select } from "@/components/ui/Form";
 import { saveSearchAction } from "@/lib/actions/misc-actions";
 import { SupplierCategory } from "@/lib/types";
 import { SupplierCategoryFilterItem, SupplierCategoryFilterList } from "@/components/app/SupplierCategoryFilterList";
@@ -26,6 +26,9 @@ export function SupplierFilterPanel({
   maxPriceEuros,
   categories,
   view,
+  sort,
+  verifiedOnly,
+  minRating,
   hasFilters,
   clearHref,
   categoryItems,
@@ -41,6 +44,10 @@ export function SupplierFilterPanel({
   /** Meerdere categorieën tegelijk aan te vinken (Cem, aug. 2026) — komma-gescheiden in het verborgen formulierveld, zie parseCategories() in app/leveranciers/page.tsx. */
   categories: SupplierCategory[];
   view: "lijst" | "kaart";
+  /** Wordt elders bestuurd (SortSelect, buiten dit formulier) — hier alleen een verborgen veld zodat het versturen van dít formulier de actieve sortering niet stilzwijgend terugzet naar "Aanbevolen". */
+  sort: string;
+  verifiedOnly: boolean;
+  minRating: number | undefined;
   hasFilters: boolean;
   clearHref: string;
   categoryItems: SupplierCategoryFilterItem[];
@@ -65,6 +72,7 @@ export function SupplierFilterPanel({
       <form id={formId} method="get" action="/leveranciers" className="flex flex-col gap-5">
         <input type="hidden" name="categories" value={categories.join(",")} />
         <input type="hidden" name="view" value={view === "kaart" ? "kaart" : ""} />
+        <input type="hidden" name="sort" value={sort !== "aanbevolen" ? sort : ""} />
 
         <Field label="Wat zoek je?" hint="Bijv. 'live band voor bruiloft'">
           <Input name="q" defaultValue={q} placeholder="Zoekterm..." />
@@ -88,6 +96,22 @@ export function SupplierFilterPanel({
           <Field label="Prijs tot (€)">
             <Input name="maxPrice" type="number" min={0} step={1} defaultValue={maxPriceEuros ?? ""} />
           </Field>
+        </div>
+
+        <div className="border-t border-line-soft pt-4">
+          <Field label="Minimale beoordeling">
+            <Select name="minScore" defaultValue={minRating != null ? String(minRating) : ""}>
+              <option value="">Alle beoordelingen</option>
+              <option value="3">Vanaf 3★</option>
+              <option value="4">Vanaf 4★</option>
+              <option value="4.5">Vanaf 4,5★</option>
+            </Select>
+          </Field>
+          <label className="mt-3 flex min-h-9 cursor-pointer items-center gap-2 text-sm text-ink">
+            <input type="checkbox" name="verified" value="1" defaultChecked={verifiedOnly} className="size-4 rounded border-line text-sage focus:ring-sage" />
+            <ShieldCheck className="size-4 shrink-0 text-sage" />
+            Alleen geverifieerde leveranciers
+          </label>
         </div>
 
         <button

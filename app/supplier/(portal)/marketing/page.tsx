@@ -1,15 +1,18 @@
 import { redirect } from "next/navigation";
 import { Card } from "@/components/ui/Card";
+import { ReferralSection } from "@/components/app/ReferralSection";
 import { SpotlightPanel } from "@/components/app/SpotlightPanel";
 import { getCurrentUser } from "@/lib/auth";
 import {
+  countReferrals,
   getActiveSpotlightsForSupplier,
   countSpotlightActivationsThisMonth,
+  getPendingSpotlightBoostRequest,
   getSupplierAccountByOwner,
   getSupplierCommissionStatus,
 } from "@/lib/data/store";
-import { SPOTLIGHT_MONTHLY_QUOTA } from "@/lib/config";
-import { Flashlight } from "lucide-react";
+import { SITE_URL, SPOTLIGHT_MONTHLY_QUOTA } from "@/lib/config";
+import { Flashlight, Users } from "lucide-react";
 
 export const metadata = { title: "Marketing — Vyra voor leveranciers" };
 
@@ -29,9 +32,11 @@ export default async function SupplierMarketingPage() {
   if (!supplier) redirect("/supplier/onboarding");
 
   const commissionStatus = await getSupplierCommissionStatus(supplier.id);
-  const [activeSpotlights, spotlightsUsedThisMonth] = await Promise.all([
+  const [activeSpotlights, spotlightsUsedThisMonth, pendingBoostRequest, referralCount] = await Promise.all([
     getActiveSpotlightsForSupplier(supplier.id),
     countSpotlightActivationsThisMonth(supplier.id),
+    getPendingSpotlightBoostRequest(supplier.id),
+    countReferrals(user.id),
   ]);
 
   return (
@@ -54,7 +59,18 @@ export default async function SupplierMarketingPage() {
             activeSpotlights={activeSpotlights}
             quota={SPOTLIGHT_MONTHLY_QUOTA[commissionStatus.tier]}
             usedThisMonth={spotlightsUsedThisMonth}
+            bonusCredits={supplier.bonusSpotlightCredits}
+            pendingBoostRequest={pendingBoostRequest}
           />
+        </div>
+      </Card>
+
+      <Card className="mt-6">
+        <h2 className="flex items-center gap-1.5 text-sm font-medium uppercase tracking-wide text-ink-faint">
+          <Users className="size-3.5" /> Referral-programma
+        </h2>
+        <div className="mt-4">
+          <ReferralSection referralUrl={`${SITE_URL}/signup?ref=${user.id}`} referralCount={referralCount} showSpotlightNote />
         </div>
       </Card>
     </div>

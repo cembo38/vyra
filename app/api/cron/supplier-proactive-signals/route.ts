@@ -1,7 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { TRIAL_BOOKING_COUNT } from "@/lib/config";
+import { sendNotificationEmail } from "@/lib/email/send";
+import { sendPushNotification } from "@/lib/push";
+import { EMAIL_ENABLED, PUSH_ENABLED, TRIAL_BOOKING_COUNT } from "@/lib/config";
 import { SUPPLIER_CATEGORY_LABELS, SupplierCategory } from "@/lib/types";
+
+type AdminClient = NonNullable<ReturnType<typeof createSupabaseAdminClient>>;
+
+/**
+ * Stuurt een e-mail + pushmelding(en) naar één ontvanger, náást de al
+ * opgeslagen in-app-melding — spec-item #131. Faalt nooit hardop (zelfde
+ * "best effort"-principe als sendNotificationEmail zelf): een hikkende
+ * e-mail/push-provider mag nooit de rest van de cron-run laten mislukken.
+ * Ruimt een verlopen push-abonnement meteen op (zie sendPushNotification)
+ * i.p.v. daar bij de volgende run weer tegenaan te lopen.
+ */
+async function notifyOwnerByEmailAndPush(supabase: AdminClient, ownerId: string, msg: { title: string; body: string; href: string }) {
+  if (EMAIL_ENABLED) {
+    const { data: profile } = await supabase.from("profiles").select("email").eq("id", ownerId).maybeSingle();
+    if (profile?.email) await sendNotificationEmail({ to: profile.email, ...msg });
+  }
+  if (PUSH_ENABLED) {
+    const { data: subs } = await supabase.from("push_subscriptions").select("endpoint, p256dh, auth_key").eq("user_id", ownerId);
+    for (const sub of subs ?? []) {
+      const result = await sendPushNotification({ endpoint: sub.endpoint, p256dh: sub.p256dh, authKey: sub.auth_key }, msg);
+      if (result.expired) await supabase.from("push_subscriptions").delete().eq("endpoint", sub.endpoint);
+    }
+  }
+}
 
 /**
  * "Proactieve signalen" (Enterprise-perk uit het VyrAI-leverancier-
@@ -133,16 +159,20 @@ export async function GET(request: NextRequest) {
     const categoryLabel = SUPPLIER_CATEGORY_LABELS[req.category_key as SupplierCategory] ?? req.category_key;
     const eventName = req.event?.name ?? "een evenement";
     const dedupeKey = `supplier-signal-lead-${req.id}`;
+    const title = "VyrAI-signaal: aanvraag verloopt bijna";
+    const body = `Je aanvraag "${categoryLabel}" voor ${eventName} verloopt over minder dan 24 uur — nog geen reactie verstuurd.`;
+    const href = `/supplier/messages/${req.id}`;
     const { error: insertError } = await supabase.from("notifications").insert({
       user_id: ownerId,
       type: "supplier_proactive_signal",
-      title: "VyrAI-signaal: aanvraag verloopt bijna",
-      body: `Je aanvraag "${categoryLabel}" voor ${eventName} verloopt over minder dan 24 uur — nog geen reactie verstuurd.`,
-      href: `/supplier/messages/${req.id}`,
+      title,
+      body,
+      href,
       dedupe_key: dedupeKey,
     });
     // 23505 = unique_violation: dit signaal is al eerder verstuurd voor
-    // deze aanvraag, precies de bedoeling van de dedupe_key-constraint.
+    // deze aanvraag, precies de bedoeling van de dedupe_key-constraint —
+    // dus ook geen nieuwe e-mail/push bij een herhaalde cron-run.
     if (insertError) {
       if (insertError.code !== "23505") {
         console.error(`[cron/supplier-proactive-signals] melding voor aanvraag ${req.id} mislukt:`, insertError.message);
@@ -150,6 +180,7 @@ export async function GET(request: NextRequest) {
       continue;
     }
     notified++;
+    await notifyOwnerByEmailAndPush(supabase, ownerId, { title, body, href });
   }
 
   // ── Signaal 2: bevestigde boekingen die binnen 7 dagen plaatsvinden ──
@@ -174,12 +205,15 @@ export async function GET(request: NextRequest) {
 
     const categoryLabel = SUPPLIER_CATEGORY_LABELS[row.category_key as SupplierCategory] ?? row.category_key;
     const dedupeKey = `supplier-signal-booking-${row.id}`;
+    const title = "VyrAI-signaal: boeking komt eraan";
+    const body = `Je boeking "${categoryLabel}" voor ${event.name} vindt binnen 7 dagen plaats.`;
+    const href = `/supplier/calendar`;
     const { error: insertError } = await supabase.from("notifications").insert({
       user_id: ownerId,
       type: "supplier_proactive_signal",
-      title: "VyrAI-signaal: boeking komt eraan",
-      body: `Je boeking "${categoryLabel}" voor ${event.name} vindt binnen 7 dagen plaats.`,
-      href: `/supplier/calendar`,
+      title,
+      body,
+      href,
       dedupe_key: dedupeKey,
     });
     if (insertError) {
@@ -189,6 +223,7 @@ export async function GET(request: NextRequest) {
       continue;
     }
     notified++;
+    await notifyOwnerByEmailAndPush(supabase, ownerId, { title, body, href });
   }
 
   return NextResponse.json({ eligibleSuppliers: eligibleSupplierIds.length, notified });

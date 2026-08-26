@@ -382,11 +382,49 @@ export interface SupplierBlockedDate {
   createdAt: string;
 }
 
+/**
+ * Een structureel geblokkeerde weekdag (bv. "elke maandag niet
+ * beschikbaar") — los van de eenmalige `SupplierBlockedDate`s hierboven.
+ * `weekday`: 0=maandag..6=zondag (matcht de Ma-Zo-volgorde in de
+ * kalender-UI, NIET JS' eigen `Date.getDay()`-conventie van 0=zondag).
+ */
+export interface SupplierRecurringBlock {
+  id: string;
+  supplierId: string;
+  weekday: number;
+  createdAt: string;
+}
+
 /** Een leverancier die een organisator heeft opgeslagen om later makkelijk terug te vinden/opnieuw te boeken. */
 export interface SupplierFavorite {
   id: string;
   userId: string;
   supplierId: string;
+  /** Optionele indeling in een eigen collectie (bv. "Bruiloft 2027") — null = niet ingedeeld. Zie SupplierFavoriteCollection. */
+  collectionId: string | null;
+  createdAt: string;
+}
+
+/**
+ * Een eigen, benoemde groepering van favorieten (spec-item #129) — bv.
+ * "Bruiloft 2027" of "Backup-opties". Puur organisatorisch voor de
+ * organisator zelf; heeft geen enkel effect op matching of op wat een
+ * leverancier te zien krijgt.
+ */
+export interface SupplierFavoriteCollection {
+  id: string;
+  userId: string;
+  name: string;
+  createdAt: string;
+}
+
+/** Eén browser-Web Push-abonnement (spec-item #131) — het resultaat van `PushManager.subscribe()` in de browser van de gebruiker. */
+export interface PushSubscriptionRecord {
+  id: string;
+  userId: string;
+  endpoint: string;
+  p256dh: string;
+  authKey: string;
   createdAt: string;
 }
 
@@ -421,6 +459,10 @@ export interface SupplierAccount {
   verificationRequestedAt: string | null;
   avgResponseHours: number;
   acceptedOfferRate: number;
+  /** Aantal offertes dat deze leverancier ooit heeft ingediend — puur bedoeld als "genoeg data?"-signaal naast acceptedOfferRate (zie recompute-acceptance-rate cron): een 0%-acceptatiegraad ZONDER ingediende offertes betekent "nog geen data", niet "altijd afgewezen". */
+  offersSubmittedCount: number;
+  /** Extra spotlight-activaties bovenop het gewone maandelijkse quotum (migratie 0045) — verdiend via het referral-programma of een goedgekeurde losse boost-aanvraag. Verbruikt vóórdat het gewone quotum wordt aangesproken; verloopt nooit vanzelf. */
+  bonusSpotlightCredits: number;
   tags: string[];
   yearsActive: number;
   portfolioHighlights: string[];
@@ -503,6 +545,15 @@ export interface SupplierPerformanceInsights {
   /** Eigen gemiddelde prijs (SupplierAccount.avgPriceCents) — voor Prijsadvies (Premium+, spec-item #57). */
   avgPriceCents: number;
   categoryAvgPriceCents: number | null;
+  /**
+   * Acceptatiegraad (0..1), dagelijks herberekend door
+   * api/cron/recompute-acceptance-rate uit échte offertes. Alleen
+   * betekenisvol als `offersSubmittedCount > 0` — bij 0 nooit als
+   * percentage tonen (zou als "0%"/mislukking ogen i.p.v. "nog geen data").
+   */
+  acceptedOfferRate: number;
+  offersSubmittedCount: number;
+  categoryAvgAcceptedOfferRate: number | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -584,6 +635,10 @@ export interface Review {
   comment: string | null;
   /** Alleen relevant bij reviewerRole "supplier": leverancier meldt een organisator die niet kwam opdagen. */
   noShow: boolean;
+  /** Foto's van het eindresultaat (migratie 0043) — publieke URL's in de "supplier-media"-opslagruimte, net als een leveranciersgalerij. */
+  photoUrls: string[];
+  /** Optionele YouTube/Vimeo-link (migratie 0043) — zelfde validatie als supplier.introVideoUrl, zie getVideoEmbedUrl in lib/utils.ts. */
+  videoUrl: string | null;
   createdAt: string;
 }
 
@@ -614,6 +669,15 @@ export interface Shortlist {
   updatedAt: string;
 }
 
+/** Bijlage bij een bericht (foto/pdf) — spec-item "bijlages in berichten", livegang-audit. `url` is een tijdelijk ondertekende link (zie getMessages() in lib/data/store.ts), géén publieke URL — de opslagruimte is bewust private. */
+export interface MessageAttachment {
+  id: string;
+  fileName: string;
+  mimeType: string;
+  sizeBytes: number;
+  url: string | null;
+}
+
 export interface Message {
   id: string;
   eventId: string;
@@ -621,6 +685,7 @@ export interface Message {
   supplierId: string;
   sender: "customer" | "supplier" | "ai_summary";
   text: string;
+  attachments: MessageAttachment[];
   createdAt: string;
 }
 
@@ -651,6 +716,31 @@ export interface Payment {
   installment: PaymentInstallment;
   /** Bij een "balance"-betaling: het id van de bijbehorende "deposit"-betaling. Anders null. */
   parentPaymentId: string | null;
+  /**
+   * Stripe-/uitbetaalvelden — voorbereiding voor een echte betaalflow
+   * (spec-item #132, zie supabase/migrations/0049_stripe_payment_prep.sql).
+   * Blijven `null`/`"not_applicable"` zolang `provider` nog "mock" is; pas
+   * gevuld zodra de betaling écht via Stripe loopt.
+   */
+  stripePaymentIntentId: string | null;
+  stripeCheckoutSessionId: string | null;
+  /** Het id van de Stripe Connect-transfer waarmee het bedrag (na aftrek van commissie) naar de leverancier is uitbetaald. */
+  stripeTransferId: string | null;
+  /** "held" = betaald door de organisator, nog vastgehouden door Vyra (escrow); "released" = doorbetaald aan de leverancier. */
+  payoutStatus: "not_applicable" | "held" | "released";
+  payoutReleasedAt: string | null;
+}
+
+/** Koppeling tussen een leverancier en zijn Stripe Connect-account (voor uitbetalingen) — spec-item #132. Zie migratie 0049 voor waarom dit een aparte, niet-publiek-leesbare tabel is. */
+export interface SupplierStripeAccount {
+  supplierId: string;
+  stripeAccountId: string | null;
+  /** Of Stripe deze leverancier al toestaat betalingen te ontvangen — alleen ooit gezet door de account.updated-webhook, nooit door de leverancier zelf. */
+  chargesEnabled: boolean;
+  /** Of Stripe deze leverancier al toestaat uitbetalingen te ontvangen (idem). */
+  payoutsEnabled: boolean;
+  onboardedAt: string | null;
+  createdAt: string;
 }
 
 export interface AppNotification {
@@ -677,7 +767,12 @@ export interface AppNotification {
     | "dispute_filed"
     | "dispute_resolved"
     | "dispute_dismissed"
-    | "saved_search_match";
+    | "saved_search_match"
+    | "supplier_proactive_signal"
+    | "tier_upgrade_approved"
+    | "tier_upgrade_declined"
+    | "referral_reward"
+    | "spotlight_boost_approved";
   title: string;
   body: string;
   read: boolean;
@@ -726,6 +821,51 @@ export interface Dispute {
   status: DisputeStatus;
   adminResponse: string | null;
   resolvedAt: string | null;
+  createdAt: string;
+}
+
+/** Zelfbedienings-aanvraag voor een hoger abonnement (migratie 0040) — zie SubscriptionTierPicker.tsx. */
+export interface SupplierTierUpgradeRequest {
+  id: string;
+  supplierId: string;
+  requestedTier: string;
+  status: "pending" | "approved" | "declined";
+  adminResponse: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+}
+
+/** Zelfbedienings-verzoek voor een losse Spotlight-boost (migratie 0045) — zie SpotlightPanel.tsx. Zelfde vorm als SupplierTierUpgradeRequest: Cem keurt handmatig goed (Vyra verwerkt nog geen betalingen zelf), goedkeuring geeft +1 bonus_spotlight_credits. */
+export interface SpotlightBoostRequest {
+  id: string;
+  supplierId: string;
+  status: "pending" | "approved" | "declined";
+  adminResponse: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+}
+
+/** Zelfbedienings-verzoek tot accountverwijdering (migratie 0044, AVG/GDPR) — zie /profile en /supplier/profile ("Privacy & gegevens"). Werkelijke verwijdering gebeurt pas na handmatige beoordeling door Cem, net als bij SupplierTierUpgradeRequest. */
+export interface AccountDeletionRequest {
+  id: string;
+  userId: string;
+  reason: string | null;
+  status: "pending" | "approved" | "declined";
+  adminResponse: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+}
+
+/** "offer" = tekst voor SupplierOfferForm.tsx, "message" = tekst voor MessageComposer.tsx (leverancierskant). */
+export type SupplierTemplateKind = "offer" | "message";
+
+/** Opgeslagen sjabloon voor offertes/berichten (migratie 0042) — zie TemplatePicker.tsx. Bespaart leveranciers het steeds opnieuw uittypen van standaardteksten (bijv. een vaste catering-omschrijving of een welkomstbericht). */
+export interface SupplierTemplate {
+  id: string;
+  supplierId: string;
+  kind: SupplierTemplateKind;
+  title: string;
+  body: string;
   createdAt: string;
 }
 

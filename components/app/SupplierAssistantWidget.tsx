@@ -24,12 +24,20 @@ const SUGGESTIONS = [
  * (dubbele bodem, zie checkSupplierAssistantAccess in lib/data/store.ts),
  * maar zo hoeft een leverancier zonder toegang niet eerst een vraag te
  * typen om daarachter te komen.
+ *
+ * `usage` ("resterende VyrAI-limiet zichtbaar maken", livegang-audit) —
+ * tot nu toe ontdekte een leverancier zijn dagelijkse limiet pas ACHTERAF,
+ * via de afwijzende tekst na een mislukte poging. `limit: null` = geen
+ * dagelijkse limiet (Enterprise/proefperiode) — dan tonen we niets, want
+ * er is niets te bewaken.
  */
-export function SupplierAssistantWidget({ enabled }: { enabled: boolean }) {
+export function SupplierAssistantWidget({ enabled, usage }: { enabled: boolean; usage: { used: number; limit: number | null } | null }) {
   const [thread, setThread] = useState<{ q: string; a: string; blocked?: boolean }[]>([]);
   const [input, setInput] = useState("");
   const [pending, startTransition] = useTransition();
   const endRef = useRef<HTMLDivElement>(null);
+  const remaining = usage?.limit != null ? Math.max(0, usage.limit - usage.used) : null;
+  const limitReached = remaining === 0;
 
   if (!enabled) {
     return (
@@ -63,15 +71,28 @@ export function SupplierAssistantWidget({ enabled }: { enabled: boolean }) {
 
   return (
     <div className="rounded-2xl border border-line bg-white p-5 [box-shadow:var(--shadow-card)]">
-      <div className="flex items-center gap-2.5">
-        <div className="flex size-9 items-center justify-center rounded-full bg-sage-50 text-sage">
-          <Sparkles className="motion-icon-twinkle size-4.5" />
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="flex items-center gap-2.5">
+          <div className="flex size-9 items-center justify-center rounded-full bg-sage-50 text-sage">
+            <Sparkles className="motion-icon-twinkle size-4.5" />
+          </div>
+          <div>
+            <p className="font-display text-lg text-ink">VyrAI-assistent</p>
+            <p className="text-xs text-ink-faint">Vraag alles over je aanvragen, boekingen en verdiensten</p>
+          </div>
         </div>
-        <div>
-          <p className="font-display text-lg text-ink">VyrAI-assistent</p>
-          <p className="text-xs text-ink-faint">Vraag alles over je aanvragen, boekingen en verdiensten</p>
-        </div>
+        {usage?.limit != null && (
+          <span className={`shrink-0 rounded-full px-2.5 py-1 text-[11px] font-medium ${limitReached ? "bg-warning-50 text-warning" : "bg-paper-dim text-ink-faint"}`}>
+            {limitReached ? "Daglimiet bereikt" : `${remaining}/${usage.limit} vandaag over`}
+          </span>
+        )}
       </div>
+
+      {limitReached && (
+        <p className="mt-3 rounded-xl bg-warning-50 px-3 py-2 text-xs text-ink-soft">
+          Je hebt je {usage!.limit} gratis VyrAI-aanroepen voor vandaag gebruikt (geldt voor chat, conceptantwoorden, offertehulp en meer samen). Morgen kun je weer verder, of upgrade naar Enterprise voor een onbeperkte limiet.
+        </p>
+      )}
 
       {thread.length === 0 ? (
         <div className="mt-4 flex flex-wrap gap-2">
@@ -112,13 +133,14 @@ export function SupplierAssistantWidget({ enabled }: { enabled: boolean }) {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Typ of spreek je vraag in…"
-          className="flex-1 bg-transparent px-2.5 py-1.5 text-sm outline-none placeholder:text-ink-faint"
+          disabled={limitReached}
+          placeholder={limitReached ? "Daglimiet bereikt — morgen weer verder" : "Typ of spreek je vraag in…"}
+          className="flex-1 bg-transparent px-2.5 py-1.5 text-sm outline-none placeholder:text-ink-faint disabled:cursor-not-allowed"
         />
         <VoiceInputButton className="size-9" onTranscript={(text) => setInput((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))} />
         <button
           type="submit"
-          disabled={pending || !input.trim()}
+          disabled={pending || !input.trim() || limitReached}
           aria-label="Versturen"
           className="icon-pop flex size-9 shrink-0 items-center justify-center rounded-full bg-ink text-paper disabled:opacity-30 disabled:pointer-events-none"
         >

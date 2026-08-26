@@ -1,11 +1,24 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { ArrowUp, Loader2, Sparkles } from "lucide-react";
+import { useRef, useState, useTransition } from "react";
+import { ArrowUp, File as FileIcon, Loader2, Paperclip, Sparkles, X } from "lucide-react";
 import { sendMessageAction, sendSupplierMessageAction } from "@/lib/actions/message-actions";
 import { draftSupplierReplyAction } from "@/lib/actions/supplier-assistant-actions";
+import { TemplatePicker } from "@/components/app/TemplatePicker";
 import { VoiceInputButton } from "@/components/app/VoiceInputButton";
 import { SupplierCategory } from "@/lib/types";
+
+// Zelfde grenzen als lib/data/store.ts (MESSAGE_ATTACHMENT_MAX_BYTES) en
+// lib/actions/message-actions.ts (MAX_ATTACHMENTS_PER_MESSAGE) — hier
+// gedupliceerd voor directe feedback vóórdat er iets naar de server gaat;
+// de server valideert dit sowieso nog een keer, dit is puur UX.
+const MAX_FILES = 5;
+const MAX_BYTES = 8 * 1024 * 1024;
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export function MessageComposer({
   eventId,
@@ -26,10 +39,12 @@ export function MessageComposer({
   assistantEnabled?: boolean;
 }) {
   const [text, setText] = useState("");
+  const [files, setFiles] = useState<File[]>([]);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [draftPending, startDraftTransition] = useTransition();
   const [draftNote, setDraftNote] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const showAssistantButton = sender === "supplier" && assistantEnabled && requestId;
 
@@ -46,17 +61,41 @@ export function MessageComposer({
     });
   }
 
+  function addFiles(picked: FileList | null) {
+    if (!picked || picked.length === 0) return;
+    setError(null);
+    const accepted: File[] = [];
+    for (const f of Array.from(picked)) {
+      if (!f.type.startsWith("image/") && f.type !== "application/pdf") {
+        setError("Alleen foto's of pdf's kunnen als bijlage.");
+        continue;
+      }
+      if (f.size > MAX_BYTES) {
+        setError(`"${f.name}" is groter dan 8MB.`);
+        continue;
+      }
+      accepted.push(f);
+    }
+    setFiles((prev) => [...prev, ...accepted].slice(0, MAX_FILES));
+  }
+
+  function removeFile(index: number) {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  }
+
   return (
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        if (!text.trim()) return;
+        if (!text.trim() && files.length === 0) return;
         const value = text;
+        const valueFiles = files;
         setText("");
+        setFiles([]);
         setError(null);
         setDraftNote(null);
         startTransition(async () => {
-          const result = await (sender === "supplier" ? sendSupplierMessageAction : sendMessageAction)(eventId, categoryKey, supplierId, value);
+          const result = await (sender === "supplier" ? sendSupplierMessageAction : sendMessageAction)(eventId, categoryKey, supplierId, value, valueFiles);
           // We wissen het invoerveld optimistisch (hierboven), maar bij een
           // mislukte verzending was het getypte bericht daarmee kwijt — de
           // gebruiker moest het uit het hoofd overtypen. Zet het terug zodat
@@ -64,6 +103,7 @@ export function MessageComposer({
           if (!result.ok) {
             setError(result.error ?? "Versturen is niet gelukt.");
             setText(value);
+            setFiles(valueFiles);
           }
         });
       }}
@@ -80,15 +120,52 @@ export function MessageComposer({
         </button>
       )}
       {draftNote && <p className="mb-2 rounded-lg bg-ochre-50 px-3 py-1.5 text-xs text-ink-soft">{draftNote}</p>}
+
+      {files.length > 0 && (
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {files.map((f, i) => (
+            <span key={`${f.name}-${i}`} className="flex items-center gap-1.5 rounded-full border border-line bg-paper-dim py-1 pr-1.5 pl-2.5 text-xs text-ink-soft">
+              <FileIcon className="size-3.5 shrink-0" />
+              <span className="max-w-[9rem] truncate">{f.name}</span>
+              <span className="text-ink-faint">{formatFileSize(f.size)}</span>
+              <button type="button" onClick={() => removeFile(i)} aria-label={`${f.name} verwijderen`} className="flex size-5 shrink-0 items-center justify-center rounded-full hover:bg-line-soft">
+                <X className="size-3" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
+
       <div className="flex items-center gap-2 rounded-full border border-line bg-white p-1.5">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,application/pdf"
+          multiple
+          className="hidden"
+          onChange={(e) => {
+            addFiles(e.target.files);
+            e.target.value = "";
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={files.length >= MAX_FILES}
+          aria-label="Bijlage toevoegen"
+          className="icon-pop flex size-10 shrink-0 items-center justify-center rounded-full text-ink-faint hover:bg-paper-dim disabled:opacity-30 disabled:pointer-events-none"
+        >
+          <Paperclip className="size-4" />
+        </button>
+        {sender === "supplier" && <TemplatePicker kind="message" currentText={text} onInsert={setText} openUpward />}
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder="Typ of spreek een bericht in…"
-          className="flex-1 bg-transparent px-3 py-2 text-sm outline-none placeholder:text-ink-faint"
+          className="flex-1 bg-transparent px-1 py-2 text-sm outline-none placeholder:text-ink-faint"
         />
         <VoiceInputButton className="size-10" onTranscript={(t) => setText((prev) => (prev.trim() ? `${prev.trim()} ${t}` : t))} />
-        <button type="submit" disabled={pending || !text.trim()} aria-label="Versturen" className="icon-pop flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-paper disabled:opacity-30 disabled:pointer-events-none">
+        <button type="submit" disabled={pending || (!text.trim() && files.length === 0)} aria-label="Versturen" className="icon-pop flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-paper disabled:opacity-30 disabled:pointer-events-none">
           {pending ? <Loader2 className="size-4 animate-spin" /> : <ArrowUp className="size-4" />}
         </button>
       </div>

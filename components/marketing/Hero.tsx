@@ -253,7 +253,24 @@ function AiInterviewCard() {
   );
 }
 
-export function Hero() {
+// Drempels vóórdat een cijfer als social proof overtuigt i.p.v. vreemd
+// aandoet — "Al gebruikt voor 3 evenementen" of "5.0/5" op één beoordeling
+// oogt eerder onzeker dan overtuigend. Onder de drempel valt de hero terug
+// op de niet-cijfermatige vertrouwenszin hieronder (BASELINE_TRUST_LINE) —
+// nooit een verzonnen getal, zie getPlatformStats() in lib/data/store.ts.
+const EVENT_COUNT_THRESHOLD = 10;
+const RATING_COUNT_THRESHOLD = 3;
+const BASELINE_TRUST_LINE = "AI-gestuurde matching · reactie binnen 48 uur";
+
+export function Hero({
+  eventCount,
+  avgRating,
+  ratingCount,
+}: {
+  eventCount: number;
+  avgRating: number | null;
+  ratingCount: number;
+}) {
   const sectionRef = useRef<HTMLElement>(null);
   const reducedMotion = usePrefersReducedMotion();
   const glowX = useMotionValue(-999);
@@ -314,24 +331,36 @@ export function Hero() {
             </LinkButton>
           </div>
           <div className="mt-10 flex items-center gap-6 text-sm text-ink-faint">
-            <div className="flex items-center gap-1.5">
-              <div className="flex -space-x-2">
-                {["#B5674A", "#6B7A5E", "#9C5540", "#B08A3E"].map((c) => (
-                  <div key={c} className="size-7 rounded-full border-2 border-paper" style={{ backgroundColor: c }} />
-                ))}
-              </div>
-              <span>
-                Al gebruikt voor <CountUp target={2000} suffix="+" /> evenementen
-              </span>
-            </div>
-            <div className="hidden items-center gap-1 sm:flex">
-              {[...Array(5)].map((_, i) => (
-                <Star key={i} className="size-3.5 fill-ochre text-ochre" />
-              ))}
-              <span className="ml-1">
-                <CountUp target={4.8} decimals={1} /> / 5
-              </span>
-            </div>
+            {eventCount >= EVENT_COUNT_THRESHOLD || ratingCount >= RATING_COUNT_THRESHOLD ? (
+              <>
+                {eventCount >= EVENT_COUNT_THRESHOLD && (
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex -space-x-2">
+                      {["#B5674A", "#6B7A5E", "#9C5540", "#B08A3E"].map((c) => (
+                        <div key={c} className="size-7 rounded-full border-2 border-paper" style={{ backgroundColor: c }} />
+                      ))}
+                    </div>
+                    <span>
+                      Al gebruikt voor <CountUp target={eventCount} /> evenementen
+                    </span>
+                  </div>
+                )}
+                {ratingCount >= RATING_COUNT_THRESHOLD && avgRating !== null && (
+                  <div className="hidden items-center gap-1 sm:flex">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="size-3.5 fill-ochre text-ochre" />
+                    ))}
+                    <span className="ml-1">
+                      <CountUp target={avgRating} decimals={1} /> / 5
+                    </span>
+                  </div>
+                )}
+              </>
+            ) : (
+              // Nog te weinig echte data voor overtuigende cijfers — een
+              // eerlijke, niet-cijfermatige zin i.p.v. een verzonnen getal.
+              <span>{BASELINE_TRUST_LINE}</span>
+            )}
           </div>
         </div>
 

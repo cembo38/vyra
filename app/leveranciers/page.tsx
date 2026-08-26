@@ -7,20 +7,39 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { SupplierAvatar } from "@/components/ui/Avatar";
 import { CategoryIconBar, buildCategoryIconBarItems } from "@/components/app/CategoryIconBar";
+import { CompareCheckbox } from "@/components/app/CompareCheckbox";
+import { CompareToolbar } from "@/components/app/CompareToolbar";
 import { SupplierMap } from "@/components/ui/SupplierMap";
 import { SupplierFilterPanel } from "@/components/app/SupplierFilterPanel";
 import { MobileFilterDrawer } from "@/components/app/MobileFilterDrawer";
+import { SortSelect } from "@/components/app/SortSelect";
 import { SupplierCategoryFilterItem } from "@/components/app/SupplierCategoryFilterList";
 import { SUPPLIER_CATEGORY_ICONS } from "@/components/app/SupplierCategoryIcons";
 import { getCurrentUser } from "@/lib/auth";
 import { getActiveSpotlightSupplierIds, searchSupplierAccounts } from "@/lib/data/store";
 import { SUPPLIER_CATEGORY_LABELS, SupplierCategory } from "@/lib/types";
+import { isTrustedSupplier, TRUST_BADGE_EXPLANATION } from "@/lib/trust";
 import { SUBSCRIPTION_TIERS, formatCurrency } from "@/lib/config";
 import { CheckCircle2, Crown, Flashlight, List, Map as MapIcon, MapPin, ShieldCheck, Sparkles, Star, X } from "lucide-react";
 
 export const metadata = { title: "Leveranciers zoeken — Vyra" };
 
 const CATEGORY_KEYS = new Set(Object.keys(SUPPLIER_CATEGORY_LABELS));
+
+// Sorteeropties (spec: "sorteren op prijs/score/reactietijd", vergelijkbaar
+// met Etsy's "Prijs: laag naar hoog" e.d.). "aanbevolen" is bewust géén
+// echte sorteersleutel op een veld — dat is de bestaande uitgelicht-eerst-
+// volgorde die hieronder al werd toegepast, nu als expliciete keuze in het
+// dropdown i.p.v. de enige, impliciete volgorde.
+const SORT_OPTIONS = [
+  { key: "aanbevolen", label: "Aanbevolen" },
+  { key: "prijs-asc", label: "Prijs: laag naar hoog" },
+  { key: "prijs-desc", label: "Prijs: hoog naar laag" },
+  { key: "score", label: "Hoogst beoordeeld" },
+  { key: "reactietijd", label: "Snelste reactietijd" },
+] as const;
+type SortKey = (typeof SORT_OPTIONS)[number]["key"];
+const SORT_KEYS = new Set<string>(SORT_OPTIONS.map((o) => o.key));
 
 /** `?categories=photography,catering` — komma-gescheiden i.p.v. herhaalde queryparams: makkelijker als verborgen formuliervel en als leesbare URL om te delen/bewaren. Onbekende waardes (getypte URL, verwijderde categorie) worden stilzwijgend genegeerd. */
 function parseCategories(raw: unknown): SupplierCategory[] {
@@ -46,13 +65,17 @@ export default async function SupplierDirectoryPage(props: PageProps<"/leveranci
   const minPriceCents = minPriceEuros != null && Number.isFinite(minPriceEuros) ? Math.round(minPriceEuros * 100) : undefined;
   const maxPriceCents = maxPriceEuros != null && Number.isFinite(maxPriceEuros) ? Math.round(maxPriceEuros * 100) : undefined;
   const view: "lijst" | "kaart" = params.view === "kaart" ? "kaart" : "lijst";
+  const sort: SortKey = typeof params.sort === "string" && SORT_KEYS.has(params.sort) ? (params.sort as SortKey) : "aanbevolen";
+  const verifiedOnly = params.verified === "1";
+  const minRatingRaw = typeof params.minScore === "string" && params.minScore ? Number(params.minScore) : undefined;
+  const minRating = minRatingRaw != null && Number.isFinite(minRatingRaw) && minRatingRaw >= 1 && minRatingRaw <= 5 ? minRatingRaw : undefined;
 
   // De filters ZONDER categorie worden hieronder ook los gebruikt om het
   // aantal leveranciers per categorie te tellen (zie categoryItems) — dat
   // hergebruikt bewust dezelfde `searchSupplierAccounts`-functie i.p.v. een
   // nieuwe telquery te schrijven, zodat de tellingen gegarandeerd exact
   // dezelfde locatie/prijs/zoekterm-logica volgen als de resultaten zelf.
-  const baseFilters = { location: location || undefined, query: q || undefined, minPriceCents, maxPriceCents };
+  const baseFilters = { location: location || undefined, query: q || undefined, minPriceCents, maxPriceCents, verifiedOnly, minRating };
   const [unsortedSuppliers, allForCategoryCounts] = await Promise.all([
     searchSupplierAccounts({ ...baseFilters, categories }),
     categories.length > 0 ? searchSupplierAccounts(baseFilters) : Promise.resolve(null),
@@ -68,13 +91,40 @@ export default async function SupplierDirectoryPage(props: PageProps<"/leveranci
   // categoriefilter telt alleen een spotlight VOOR één van de geselecteerde
   // categorieën mee — anders elke actieve spotlight van de leverancier.
   const spotlightedIds = await getActiveSpotlightSupplierIds(unsortedSuppliers.map((s) => s.id), categories.length > 0 ? categories : undefined);
+  // Bij "aanbevolen" (default) blijft de bestaande uitgelicht-eerst-volgorde
+  // gelden. Bij een expliciete sorteerkeuze (prijs/score/reactietijd) wint
+  // die keuze volledig — net als bij Etsy's "Sorteren op" negeert een
+  // expliciete sortering de standaard aanbevolen-volgorde, anders zou
+  // "Prijs: laag naar hoog" bijvoorbeeld toch nog uitgelichte leveranciers
+  // vooraan tonen, ook als die duurder zijn.
+  //
+  // Leveranciers zonder reviews (ratingCount 0) horen bij "Hoogst
+  // beoordeeld" niet mee te tellen als een 0-score — dat zou ze onterecht
+  // onderaan een lijst met slecht-beoordeelde leveranciers zetten in plaats
+  // van gewoon "nog onbeoordeeld" te zijn (zelfde patroon als de admin-
+  // leverancierslijst, zie app/admin/(protected)/leveranciers/page.tsx).
   const suppliers = [...unsortedSuppliers].sort((a, b) => {
-    const aSpot = spotlightedIds.has(a.id) ? 1 : 0;
-    const bSpot = spotlightedIds.has(b.id) ? 1 : 0;
-    return bSpot - aSpot;
+    switch (sort) {
+      case "prijs-asc":
+        return a.minPriceCents - b.minPriceCents;
+      case "prijs-desc":
+        return b.minPriceCents - a.minPriceCents;
+      case "score":
+        if (a.ratingCount === 0 && b.ratingCount === 0) return 0;
+        if (a.ratingCount === 0) return 1;
+        if (b.ratingCount === 0) return -1;
+        return b.ratingAvg - a.ratingAvg;
+      case "reactietijd":
+        return a.avgResponseHours - b.avgResponseHours;
+      default: {
+        const aSpot = spotlightedIds.has(a.id) ? 1 : 0;
+        const bSpot = spotlightedIds.has(b.id) ? 1 : 0;
+        return bSpot - aSpot;
+      }
+    }
   });
 
-  const hasFilters = Boolean(categories.length > 0 || location || q || minPriceEuros || maxPriceEuros);
+  const hasFilters = Boolean(categories.length > 0 || location || q || minPriceEuros || maxPriceEuros || verifiedOnly || minRating);
   const searchSaved = params.searchSaved === "1";
   const user = await getCurrentUser();
 
@@ -83,7 +133,9 @@ export default async function SupplierDirectoryPage(props: PageProps<"/leveranci
   // die moeten VERANDEREN, de rest blijft staan zoals het nu is. Een lege
   // string wist een veld. `categories` is hier al een komma-gescheiden
   // string (de aanroeper bouwt die), net als de andere velden.
-  function buildHref(overrides: Partial<{ categories: string; location: string; q: string; minPrice: string; maxPrice: string; view: string }>) {
+  function buildHref(
+    overrides: Partial<{ categories: string; location: string; q: string; minPrice: string; maxPrice: string; view: string; sort: string; verified: string; minScore: string }>
+  ) {
     const next = {
       categories: categories.join(","),
       location,
@@ -91,6 +143,9 @@ export default async function SupplierDirectoryPage(props: PageProps<"/leveranci
       minPrice: minPriceEuros != null && Number.isFinite(minPriceEuros) ? String(minPriceEuros) : "",
       maxPrice: maxPriceEuros != null && Number.isFinite(maxPriceEuros) ? String(maxPriceEuros) : "",
       view: view === "kaart" ? "kaart" : "",
+      sort: sort !== "aanbevolen" ? sort : "",
+      verified: verifiedOnly ? "1" : "",
+      minScore: minRating != null ? String(minRating) : "",
       ...overrides,
     };
     const qs = new URLSearchParams();
@@ -100,6 +155,9 @@ export default async function SupplierDirectoryPage(props: PageProps<"/leveranci
     if (next.minPrice) qs.set("minPrice", next.minPrice);
     if (next.maxPrice) qs.set("maxPrice", next.maxPrice);
     if (next.view === "kaart") qs.set("view", "kaart");
+    if (next.sort && next.sort !== "aanbevolen") qs.set("sort", next.sort);
+    if (next.verified === "1") qs.set("verified", "1");
+    if (next.minScore) qs.set("minScore", next.minScore);
     const query = qs.toString();
     return `/leveranciers${query ? `?${query}` : ""}`;
   }
@@ -131,12 +189,16 @@ export default async function SupplierDirectoryPage(props: PageProps<"/leveranci
     const label = minPriceEuros != null && maxPriceEuros != null ? `€${minPriceEuros} – €${maxPriceEuros}` : minPriceEuros != null ? `vanaf €${minPriceEuros}` : `tot €${maxPriceEuros}`;
     chips.push({ label, href: buildHref({ minPrice: "", maxPrice: "" }) });
   }
+  if (verifiedOnly) chips.push({ label: "Alleen geverifieerd", href: buildHref({ verified: "" }) });
+  if (minRating != null) chips.push({ label: `Vanaf ${minRating}★`, href: buildHref({ minScore: "" }) });
 
   // Dwingt MobileFilterDrawer (via zijn `key`) tot een verse mount zodra er
   // ook maar iets aan de actieve filters verandert — dan valt de drawer's
   // eigen open/dicht-status terug naar dicht. Zelfde `key`-herstart-truc als
   // BudgetAllocator.tsx elders in de app.
-  const filterStateKey = `${categories.join(",")}|${location}|${q}|${minPriceEuros ?? ""}|${maxPriceEuros ?? ""}|${view}`;
+  const filterStateKey = `${categories.join(",")}|${location}|${q}|${minPriceEuros ?? ""}|${maxPriceEuros ?? ""}|${view}|${verifiedOnly}|${minRating ?? ""}`;
+
+  const sortHrefs = Object.fromEntries(SORT_OPTIONS.map((o) => [o.key, buildHref({ sort: o.key === "aanbevolen" ? "" : o.key })])) as Record<SortKey, string>;
 
   const suppliersWithCoords = suppliers.filter((s) => s.lat != null && s.lng != null);
   const suppliersWithoutCoords = suppliers.length - suppliersWithCoords.length;
@@ -150,6 +212,9 @@ export default async function SupplierDirectoryPage(props: PageProps<"/leveranci
     maxPriceEuros,
     categories,
     view,
+    sort,
+    verifiedOnly,
+    minRating,
     hasFilters,
     clearHref: "/leveranciers",
     categoryItems,
@@ -225,19 +290,22 @@ export default async function SupplierDirectoryPage(props: PageProps<"/leveranci
               </div>
               <p className="min-w-0 truncate text-sm text-ink-faint">{resultLabel}.</p>
             </div>
-            <div className="flex shrink-0 items-center gap-1 rounded-xl border border-line bg-white p-1">
-              <Link
-                href={buildHref({ view: "" })}
-                className={`flex min-h-9 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium ${view === "lijst" ? "bg-clay text-white" : "text-ink-soft hover:bg-paper-dim"}`}
-              >
-                <List className="size-3.5" /> Lijst
-              </Link>
-              <Link
-                href={buildHref({ view: "kaart" })}
-                className={`flex min-h-9 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium ${view === "kaart" ? "bg-clay text-white" : "text-ink-soft hover:bg-paper-dim"}`}
-              >
-                <MapIcon className="size-3.5" /> Kaart
-              </Link>
+            <div className="flex shrink-0 items-center gap-2">
+              <SortSelect value={sort} options={SORT_OPTIONS} hrefs={sortHrefs} />
+              <div className="flex items-center gap-1 rounded-xl border border-line bg-white p-1">
+                <Link
+                  href={buildHref({ view: "" })}
+                  className={`flex min-h-9 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium ${view === "lijst" ? "bg-clay text-white" : "text-ink-soft hover:bg-paper-dim"}`}
+                >
+                  <List className="size-3.5" /> Lijst
+                </Link>
+                <Link
+                  href={buildHref({ view: "kaart" })}
+                  className={`flex min-h-9 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium ${view === "kaart" ? "bg-clay text-white" : "text-ink-soft hover:bg-paper-dim"}`}
+                >
+                  <MapIcon className="size-3.5" /> Kaart
+                </Link>
+              </div>
             </div>
           </div>
 
@@ -282,6 +350,7 @@ export default async function SupplierDirectoryPage(props: PageProps<"/leveranci
               )}
             </div>
           ) : (
+            <CompareToolbar>
             <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {suppliers.map((s) => {
                 // Was voorheen tot 4 badges naast elkaar (uitgelicht + elite +
@@ -297,11 +366,12 @@ export default async function SupplierDirectoryPage(props: PageProps<"/leveranci
                 ) : null;
 
                 return (
-                  <Link
+                  <div
                     key={s.id}
-                    href={`/leveranciers/${s.id}`}
-                    className="card-hover block rounded-2xl border border-line bg-white p-5 hover:border-clay/50 [box-shadow:var(--shadow-card)]"
+                    className="card-hover relative rounded-2xl border border-line bg-white hover:border-clay/50 [box-shadow:var(--shadow-card)]"
                   >
+                    <CompareCheckbox id={s.id} companyName={s.companyName} className="absolute right-3 top-3 z-10 bg-white" />
+                    <Link href={`/leveranciers/${s.id}`} className="block p-5">
                     <div className="flex items-start gap-3">
                       <SupplierAvatar
                         gradient={["#E8C9A8", "#B5674A"]}
@@ -320,7 +390,13 @@ export default async function SupplierDirectoryPage(props: PageProps<"/leveranci
                           ) : (
                             <span>Nog geen reviews</span>
                           )}
-                          {s.verified && <ShieldCheck className="ml-1 size-3 text-sage" />}
+                          {isTrustedSupplier(s) ? (
+                            <span title={TRUST_BADGE_EXPLANATION} className="ml-1 flex items-center gap-0.5 font-medium text-sage-dark">
+                              <ShieldCheck className="size-3" /> Vertrouwd
+                            </span>
+                          ) : (
+                            s.verified && <ShieldCheck className="ml-1 size-3 text-sage" />
+                          )}
                         </div>
                       </div>
                     </div>
@@ -336,10 +412,12 @@ export default async function SupplierDirectoryPage(props: PageProps<"/leveranci
                       <span className="flex items-center gap-1 text-ink-faint"><MapPin className="size-3.5" /> {s.baseLocation || "Onbekend"}</span>
                       <span className="font-medium text-ink">vanaf {formatCurrency(s.minPriceCents)}</span>
                     </div>
-                  </Link>
+                    </Link>
+                  </div>
                 );
               })}
             </div>
+            </CompareToolbar>
           )}
         </div>
       </div>

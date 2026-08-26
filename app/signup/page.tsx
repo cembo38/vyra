@@ -20,6 +20,11 @@ export default async function SignupPage(props: PageProps<"/signup">) {
   const prevLastName = typeof params.lastName === "string" ? params.lastName : "";
   const prevEmail = typeof params.email === "string" ? params.email : "";
   const hasRetryState = params.asOrganizer !== undefined || params.asSupplier !== undefined;
+  // Referral-programma (livegang-audit) — "ref" komt binnen via een gedeelde
+  // uitnodigingslink (zie ReferralSection.tsx) en wordt hier alleen
+  // doorgegeven, niet gevalideerd (dat gebeurt server-side, zie
+  // handle_new_user() in migratie 0045).
+  const ref = typeof params.ref === "string" ? params.ref : "";
 
   // Vooraf aangevinkt op basis van waar iemand vandaan komt (bv. de
   // leveranciers-landingspagina), maar altijd nog te wijzigen — één account
@@ -39,6 +44,7 @@ export default async function SignupPage(props: PageProps<"/signup">) {
           <AuthErrorBanner code={errorCode} />
 
           <form action={signupAction} className="mt-6 space-y-4">
+            {ref && <input type="hidden" name="ref" value={ref} />}
             <div className="grid grid-cols-2 gap-3">
               <Field label="Voornaam" required>
                 <Input name="firstName" required placeholder="Emma" defaultValue={prevFirstName} />

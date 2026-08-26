@@ -41,6 +41,7 @@ import {
   EventTimelineItem,
   GuestPublicInfo,
   Message,
+  MessageAttachment,
   NextStep,
   OfferOption,
   Payment,
@@ -59,12 +60,21 @@ import {
   SupplierBlockedDate,
   SupplierCategory,
   SupplierEarningsSummary,
+  PushSubscriptionRecord,
   SupplierFavorite,
+  SupplierFavoriteCollection,
   SupplierLead,
+  SupplierRecurringBlock,
   SupplierOrder,
   SupplierPackage,
+  AccountDeletionRequest,
+  SpotlightBoostRequest,
   SupplierPerformanceInsights,
   SupplierProfile,
+  SupplierTemplate,
+  SupplierTemplateKind,
+  SupplierTierUpgradeRequest,
+  SupplierStripeAccount,
   UserAccount,
 } from "@/lib/types";
 
@@ -99,6 +109,37 @@ export async function sb() {
     );
   }
   return client;
+}
+
+/**
+ * Echte, platformbrede cijfers voor de homepage-hero (components/marketing/
+ * Hero.tsx) — verving twee vaste, verzonnen getallen ("2000+ evenementen",
+ * "4.8/5") die nergens uit data kwamen. Haalt het geaggregeerde resultaat
+ * op via de `platform_stats()`-databasefunctie (migratie 0038, SECURITY
+ * DEFINER naar het patroon van `reviews_revealed()`) zodat ook een
+ * uitgelogde bezoeker dit mag lezen zonder de RLS op `events`/`reviews`
+ * te hoeven versoepelen.
+ *
+ * Bewust defensief: dit draait op de publieke homepage, dus een
+ * ontbrekende Supabase-configuratie of een tijdelijke netwerkfout mag de
+ * hele pagina nooit laten crashen — bij elke fout komt gewoon de
+ * nul-stand terug, en Hero.tsx toont dan een niet-cijfermatige
+ * vertrouwenszin in plaats van een leeg of kapot cijfer.
+ */
+export async function getPlatformStats(): Promise<{ eventCount: number; avgRating: number | null; ratingCount: number }> {
+  try {
+    const supabase = await sb();
+    const { data, error } = await supabase.rpc("platform_stats").maybeSingle();
+    if (error || !data) return { eventCount: 0, avgRating: null, ratingCount: 0 };
+    const r = data as Row;
+    return {
+      eventCount: Number(r.event_count ?? 0),
+      avgRating: r.avg_rating == null ? null : Number(r.avg_rating),
+      ratingCount: Number(r.rating_count ?? 0),
+    };
+  } catch {
+    return { eventCount: 0, avgRating: null, ratingCount: 0 };
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -252,11 +293,24 @@ function rowToPayment(r: Row): Payment {
     provider: r.provider,
     installment: r.installment ?? "full",
     parentPaymentId: r.parent_payment_id ?? null,
+    stripePaymentIntentId: r.stripe_payment_intent_id ?? null,
+    stripeCheckoutSessionId: r.stripe_checkout_session_id ?? null,
+    stripeTransferId: r.stripe_transfer_id ?? null,
+    payoutStatus: r.payout_status ?? "not_applicable",
+    payoutReleasedAt: r.payout_released_at ?? null,
   };
 }
 
 function rowToMessage(r: Row): Message {
-  return { id: r.id, eventId: r.event_id, categoryKey: r.category_key, supplierId: r.supplier_id, sender: r.sender, text: r.text, createdAt: r.created_at };
+  // `attachments` wordt hier bewust leeg gelaten — die komen uit een aparte
+  // `message_attachments`-tabel en (voor de URL) een ondertekende-URL-
+  // aanroep, allebei per-batch afgehandeld in getMessages() hieronder i.p.v.
+  // hier per rij, om niet N+1 aparte aanroepen naar Supabase Storage te doen.
+  return { id: r.id, eventId: r.event_id, categoryKey: r.category_key, supplierId: r.supplier_id, sender: r.sender, text: r.text, attachments: [], createdAt: r.created_at };
+}
+
+function rowToMessageAttachment(r: Row): Omit<MessageAttachment, "url"> & { storagePath: string; messageId: string } {
+  return { id: r.id, messageId: r.message_id, storagePath: r.storage_path, fileName: r.file_name, mimeType: r.mime_type, sizeBytes: r.size_bytes ?? 0 };
 }
 
 function rowToNotification(r: Row): AppNotification {
@@ -285,6 +339,8 @@ function rowToSupplierAccount(r: Row): SupplierAccount {
     verificationRequestedAt: r.verification_requested_at ?? null,
     avgResponseHours: r.avg_response_hours ?? 24,
     acceptedOfferRate: Number(r.accepted_offer_rate ?? 0),
+    offersSubmittedCount: r.offers_submitted_count ?? 0,
+    bonusSpotlightCredits: r.bonus_spotlight_credits ?? 0,
     tags: r.tags ?? [],
     yearsActive: r.years_active ?? 0,
     portfolioHighlights: r.portfolio_highlights ?? [],
@@ -315,8 +371,16 @@ function rowToSupplierBlockedDate(r: Row): SupplierBlockedDate {
   return { id: r.id, supplierId: r.supplier_id, date: r.date, createdAt: r.created_at };
 }
 
+function rowToSupplierRecurringBlock(r: Row): SupplierRecurringBlock {
+  return { id: r.id, supplierId: r.supplier_id, weekday: r.weekday, createdAt: r.created_at };
+}
+
 function rowToSupplierFavorite(r: Row): SupplierFavorite {
-  return { id: r.id, userId: r.user_id, supplierId: r.supplier_id, createdAt: r.created_at };
+  return { id: r.id, userId: r.user_id, supplierId: r.supplier_id, collectionId: r.collection_id ?? null, createdAt: r.created_at };
+}
+
+function rowToSupplierFavoriteCollection(r: Row): SupplierFavoriteCollection {
+  return { id: r.id, userId: r.user_id, name: r.name, createdAt: r.created_at };
 }
 
 function rowToDispute(r: Row): Dispute {
@@ -333,6 +397,41 @@ function rowToDispute(r: Row): Dispute {
     status: r.status,
     adminResponse: r.admin_response ?? null,
     resolvedAt: r.resolved_at ?? null,
+    createdAt: r.created_at,
+  };
+}
+
+function rowToTierUpgradeRequest(r: Row): SupplierTierUpgradeRequest {
+  return {
+    id: r.id,
+    supplierId: r.supplier_id,
+    requestedTier: r.requested_tier,
+    status: r.status,
+    adminResponse: r.admin_response ?? null,
+    resolvedAt: r.resolved_at ?? null,
+    createdAt: r.created_at,
+  };
+}
+
+function rowToAccountDeletionRequest(r: Row): AccountDeletionRequest {
+  return {
+    id: r.id,
+    userId: r.user_id,
+    reason: r.reason ?? null,
+    status: r.status,
+    adminResponse: r.admin_response ?? null,
+    resolvedAt: r.resolved_at ?? null,
+    createdAt: r.created_at,
+  };
+}
+
+function rowToSupplierTemplate(r: Row): SupplierTemplate {
+  return {
+    id: r.id,
+    supplierId: r.supplier_id,
+    kind: r.kind,
+    title: r.title,
+    body: r.body,
     createdAt: r.created_at,
   };
 }
@@ -596,6 +695,10 @@ export async function searchSupplierAccounts(filters: {
   minPriceCents?: number;
   maxPriceCents?: number;
   query?: string;
+  /** "Alleen geverifieerd" (livegang-audit, vergelijkbaar met Etsy's "Star Seller"-filter). */
+  verifiedOnly?: boolean;
+  /** Minimale beoordeling (1-5) — sluit bewust ook nog-onbeoordeelde leveranciers (rating_avg 0) uit, net als bij Etsy: een ondergrens filtert per definitie leveranciers weg waarvan je nog niet weet of ze eraan voldoen. */
+  minRating?: number;
 }): Promise<SupplierAccount[]> {
   const supabase = await sb();
   // Een leverancier die zichzelf op "gesloten" heeft gezet (spec-item #55)
@@ -607,6 +710,8 @@ export async function searchSupplierAccounts(filters: {
   if (filters.location) dbQuery = dbQuery.ilike("base_location", `%${filters.location}%`);
   if (filters.minPriceCents != null) dbQuery = dbQuery.gte("avg_price_cents", filters.minPriceCents);
   if (filters.maxPriceCents != null) dbQuery = dbQuery.lte("avg_price_cents", filters.maxPriceCents);
+  if (filters.verifiedOnly) dbQuery = dbQuery.eq("verified", true);
+  if (filters.minRating != null) dbQuery = dbQuery.gte("rating_avg", filters.minRating);
   const { data } = await dbQuery.order("rating_avg", { ascending: false }).limit(60);
   let results = (data ?? []).map(rowToSupplierAccount);
 
@@ -694,6 +799,169 @@ export async function activateSpotlight(supplierId: string, categoryKey: Supplie
   return rowToSpotlight(data);
 }
 
+function rowToSpotlightBoostRequest(r: Row): SpotlightBoostRequest {
+  return {
+    id: r.id,
+    supplierId: r.supplier_id,
+    status: r.status,
+    adminResponse: r.admin_response ?? null,
+    resolvedAt: r.resolved_at ?? null,
+    createdAt: r.created_at,
+  };
+}
+
+/**
+ * "Referral-programma" (livegang-audit) — beloont de UITNODIGER op het
+ * moment dat de uitgenodigde zich aanmeldt (`profiles.referred_by`, gezet
+ * door handle_new_user() in migratie 0045), niet pas bij een latere
+ * mijlpaal zoals een eerste boeking. Bewuste, eenvoudige eerste versie:
+ * een latere-mijlpaal-variant zou eerlijker zijn (voorkomt dat iemand
+ * puur voor de credit een leeg account aanmaakt) maar vereist een aparte
+ * "wanneer is een account 'actief'?"-definitie die nu nergens anders in
+ * de app bestaat. Alleen leveranciers hebben iets aan spotlight-credits,
+ * dus een organisator-uitnodiger krijgt hier stilzwijgend niets — dat
+ * verandert vanzelf zodra diegene ook een leveranciersprofiel aanmaakt en
+ * een volgende referral binnenhaalt.
+ *
+ * Wordt precies één keer aangeroepen, meteen na een geslaagde
+ * signupAction (lib/actions/auth-actions.ts) — dus geen risico op dubbel
+ * toekennen bij een latere hernieuwde aanroep.
+ */
+export async function grantReferralRewardIfEligible(referredUserId: string): Promise<void> {
+  const supabase = await sb();
+  const { data: profile } = await supabase.from("profiles").select("referred_by").eq("id", referredUserId).maybeSingle();
+  const referrerId = profile?.referred_by as string | undefined;
+  if (!referrerId) return;
+
+  const { data: supplierRow } = await supabase.from("suppliers").select("id, bonus_spotlight_credits").eq("owner_id", referrerId).maybeSingle();
+  if (!supplierRow) return;
+
+  await supabase.from("suppliers").update({ bonus_spotlight_credits: (supplierRow.bonus_spotlight_credits ?? 0) + 1 }).eq("id", supplierRow.id);
+  await pushNotification({
+    userId: referrerId,
+    eventId: null,
+    type: "referral_reward",
+    title: "Referral-beloning ontvangen",
+    body: "Iemand heeft zich via jouw uitnodigingslink aangemeld — je hebt er een gratis spotlight-boost bij gekregen.",
+    href: "/supplier/marketing",
+  });
+}
+
+/** Hoeveel gebruikers zich via de referral-link van deze gebruiker hebben aangemeld — voor de tellerweergave in de UI. */
+export async function countReferrals(userId: string): Promise<number> {
+  const supabase = await sb();
+  const { count } = await supabase.from("profiles").select("id", { count: "exact", head: true }).eq("referred_by", userId);
+  return count ?? 0;
+}
+
+/**
+ * Verbruikt één bonus-spotlight-credit (van een referral of een
+ * goedgekeurde boost-aanvraag) — atomair genoeg voor dit lage-volume
+ * scenario: leest eerst het huidige aantal, schrijft daarna `huidig - 1`
+ * met een `.gt("bonus_spotlight_credits", 0)`-voorwaarde in de query zelf,
+ * zodat een gelijktijdige dubbele klik nooit onder 0 kan uitkomen.
+ */
+export async function consumeBonusSpotlightCredit(supplierId: string): Promise<boolean> {
+  const supabase = await sb();
+  const { data: current } = await supabase.from("suppliers").select("bonus_spotlight_credits").eq("id", supplierId).maybeSingle();
+  const credits = current?.bonus_spotlight_credits ?? 0;
+  if (credits <= 0) return false;
+  const { data, error } = await supabase
+    .from("suppliers")
+    .update({ bonus_spotlight_credits: credits - 1 })
+    .eq("id", supplierId)
+    .gt("bonus_spotlight_credits", 0)
+    .select("id");
+  return !error && (data?.length ?? 0) > 0;
+}
+
+/**
+ * "Losse Spotlight-boost" (livegang-audit) — zelfde vorm als
+ * requestSupplierTierUpgrade (migratie 0040): Vyra verwerkt nog geen
+ * betalingen zelf, dus dit is een AANVRAAG die Cem persoonlijk beoordeelt
+ * (buiten de app om afgerekend, bijv. via een factuur) i.p.v. een directe
+ * checkout. Geeft `null` terug bij een al bestaand openstaand verzoek.
+ */
+export async function requestSpotlightBoost(supplierId: string): Promise<SpotlightBoostRequest | null> {
+  const supabase = await sb();
+  const { data: existing } = await supabase
+    .from("spotlight_boost_requests")
+    .select("id")
+    .eq("supplier_id", supplierId)
+    .eq("status", "pending")
+    .maybeSingle();
+  if (existing) return null;
+
+  const { data, error } = await supabase.from("spotlight_boost_requests").insert({ supplier_id: supplierId }).select().single();
+  if (error || !data) return null;
+  return rowToSpotlightBoostRequest(data);
+}
+
+export async function getPendingSpotlightBoostRequest(supplierId: string): Promise<SpotlightBoostRequest | null> {
+  const supabase = await sb();
+  const { data } = await supabase
+    .from("spotlight_boost_requests")
+    .select("*")
+    .eq("supplier_id", supplierId)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data ? rowToSpotlightBoostRequest(data) : null;
+}
+
+/** Admin-only: alle openstaande boost-aanvragen, met bedrijfsnaam erbij. Vereist service-role. */
+export async function listPendingSpotlightBoostRequests(): Promise<(SpotlightBoostRequest & { companyName: string })[]> {
+  const supabase = createSupabaseAdminClient() ?? (await sb());
+  const { data } = await supabase
+    .from("spotlight_boost_requests")
+    .select("*, supplier:suppliers(company_name)")
+    .eq("status", "pending")
+    .order("created_at", { ascending: true });
+  return (data ?? [])
+    .filter((r: Row) => r.supplier)
+    .map((r: Row) => ({ ...rowToSpotlightBoostRequest(r), companyName: r.supplier.company_name }));
+}
+
+/**
+ * Admin-only: keurt Cem een boost-aanvraag goed, dan krijgt de leverancier
+ * er meteen +1 bonus_spotlight_credits bij (en een melding) — bij afwijzen
+ * gebeurt er verder niets. Vereist service-role.
+ */
+export async function resolveSpotlightBoostRequest(
+  requestId: string,
+  status: "approved" | "declined",
+  adminResponse: string | null
+): Promise<SpotlightBoostRequest | null> {
+  const admin = createSupabaseAdminClient();
+  const supabase = admin ?? (await sb());
+  const { data, error } = await supabase
+    .from("spotlight_boost_requests")
+    .update({ status, admin_response: adminResponse, resolved_at: new Date().toISOString() })
+    .eq("id", requestId)
+    .select()
+    .single();
+  if (error || !data) return null;
+  const request = rowToSpotlightBoostRequest(data);
+
+  if (status === "approved") {
+    const { data: supplierRow } = await supabase.from("suppliers").select("id, owner_id, bonus_spotlight_credits").eq("id", request.supplierId).maybeSingle();
+    if (supplierRow) {
+      await supabase.from("suppliers").update({ bonus_spotlight_credits: (supplierRow.bonus_spotlight_credits ?? 0) + 1 }).eq("id", supplierRow.id);
+      await pushNotification({
+        userId: supplierRow.owner_id,
+        eventId: null,
+        type: "spotlight_boost_approved",
+        title: "Losse Spotlight-boost goedgekeurd",
+        body: "Je aanvraag is goedgekeurd — je hebt er een spotlight-boost bij, te gebruiken wanneer je maar wilt.",
+        href: "/supplier/marketing",
+      });
+    }
+  }
+
+  return request;
+}
+
 /**
  * Alleen id + createdAt van elke vindbare ("open") leverancier — precies
  * genoeg voor de sitemap (spec-item #49), geen reden om daar het hele
@@ -778,8 +1046,51 @@ async function notifyMatchingSavedSearches(supplier: SupplierAccount): Promise<v
   }
 }
 
-/** Uploadt een logo/foto naar de "supplier-media"-opslagruimte en geeft de publieke URL terug (of null bij een fout). */
-export async function uploadSupplierFile(ownerId: string, file: File, folder: "logo" | "gallery" | "cover"): Promise<string | null> {
+export const MESSAGE_ATTACHMENT_MAX_BYTES = 8 * 1024 * 1024; // 8MB — royaal genoeg voor een foto of pdf-contract, klein genoeg om niet elk gesprek traag te laden.
+const MESSAGE_ATTACHMENT_ALLOWED_MIME = (mime: string) => mime.startsWith("image/") || mime === "application/pdf";
+
+/**
+ * Uploadt een bijlage (foto/pdf) bij een bericht naar de PRIVATE
+ * "message-attachments"-opslagruimte (migratie 0041) — in tegenstelling
+ * tot `uploadSupplierFile` hieronder is deze ruimte NIET publiek leesbaar,
+ * want een gesprek tussen één organisator en één leverancier kan een
+ * contract of adres bevatten. `getMessages()` genereert daarom altijd een
+ * tijdelijk ondertekende URL i.p.v. hier een publieke URL terug te geven.
+ *
+ * Pad-schema `${eventId}/${supplierId}/...` is bewust gelijk aan de
+ * storage-RLS-policies in migratie 0041, die exact deze twee segmenten
+ * gebruiken om te bepalen wie mag lezen/schrijven.
+ */
+export async function uploadMessageAttachment(
+  eventId: string,
+  supplierId: string,
+  file: File
+): Promise<{ storagePath: string; fileName: string; mimeType: string; sizeBytes: number } | null> {
+  if (!file || file.size === 0) return null;
+  if (file.size > MESSAGE_ATTACHMENT_MAX_BYTES) return null;
+  if (!MESSAGE_ATTACHMENT_ALLOWED_MIME(file.type)) return null;
+
+  const supabase = await sb();
+  const ext = file.name.includes(".") ? file.name.split(".").pop() : file.type === "application/pdf" ? "pdf" : "jpg";
+  const path = `${eventId}/${supplierId}/${Date.now()}-${Math.round(Math.random() * 1_000_000)}.${ext}`;
+  const { error } = await supabase.storage.from("message-attachments").upload(path, file, {
+    upsert: false,
+    contentType: file.type || undefined,
+  });
+  if (error) return null;
+  return { storagePath: path, fileName: file.name, mimeType: file.type || "application/octet-stream", sizeBytes: file.size };
+}
+
+/**
+ * Uploadt een logo/foto naar de "supplier-media"-opslagruimte en geeft de
+ * publieke URL terug (of null bij een fout). `folder: "review"` — sinds
+ * "foto/video bij beoordelingen" (livegang-audit) — wordt ook door
+ * ORGANISATOREN gebruikt (niet alleen leveranciers, ondanks de naam van
+ * deze functie): een pad per `ownerId` is sowieso al de juiste vorm om
+ * botsingen tussen verschillende gebruikers te voorkomen, dus hergebruik
+ * hiervan i.p.v. een aparte, bijna-identieke functie.
+ */
+export async function uploadSupplierFile(ownerId: string, file: File, folder: "logo" | "gallery" | "cover" | "review"): Promise<string | null> {
   if (!file || file.size === 0) return null;
   const supabase = await sb();
   const ext = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
@@ -884,6 +1195,8 @@ interface SupplierProfilePatch {
   /** "Locatie op een kaart" — coördinaten van `baseLocation`, vooraf bepaald in de actie-laag via geocodeLocation() (lib/geo.ts). Null als geocoding niet lukte. */
   lat?: number | null;
   lng?: number | null;
+  /** Optioneel al bij het aanmaken zelf (onboarding-nudge, livegang-audit: "foto + KVK bij onboarding") — daarvoor moest dit altijd via een latere profielbewerking. */
+  logoUrl?: string | null;
 }
 
 export async function createSupplierAccount(ownerId: string, patch: SupplierProfilePatch): Promise<SupplierAccount> {
@@ -910,6 +1223,7 @@ export async function createSupplierAccount(ownerId: string, patch: SupplierProf
       social_tiktok: patch.socialTiktok,
       lat: patch.lat ?? null,
       lng: patch.lng ?? null,
+      logo_url: patch.logoUrl ?? null,
     })
     .select()
     .single();
@@ -1110,6 +1424,88 @@ export async function unblockSupplierDate(supplierId: string, date: string): Pro
 }
 
 /* ------------------------------------------------------------------ */
+/* LEVERANCIER — TERUGKERENDE BESCHIKBAARHEID (weekdag-blokkade)        */
+/* spec-item #128                                                       */
+/* ------------------------------------------------------------------ */
+
+export async function getSupplierRecurringBlocks(supplierId: string): Promise<SupplierRecurringBlock[]> {
+  const supabase = await sb();
+  const { data } = await supabase.from("supplier_recurring_blocks").select("*").eq("supplier_id", supplierId).order("weekday", { ascending: true });
+  return (data ?? []).map(rowToSupplierRecurringBlock);
+}
+
+/**
+ * Zet/heft een structurele weekdag-blokkade op ("elke maandag niet
+ * beschikbaar") — zelfde toggle-vorm als `toggleSupplierBlockedDateAction`
+ * voor eenmalige datums. `weekday`: 0=maandag..6=zondag (zie de toelichting
+ * bij `SupplierRecurringBlock` in lib/types.ts).
+ */
+export async function setSupplierRecurringBlock(supplierId: string, weekday: number, blocked: boolean): Promise<{ ok: boolean }> {
+  const supabase = await sb();
+  if (blocked) {
+    // upsert+ignoreDuplicates i.p.v. plain insert: idempotent bij een dubbele
+    // klik (dezelfde reden als blockSupplierDateRange hierboven).
+    const { error } = await supabase
+      .from("supplier_recurring_blocks")
+      .upsert({ supplier_id: supplierId, weekday }, { onConflict: "supplier_id,weekday", ignoreDuplicates: true });
+    if (error) return { ok: false };
+  } else {
+    await supabase.from("supplier_recurring_blocks").delete().eq("supplier_id", supplierId).eq("weekday", weekday);
+  }
+  return { ok: true };
+}
+
+/* ------------------------------------------------------------------ */
+/* LEVERANCIER — iCAL-AGENDA-ABONNEMENT (spec-item #128)                */
+/* Zie de toelichting bovenaan supabase/migrations/0046_...sql voor     */
+/* waarom dit een aparte, NIET publiek leesbare tabel is i.p.v. een     */
+/* kolom op `suppliers`.                                                */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Geeft de bestaande token van deze leverancier terug, of maakt er (via de
+ * eigen, RLS-scoped sessie — geen service-role nodig) meteen één aan als
+ * die nog niet bestaat. Wordt aangeroepen vanaf /supplier/calendar zodra de
+ * eigenaar zelf is ingelogd, dus `sb()` (de gewone sessie-client) volstaat
+ * hier — pas de externe .ics-route zelf (geen sessie) heeft de service-role
+ * nodig, zie `getSupplierIdByIcalToken`.
+ */
+export async function getOrCreateSupplierIcalToken(supplierId: string): Promise<string | null> {
+  const supabase = await sb();
+  const { data: existing } = await supabase.from("supplier_ical_tokens").select("token").eq("supplier_id", supplierId).maybeSingle();
+  if (existing?.token) return existing.token as string;
+
+  const { data, error } = await supabase.from("supplier_ical_tokens").insert({ supplier_id: supplierId }).select("token").single();
+  if (error || !data) return null;
+  return data.token as string;
+}
+
+/** Vervangt de bestaande token door een nieuwe (bv. als de oude per ongeluk gedeeld is) — de oude abonnement-URL stopt daarna direct met werken. */
+export async function regenerateSupplierIcalToken(supplierId: string): Promise<string | null> {
+  const supabase = await sb();
+  await supabase.from("supplier_ical_tokens").delete().eq("supplier_id", supplierId);
+  const { data, error } = await supabase.from("supplier_ical_tokens").insert({ supplier_id: supplierId }).select("token").single();
+  if (error || !data) return null;
+  return data.token as string;
+}
+
+/**
+ * Voor de .ics-route zelf: een externe agenda-app stuurt geen Vyra-sessie
+ * mee, dus dit MOET via de service-role-sleutel lopen (RLS zou een
+ * niet-ingelogde aanvraag anders altijd blokkeren — precies de bedoeling
+ * van de "geen publieke leespolicy" op deze tabel). Geeft `null` terug als
+ * de service-role niet is geconfigureerd óf de token onbekend is — de route
+ * behandelt beide gevallen hetzelfde (404), om niet per ongeluk te
+ * verklappen welke van de twee het is.
+ */
+export async function getSupplierIdByIcalToken(token: string): Promise<string | null> {
+  const admin = createSupabaseAdminClient();
+  if (!admin) return null;
+  const { data } = await admin.from("supplier_ical_tokens").select("supplier_id").eq("token", token).maybeSingle();
+  return (data?.supplier_id as string | undefined) ?? null;
+}
+
+/* ------------------------------------------------------------------ */
 /* ORGANISATOR — FAVORIETE LEVERANCIERS (spec-item #54: terugkeer)     */
 /* ------------------------------------------------------------------ */
 
@@ -1131,6 +1527,51 @@ export async function listFavoriteSuppliers(userId: string): Promise<{ favorite:
   return (data ?? [])
     .filter((r: Row) => r.supplier)
     .map((r: Row) => ({ favorite: rowToSupplierFavorite(r), supplier: rowToSupplierAccount(r.supplier) }));
+}
+
+/**
+ * Kruislink tussen "Mijn leveranciers" (globale favorieten) en de
+ * per-evenement shortlist (livegang-audit: "shortlist en Mijn leveranciers
+ * kruislinken", tot nu toe twee losse eilandjes zonder enige verwijzing
+ * naar elkaar). Voor elke opgegeven favoriete leverancier: in welke van de
+ * evenementen van deze gebruiker heeft die leverancier op dit moment een
+ * geaccepteerde offerte of staat hij op de shortlist? Twee aparte
+ * query's i.p.v. één geneste join — de FK-naam van offers→events is niet
+ * zeker genoeg om blind op te vertrouwen, en dit blijft bij een paar
+ * evenementen sowieso goedkoper dan een grote geneste select.
+ */
+export async function getFavoriteSupplierEngagements(
+  userId: string,
+  supplierIds: string[]
+): Promise<Map<string, { eventId: string; eventName: string; categoryKey: SupplierCategory }[]>> {
+  const result = new Map<string, { eventId: string; eventName: string; categoryKey: SupplierCategory }[]>();
+  if (supplierIds.length === 0) return result;
+  const events = await listEventsForUser(userId);
+  if (events.length === 0) return result;
+  const eventById = new Map(events.map((e) => [e.id, e]));
+
+  const supabase = await sb();
+  const { data } = await supabase
+    .from("offers")
+    .select("event_id, supplier_id, category_key, status, swipe_decision")
+    .in("event_id", events.map((e) => e.id))
+    .in("supplier_id", supplierIds);
+
+  for (const row of data ?? []) {
+    if (row.status !== "accepted" && row.swipe_decision !== "shortlisted") continue;
+    const event = eventById.get(row.event_id);
+    if (!event) continue;
+    const list = result.get(row.supplier_id) ?? [];
+    // Eén leverancier kan in principe voor meerdere categorieën/evenementen
+    // actief zijn — dedupliceren op event+categorie voorkomt dubbele regels
+    // als er ooit meerdere offertes van dezelfde leverancier in dezelfde
+    // categorie tegelijk "shortlisted" staan.
+    if (!list.some((x) => x.eventId === event.id && x.categoryKey === row.category_key)) {
+      list.push({ eventId: event.id, eventName: event.name, categoryKey: row.category_key });
+    }
+    result.set(row.supplier_id, list);
+  }
+  return result;
 }
 
 /** RLS beperkt dit al tot de huidige gebruiker — geen expliciete userId-check nodig. */
@@ -1169,6 +1610,90 @@ export async function hasOrganizerContactedSupplier(supplierId: string): Promise
   const supabase = await sb();
   const { data } = await supabase.from("request_targets").select("id").eq("supplier_id", supplierId).limit(1);
   return (data?.length ?? 0) > 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* ORGANISATOR — GENOEMDE COLLECTIES VOOR FAVORIETEN (spec-item #129)   */
+/* ------------------------------------------------------------------ */
+
+export async function listFavoriteCollections(userId: string): Promise<SupplierFavoriteCollection[]> {
+  const supabase = await sb();
+  const { data } = await supabase.from("supplier_favorite_collections").select("*").eq("user_id", userId).order("created_at", { ascending: true });
+  return (data ?? []).map(rowToSupplierFavoriteCollection);
+}
+
+export async function createFavoriteCollection(userId: string, name: string): Promise<SupplierFavoriteCollection | null> {
+  const supabase = await sb();
+  const { data, error } = await supabase.from("supplier_favorite_collections").insert({ user_id: userId, name }).select().single();
+  if (error || !data) return null;
+  return rowToSupplierFavoriteCollection(data);
+}
+
+export async function renameFavoriteCollection(collectionId: string, userId: string, name: string): Promise<boolean> {
+  const supabase = await sb();
+  const { error } = await supabase.from("supplier_favorite_collections").update({ name }).eq("id", collectionId).eq("user_id", userId);
+  return !error;
+}
+
+/** Verwijdert alleen de collectie zelf — de favorieten die erin zaten blijven bestaan en vallen terug op "Niet ingedeeld" (`collection_id` wordt `null` via `on delete set null`, migratie 47). */
+export async function deleteFavoriteCollection(collectionId: string, userId: string): Promise<void> {
+  const supabase = await sb();
+  await supabase.from("supplier_favorite_collections").delete().eq("id", collectionId).eq("user_id", userId);
+}
+
+/**
+ * Verplaatst een favoriet naar een (andere) collectie, of terug naar "Niet
+ * ingedeeld" (`collectionId = null`). Filtert op `user_id` i.p.v. enkel
+ * `supplier_id` — een favoriet-rij is uniek per (user, supplier), maar deze
+ * extra check is defense-in-depth zodat een verkeerd meegegeven supplierId
+ * nooit andermans favoriet zou kunnen raken (RLS blokkeert dat sowieso al).
+ */
+export async function moveFavoriteToCollection(userId: string, supplierId: string, collectionId: string | null): Promise<boolean> {
+  const supabase = await sb();
+  const { error } = await supabase
+    .from("supplier_favorites")
+    .update({ collection_id: collectionId })
+    .eq("user_id", userId)
+    .eq("supplier_id", supplierId);
+  return !error;
+}
+
+/* ------------------------------------------------------------------ */
+/* BROWSER-PUSHMELDINGEN (spec-item #131)                               */
+/* Alleen de gebruiker-gerichte CRUD hier — de cronjob die daadwerkelijk */
+/* pushmeldingen VERSTUURT (app/api/cron/supplier-proactive-signals)    */
+/* loopt via zijn eigen service-role-query, zelfde reden als elders in  */
+/* dit bestand: geen ingelogde sessie in een cronjob.                   */
+/* ------------------------------------------------------------------ */
+
+function rowToPushSubscription(r: Row): PushSubscriptionRecord {
+  return { id: r.id, userId: r.user_id, endpoint: r.endpoint, p256dh: r.p256dh, authKey: r.auth_key, createdAt: r.created_at };
+}
+
+export async function getPushSubscriptionsForUser(userId: string): Promise<PushSubscriptionRecord[]> {
+  const supabase = await sb();
+  const { data } = await supabase.from("push_subscriptions").select("*").eq("user_id", userId);
+  return (data ?? []).map(rowToPushSubscription);
+}
+
+/**
+ * Slaat een browser-push-abonnement op — `onConflict: "endpoint"` i.p.v.
+ * een losse insert: dezelfde browser/apparaat kan zich opnieuw abonneren
+ * (bv. na het wissen van site-gegevens) met hetzelfde endpoint maar nieuwe
+ * sleutels, dan werken we het bestaande record gewoon bij i.p.v. een
+ * unique-constraint-fout te geven.
+ */
+export async function savePushSubscription(userId: string, sub: { endpoint: string; p256dh: string; authKey: string }): Promise<boolean> {
+  const supabase = await sb();
+  const { error } = await supabase
+    .from("push_subscriptions")
+    .upsert({ user_id: userId, endpoint: sub.endpoint, p256dh: sub.p256dh, auth_key: sub.authKey }, { onConflict: "endpoint" });
+  return !error;
+}
+
+export async function deletePushSubscription(userId: string, endpoint: string): Promise<void> {
+  const supabase = await sb();
+  await supabase.from("push_subscriptions").delete().eq("user_id", userId).eq("endpoint", endpoint);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1275,6 +1800,22 @@ export async function logSupplierAssistantUsage(supplierId: string, feature: Sup
  * logSupplierAssistantUsage(), zodat een geweigerde aanroep niet toch nog
  * meetelt.
  */
+/**
+ * "Resterende VyrAI-limiet zichtbaar maken" (livegang-audit) — tot nu toe
+ * ontdekte een leverancier zijn dagelijkse limiet alleen ACHTERAF, via de
+ * afwijzende tekst die checkSupplierAssistantAccess() teruggeeft ná een
+ * mislukte poging. Dit geeft dezelfde cijfers vooraf, zodat de UI
+ * (SupplierAssistantWidget) het gewoon kan tonen — `limit: null` betekent
+ * onbeperkt (Enterprise/proefperiode), niet "geen toegang"; dat laatste
+ * wordt al apart afgedwongen via `assistantTier`.
+ */
+export async function getSupplierAssistantUsageStatus(supplierId: string): Promise<{ used: number; limit: number | null }> {
+  const tierDefinition = await getSupplierEffectiveTierDefinition(supplierId);
+  if (tierDefinition.assistantDailyLimit == null) return { used: 0, limit: null };
+  const used = await countSupplierAssistantUsageToday(supplierId);
+  return { used, limit: tierDefinition.assistantDailyLimit };
+}
+
 export async function checkSupplierAssistantAccess(
   supplierId: string,
   requiredTier: 1 | 2 = 1
@@ -1416,6 +1957,239 @@ export async function setSupplierSubscriptionTier(supplierId: string, tier: Subs
 }
 
 /**
+ * Zelfbedienings-aanvraag voor een hoger abonnement (livegang-audit
+ * augustus 2026, zie migratie 0040) — vervangt de "Work in progress"-
+ * doodlopende knop in SubscriptionTierPicker.tsx totdat er een echte
+ * betaalflow is. Geeft `null` bij een al bestaande openstaande aanvraag
+ * (aanroeper checkt dit vooraf via getPendingTierUpgradeRequest) of bij een
+ * databasefout.
+ */
+export async function requestSupplierTierUpgrade(supplierId: string, tier: SubscriptionTier): Promise<SupplierTierUpgradeRequest | null> {
+  const supabase = await sb();
+  const { data, error } = await supabase
+    .from("supplier_tier_upgrade_requests")
+    .insert({ supplier_id: supplierId, requested_tier: tier })
+    .select()
+    .single();
+  if (error || !data) return null;
+  return rowToTierUpgradeRequest(data);
+}
+
+/** De meest recente NOG OPENSTAANDE aanvraag van deze leverancier, of `null`. Voor de knop-status in SubscriptionTierPicker.tsx. */
+export async function getPendingTierUpgradeRequest(supplierId: string): Promise<SupplierTierUpgradeRequest | null> {
+  const supabase = await sb();
+  const { data } = await supabase
+    .from("supplier_tier_upgrade_requests")
+    .select("*")
+    .eq("supplier_id", supplierId)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data ? rowToTierUpgradeRequest(data) : null;
+}
+
+/** Admin-only: alle openstaande upgrade-aanvragen, met bedrijfsnaam erbij voor de admin-lijst. Vereist service-role. */
+export async function listPendingTierUpgradeRequests(): Promise<(SupplierTierUpgradeRequest & { companyName: string; currentTier: SubscriptionTier })[]> {
+  const supabase = createSupabaseAdminClient() ?? (await sb());
+  const { data } = await supabase
+    .from("supplier_tier_upgrade_requests")
+    .select("*, supplier:suppliers(company_name, subscription_tier)")
+    .eq("status", "pending")
+    .order("created_at", { ascending: true });
+  return (data ?? [])
+    .filter((r: Row) => r.supplier)
+    .map((r: Row) => ({
+      ...rowToTierUpgradeRequest(r),
+      companyName: r.supplier.company_name,
+      currentTier: r.supplier.subscription_tier,
+    }));
+}
+
+/**
+ * Admin-only: keurt een upgrade-aanvraag goed of af. Bij goedkeuring wordt
+ * het abonnement METEEN daadwerkelijk omgezet (i.p.v. dat de leverancier
+ * daarna nog los zelf iets moet doen) en krijgt de leverancier een melding.
+ * Gebruikt overal de service-role-client — de aanroeper is Cem's eigen
+ * admin-sessie, niet de sessie van de leverancier zelf, dus `sb()` zou hier
+ * (net als bij pushNotification, zie de bugfix hierboven) stuklopen op de
+ * eigenaar-only RLS-policies van `suppliers`/`supplier_tier_upgrade_requests`.
+ * Vereist service-role.
+ */
+export async function resolveTierUpgradeRequest(
+  requestId: string,
+  status: "approved" | "declined",
+  adminResponse: string | null
+): Promise<SupplierTierUpgradeRequest | null> {
+  const admin = createSupabaseAdminClient();
+  const supabase = admin ?? (await sb());
+  const { data, error } = await supabase
+    .from("supplier_tier_upgrade_requests")
+    .update({ status, admin_response: adminResponse, resolved_at: new Date().toISOString() })
+    .eq("id", requestId)
+    .select()
+    .single();
+  if (error || !data) return null;
+  const request = rowToTierUpgradeRequest(data);
+
+  const { data: supplierRow } = await supabase.from("suppliers").select("id, owner_id, company_name").eq("id", request.supplierId).maybeSingle();
+  if (!supplierRow) return request;
+
+  if (status === "approved") {
+    await supabase.from("suppliers").update({ subscription_tier: request.requestedTier }).eq("id", request.supplierId);
+  }
+
+  const tierLabel = getEffectiveTierDefinition(request.requestedTier as EffectiveSupplierTier).label;
+  await pushNotification({
+    userId: supplierRow.owner_id,
+    eventId: null,
+    type: status === "approved" ? "tier_upgrade_approved" : "tier_upgrade_declined",
+    title: status === "approved" ? `Upgrade naar ${tierLabel} goedgekeurd` : "Upgrade-aanvraag afgewezen",
+    body:
+      status === "approved"
+        ? `Je abonnement is omgezet naar ${tierLabel}. De bijbehorende functies zijn meteen actief.`
+        : adminResponse || "Neem contact op voor meer informatie over je aanvraag.",
+    href: "/supplier/profile",
+  });
+
+  return request;
+}
+
+/**
+ * "Opgeslagen sjablonen voor offertes/berichten" (livegang-audit) —
+ * leveranciers typen vaak dezelfde soort tekst opnieuw uit (een vaste
+ * pakketomschrijving, een standaard welkomstbericht). Deze drie functies
+ * horen bij TemplatePicker.tsx, gebruikt in zowel SupplierOfferForm.tsx
+ * (kind="offer") als MessageComposer.tsx (kind="message",
+ * leverancierskant). Alle drie draaien onder de sessie van de leverancier
+ * zelf (`sb()`) — de RLS-policies in migratie 0042 staan select/insert/
+ * delete toe voor de eigenaar van de bijbehorende `suppliers`-rij, dus geen
+ * service-role-omweg nodig zoals bij pushNotification.
+ */
+export async function listSupplierTemplates(supplierId: string, kind: SupplierTemplateKind): Promise<SupplierTemplate[]> {
+  const supabase = await sb();
+  const { data } = await supabase
+    .from("supplier_templates")
+    .select("*")
+    .eq("supplier_id", supplierId)
+    .eq("kind", kind)
+    .order("created_at", { ascending: false });
+  return (data ?? []).map(rowToSupplierTemplate);
+}
+
+export async function createSupplierTemplate(supplierId: string, kind: SupplierTemplateKind, title: string, body: string): Promise<SupplierTemplate | null> {
+  const supabase = await sb();
+  const { data, error } = await supabase
+    .from("supplier_templates")
+    .insert({ supplier_id: supplierId, kind, title, body })
+    .select()
+    .single();
+  if (error || !data) return null;
+  return rowToSupplierTemplate(data);
+}
+
+/** Geeft `true` alleen als er ook echt een rij verwijderd is — RLS zorgt er sowieso al voor dat dit nooit andermans sjabloon kan zijn (de `supplier_id`-check hieronder is een extra, expliciete bodem). */
+export async function deleteSupplierTemplate(templateId: string, supplierId: string): Promise<boolean> {
+  const supabase = await sb();
+  const { data, error } = await supabase
+    .from("supplier_templates")
+    .delete()
+    .eq("id", templateId)
+    .eq("supplier_id", supplierId)
+    .select("id");
+  return !error && (data?.length ?? 0) > 0;
+}
+
+/**
+ * "Zelfbedienings AVG-export/verwijderen" (livegang-audit) — een gebruiker
+ * dient hiermee zelf een verwijderingsverzoek in; Cem keurt het goed/af op
+ * /admin (zie resolveAccountDeletionRequest hieronder), net als bij een
+ * abonnementsupgrade-aanvraag. Geeft `null` terug bij een al bestaand
+ * openstaand verzoek van dezelfde gebruiker (voorkomt dubbele aanvragen) of
+ * een databasefout.
+ */
+export async function requestAccountDeletion(userId: string, reason: string | null): Promise<AccountDeletionRequest | null> {
+  const supabase = await sb();
+  const { data: existing } = await supabase
+    .from("account_deletion_requests")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("status", "pending")
+    .maybeSingle();
+  if (existing) return null;
+
+  const { data, error } = await supabase
+    .from("account_deletion_requests")
+    .insert({ user_id: userId, reason })
+    .select()
+    .single();
+  if (error || !data) return null;
+  return rowToAccountDeletionRequest(data);
+}
+
+/** De meest recente NOG OPENSTAANDE verwijderingsaanvraag van deze gebruiker, of `null`. Voor de knop-status in de "Privacy & gegevens"-sectie. */
+export async function getPendingAccountDeletionRequest(userId: string): Promise<AccountDeletionRequest | null> {
+  const supabase = await sb();
+  const { data } = await supabase
+    .from("account_deletion_requests")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return data ? rowToAccountDeletionRequest(data) : null;
+}
+
+/**
+ * Admin-only: alle openstaande verwijderingsverzoeken, met e-mailadres
+ * erbij voor de admin-lijst. Geen PostgREST-embed (`user:profiles(email)`)
+ * gebruikt — `account_deletion_requests.user_id` wijst naar `auth.users`,
+ * niet naar `profiles`, dus een automatische foreign-key-embed zou hier
+ * niet werken. Een simpele losse tweede query is duidelijker dan daar
+ * omheen te bouwen. Vereist service-role.
+ */
+export async function listPendingAccountDeletionRequests(): Promise<(AccountDeletionRequest & { email: string })[]> {
+  const supabase = createSupabaseAdminClient() ?? (await sb());
+  const { data } = await supabase
+    .from("account_deletion_requests")
+    .select("*")
+    .eq("status", "pending")
+    .order("created_at", { ascending: true });
+  const requests = (data ?? []).map(rowToAccountDeletionRequest);
+  if (requests.length === 0) return [];
+
+  const { data: profileRows } = await supabase.from("profiles").select("id, email").in("id", requests.map((r) => r.userId));
+  const emailByUserId = new Map((profileRows ?? []).map((p: Row) => [p.id, p.email as string]));
+  return requests.filter((r) => emailByUserId.has(r.userId)).map((r) => ({ ...r, email: emailByUserId.get(r.userId)! }));
+}
+
+/**
+ * Admin-only: keurt een verwijderingsverzoek goed of af. Keurt Cem 'm goed,
+ * dan is de daadwerkelijke verwijdering (account + gekoppelde data) op dit
+ * moment NOG een handmatige vervolgstap voor Cem zelf in het Supabase-
+ * dashboard — bewust geen automatische cascade-delete vanuit de app, want
+ * een verkeerd geklikte goedkeuring zou anders onomkeerbaar zijn zonder een
+ * laatste, aparte bevestiging buiten deze flow om. Vereist service-role.
+ */
+export async function resolveAccountDeletionRequest(
+  requestId: string,
+  status: "approved" | "declined",
+  adminResponse: string | null
+): Promise<AccountDeletionRequest | null> {
+  const admin = createSupabaseAdminClient();
+  const supabase = admin ?? (await sb());
+  const { data, error } = await supabase
+    .from("account_deletion_requests")
+    .update({ status, admin_response: adminResponse, resolved_at: new Date().toISOString() })
+    .eq("id", requestId)
+    .select()
+    .single();
+  if (error || !data) return null;
+  return rowToAccountDeletionRequest(data);
+}
+
+/**
  * "Winkel open/gesloten" (spec-item #55) — een leverancier zet zichzelf
  * tijdelijk onvindbaar (vakantie, te druk, etc.) zonder per se elke datum
  * apart te hoeven blokkeren. Filtert de leverancier uit zowel de publieke
@@ -1429,11 +2203,15 @@ export async function setSupplierStoreOpen(supplierId: string, open: boolean): P
 
 /**
  * Welke van deze kandidaat-leveranciers zijn NIET beschikbaar op `date`? Dat
- * is de vereniging van (a) zelf-geblokkeerde datums (`supplier_blocked_dates`)
- * en (b) leveranciers die op die datum al een BEVESTIGDE boeking hebben
+ * is de vereniging van (a) zelf-geblokkeerde eenmalige datums
+ * (`supplier_blocked_dates`), (b) structureel geblokkeerde weekdagen
+ * (`supplier_recurring_blocks`, spec-item #128 — anders zou "terugkerende
+ * beschikbaarheid" alleen cosmetisch op de kalender staan, zonder de
+ * leverancier écht te beschermen tegen een match op die dag), en (c)
+ * leveranciers die op die datum al een BEVESTIGDE boeking hebben
  * (`offers.status === "accepted"` voor een event met diezelfde datum) — een
  * leverancier die al ergens anders geboekt is, kan een nieuwe aanvraag voor
- * dezelfde dag toch niet uitvoeren. Bewust twee losse, simpele queries + een
+ * dezelfde dag toch niet uitvoeren. Bewust losse, simpele queries + een
  * JS-filter op `event.date` (i.p.v. een PostgREST-embedded-filter) — zelfde
  * patroon als elders in dit bestand (zie `getSupplierOrders`), en de
  * kandidaatpool hier is altijd klein genoeg (een paar tientallen) om dat
@@ -1442,11 +2220,18 @@ export async function setSupplierStoreOpen(supplierId: string, open: boolean): P
 async function getUnavailableSupplierIds(supplierIds: string[], date: string): Promise<Set<string>> {
   if (supplierIds.length === 0) return new Set();
   const supabase = await sb();
-  const [blockedRes, bookedRes] = await Promise.all([
+  // UTC-dag-berekening (zelfde reden als blockSupplierDateRange hierboven):
+  // voorkomt dat de weekdag rond een tijdzone-/zomertijdgrens verschuift.
+  // JS' getUTCDay() geeft 0=zondag..6=zaterdag; (+6)%7 zet dat om naar
+  // dezelfde 0=maandag..6=zondag-conventie als supplier_recurring_blocks.weekday.
+  const weekday = (new Date(`${date}T00:00:00Z`).getUTCDay() + 6) % 7;
+  const [blockedRes, bookedRes, recurringRes] = await Promise.all([
     supabase.from("supplier_blocked_dates").select("supplier_id").eq("date", date).in("supplier_id", supplierIds),
     supabase.from("offers").select("supplier_id, event:events(date)").eq("status", "accepted").in("supplier_id", supplierIds),
+    supabase.from("supplier_recurring_blocks").select("supplier_id").eq("weekday", weekday).in("supplier_id", supplierIds),
   ]);
   const unavailable = new Set<string>((blockedRes.data ?? []).map((r: Row) => r.supplier_id as string));
+  for (const row of (recurringRes.data ?? []) as Row[]) unavailable.add(row.supplier_id as string);
   for (const row of (bookedRes.data ?? []) as Row[]) {
     if (row.event?.date === date) unavailable.add(row.supplier_id as string);
   }
@@ -1669,19 +2454,17 @@ export async function getSupplierEarningsSummary(supplierId: string): Promise<Su
  * ontbrak was een categoriegemiddelde om jezelf tegen af te zetten — dat is
  * hier één extra, simpele query op dezelfde tabel.
  *
- * BEWUST NIET meegenomen: `accepted_offer_rate` staat wel op elke
- * leverancier (spec §53) maar wordt voor échte accounts nergens
- * herberekend (alleen de statische demo-catalogus in lib/data/suppliers.ts
- * heeft een zinvolle waarde) — die op deze pagina tonen zou voor iedere
- * échte leverancier gewoon "0%" laten zien, wat als een bug zou ogen i.p.v.
- * als inzicht. Kan alsnog toegevoegd worden zodra er een vergelijkbare
- * cronjob voor komt.
+ * `accepted_offer_rate` wordt sinds api/cron/recompute-acceptance-rate ook
+ * écht herberekend (was eerder bewust weggelaten omdat het voor elke
+ * echte leverancier altijd "0%" liet zien) — `offersSubmittedCount` geeft
+ * de aanroeper de mogelijkheid om "0% acceptatie" te onderscheiden van
+ * "nog geen offertes ingediend".
  */
 export async function getSupplierPerformanceInsights(supplierId: string): Promise<SupplierPerformanceInsights> {
   const supabase = await sb();
   const { data: own } = await supabase
     .from("suppliers")
-    .select("avg_response_hours, rating_avg, rating_count, avg_price_cents, category")
+    .select("avg_response_hours, rating_avg, rating_count, avg_price_cents, category, accepted_offer_rate, offers_submitted_count")
     .eq("id", supplierId)
     .single();
 
@@ -1695,18 +2478,26 @@ export async function getSupplierPerformanceInsights(supplierId: string): Promis
       categoryPeerCount: 0,
       avgPriceCents: 0,
       categoryAvgPriceCents: null,
+      acceptedOfferRate: 0,
+      offersSubmittedCount: 0,
+      categoryAvgAcceptedOfferRate: null,
     };
   }
 
   const { data: peers } = await supabase
     .from("suppliers")
-    .select("avg_response_hours, rating_avg, rating_count, avg_price_cents")
+    .select("avg_response_hours, rating_avg, rating_count, avg_price_cents, accepted_offer_rate, offers_submitted_count")
     .eq("category", own.category)
     .neq("id", supplierId);
 
   const peerRows = peers ?? [];
   const peersWithRatings = peerRows.filter((p: Row) => (p.rating_count ?? 0) > 0);
   const peersWithPricing = peerRows.filter((p: Row) => (p.avg_price_cents ?? 0) > 0);
+  // Alleen leveranciers die ooit een offerte hebben ingediend tellen mee —
+  // anders trekt iedere gloednieuwe leverancier (accepted_offer_rate blijft
+  // op de default 0 staan) het categoriegemiddelde onterecht omlaag, net
+  // zoals hierboven al bij categoryAvgPriceCents.
+  const peersWithOffers = peerRows.filter((p: Row) => (p.offers_submitted_count ?? 0) > 0);
 
   return {
     avgResponseHours: own.avg_response_hours ?? 24,
@@ -1725,6 +2516,12 @@ export async function getSupplierPerformanceInsights(supplierId: string): Promis
     // aangemaakt profiel) het categoriegemiddelde onterecht omlaag.
     categoryAvgPriceCents:
       peersWithPricing.length > 0 ? peersWithPricing.reduce((sum: number, p: Row) => sum + (p.avg_price_cents ?? 0), 0) / peersWithPricing.length : null,
+    acceptedOfferRate: Number(own.accepted_offer_rate ?? 0),
+    offersSubmittedCount: own.offers_submitted_count ?? 0,
+    categoryAvgAcceptedOfferRate:
+      peersWithOffers.length > 0
+        ? peersWithOffers.reduce((sum: number, p: Row) => sum + Number(p.accepted_offer_rate ?? 0), 0) / peersWithOffers.length
+        : null,
   };
 }
 
@@ -2011,6 +2808,8 @@ function rowToReview(r: Row): Review {
     rating: r.rating,
     comment: r.comment ?? null,
     noShow: r.no_show ?? false,
+    photoUrls: r.photo_urls ?? [],
+    videoUrl: r.video_url ?? null,
     createdAt: r.created_at,
   };
 }
@@ -2052,6 +2851,8 @@ export interface SubmitReviewInput {
   rating: number;
   comment: string | null;
   noShow: boolean;
+  photoUrls: string[];
+  videoUrl: string | null;
 }
 
 /**
@@ -2072,6 +2873,8 @@ export async function submitReview(input: SubmitReviewInput): Promise<Review | n
       rating: input.rating,
       comment: input.comment,
       no_show: input.noShow,
+      photo_urls: input.photoUrls,
+      video_url: input.videoUrl,
     })
     .select()
     .single();
@@ -2513,6 +3316,127 @@ export async function getPaymentsForEvent(eventId: string): Promise<Payment[]> {
 }
 
 /* ------------------------------------------------------------------ */
+/* STRIPE-BETAALFLOW-VOORBEREIDING (spec-item #132)                    */
+/*                                                                       */
+/* Datamodel + integratiepunten voor een echte betaalflow via Stripe    */
+/* Connect — zie supabase/migrations/0049_stripe_payment_prep.sql voor  */
+/* het volledige model en de RLS-redenering. Dit blijft bewust          */
+/* VOORBEREIDING: er wordt hier nergens een echte Stripe-API-aanroep    */
+/* gedaan (dat vereist de `stripe`-npm-package + een echte secret key,  */
+/* dus een eigen Stripe-account van Cem). De functies hieronder worden   */
+/* pas bereikt vanuit app/api/webhooks/stripe/route.ts zodra die         */
+/* daadwerkelijk is aangesloten.                                         */
+/* ------------------------------------------------------------------ */
+
+function rowToSupplierStripeAccount(r: Row): SupplierStripeAccount {
+  return {
+    supplierId: r.supplier_id,
+    stripeAccountId: r.stripe_account_id ?? null,
+    chargesEnabled: r.charges_enabled ?? false,
+    payoutsEnabled: r.payouts_enabled ?? false,
+    onboardedAt: r.onboarded_at ?? null,
+    createdAt: r.created_at,
+  };
+}
+
+/** Voor de leverancier zelf (bv. een toekomstige "Stripe koppelen"-sectie op /supplier/profile): status van de eigen Connect-koppeling lezen. Puur select — schrijven mag alleen via de service-role, zie hieronder. */
+export async function getSupplierStripeAccount(supplierId: string): Promise<SupplierStripeAccount | null> {
+  const supabase = await sb();
+  const { data } = await supabase.from("supplier_stripe_accounts").select("*").eq("supplier_id", supplierId).maybeSingle();
+  return data ? rowToSupplierStripeAccount(data) : null;
+}
+
+/**
+ * Bijgewerkt vanuit de `account.updated`-webhook — altijd via de
+ * service-role, nooit via de sessie van de leverancier zelf: zonder deze
+ * grens zou een leverancier zichzelf `payoutsEnabled = true` kunnen geven
+ * zonder dat Stripe dat ooit heeft bevestigd (zie migratie 49). Zet
+ * `onboardedAt` precies één keer, op het moment dat beide vlaggen voor het
+ * eerst tegelijk true worden — latere webhook-updates (bv. Stripe die een
+ * vereiste later weer intrekt) overschrijven die eerste onboard-datum niet.
+ */
+export async function upsertSupplierStripeAccountFromWebhook(
+  stripeAccountId: string,
+  fields: { chargesEnabled: boolean; payoutsEnabled: boolean }
+): Promise<SupplierStripeAccount | null> {
+  const admin = createSupabaseAdminClient();
+  if (!admin) return null;
+
+  const { data: existingRow } = await admin.from("supplier_stripe_accounts").select("*").eq("stripe_account_id", stripeAccountId).maybeSingle();
+  if (!existingRow) return null;
+  const existing = rowToSupplierStripeAccount(existingRow);
+  const onboardedAt = existing.onboardedAt ?? (fields.chargesEnabled && fields.payoutsEnabled ? new Date().toISOString() : null);
+
+  const { data, error } = await admin
+    .from("supplier_stripe_accounts")
+    .update({ charges_enabled: fields.chargesEnabled, payouts_enabled: fields.payoutsEnabled, onboarded_at: onboardedAt })
+    .eq("stripe_account_id", stripeAccountId)
+    .select()
+    .maybeSingle();
+  if (error || !data) return null;
+  return rowToSupplierStripeAccount(data);
+}
+
+/** Voor de webhook: een betaling opzoeken aan de hand van de Stripe Checkout-sessie die ervoor is aangemaakt (geen sessie/cookie beschikbaar in een inkomend webhook-request, dus service-role). */
+export async function getPaymentByStripeCheckoutSessionId(sessionId: string): Promise<Payment | null> {
+  const admin = createSupabaseAdminClient();
+  if (!admin) return null;
+  const { data } = await admin.from("payments").select("*").eq("stripe_checkout_session_id", sessionId).maybeSingle();
+  return data ? rowToPayment(data) : null;
+}
+
+/**
+ * Service-role-tegenhanger van `markPaymentPaid` hierboven, voor gebruik
+ * vanuit de Stripe-webhook (een inkomend webhook-request heeft geen
+ * ingelogde gebruiker/sessie, dus `sb()` kan hier niet gebruikt worden —
+ * zie ook `acceptOffer`/`updateRequirementStatus`, die wél sessie-gebonden
+ * zijn en dus niet rechtstreeks herbruikt konden worden). Dupliceert
+ * bewust dezelfde kernlogica (aanbetaling-vóór-restbedrag-check, offerte
+ * accepteren, vereiste-status bijwerken, "alles betaald?"-check) via de
+ * service-role. BELANGRIJK: wijzig je hier iets aan "wat gebeurt er bij
+ * een geslaagde betaling", wijzig dan ook `markPaymentPaid`/`acceptOffer`/
+ * `updateRequirementStatus` hierboven (en andersom) — anders lopen het
+ * mock- en het Stripe-pad uit elkaar.
+ */
+export async function markPaymentPaidByWebhook(paymentId: string, opts: { stripePaymentIntentId: string }): Promise<Payment | null> {
+  const admin = createSupabaseAdminClient();
+  if (!admin) return null;
+
+  const { data: existingRow } = await admin.from("payments").select("*").eq("id", paymentId).maybeSingle();
+  if (!existingRow) return null;
+  const existing = rowToPayment(existingRow);
+  // Zelfde regel als in markPaymentPaid: een restbedrag mag nooit vóór zijn aanbetaling betaald worden.
+  if (existing.installment === "balance" && existing.parentPaymentId) {
+    const { data: depositRow } = await admin.from("payments").select("*").eq("id", existing.parentPaymentId).maybeSingle();
+    const deposit = depositRow ? rowToPayment(depositRow) : null;
+    if (deposit && deposit.status !== "paid") return null;
+  }
+
+  const { data, error } = await admin
+    .from("payments")
+    .update({ status: "paid", paid_at: new Date().toISOString(), stripe_payment_intent_id: opts.stripePaymentIntentId })
+    .eq("id", paymentId)
+    .select()
+    .single();
+  if (error || !data) return null;
+  const payment = rowToPayment(data);
+
+  const { data: offerRow } = await admin.from("offers").update({ status: "accepted", swipe_decision: "shortlisted" }).eq("id", payment.offerId).select("category_key").maybeSingle();
+  if (offerRow) {
+    await admin.from("event_requirements").update({ status: "confirmed" }).eq("event_id", payment.eventId).eq("category_key", offerRow.category_key);
+  }
+
+  const { data: siblingRows } = await admin.from("payments").select("*").eq("offer_id", payment.offerId);
+  const siblings = (siblingRows ?? []).map(rowToPayment);
+  const allPaid = siblings.length > 0 && siblings.every((p) => p.status === "paid");
+  if (allPaid) {
+    await admin.from("event_requirements").update({ status: "paid" }).eq("event_id", payment.eventId).eq("category_key", payment.categoryKey);
+  }
+
+  return payment;
+}
+
+/* ------------------------------------------------------------------ */
 /* MESSAGES                                                             */
 /* ------------------------------------------------------------------ */
 
@@ -2530,10 +3454,37 @@ export async function getMessages(eventId: string, categoryKey: SupplierCategory
   let query = supabase.from("messages").select("*").eq("event_id", eventId).eq("category_key", categoryKey);
   if (supplierId) query = query.eq("supplier_id", supplierId);
   const { data } = await query.order("created_at", { ascending: true });
-  return (data ?? []).map(rowToMessage);
+  const messages = (data ?? []).map(rowToMessage);
+  if (messages.length === 0) return messages;
+
+  // Bijlages + hun ondertekende URL's in twee losse, gebundelde aanroepen
+  // i.p.v. per bericht — anders zou een gesprek met bv. 30 berichten 30
+  // aparte round-trips naar de database én de opslagruimte doen.
+  const { data: attachmentRows } = await supabase
+    .from("message_attachments")
+    .select("*")
+    .in("message_id", messages.map((m) => m.id));
+  if (!attachmentRows || attachmentRows.length === 0) return messages;
+
+  const attachments = attachmentRows.map(rowToMessageAttachment);
+  const paths = attachments.map((a) => a.storagePath);
+  const { data: signedUrls } = await supabase.storage.from("message-attachments").createSignedUrls(paths, 60 * 60);
+  const urlByPath = new Map((signedUrls ?? []).map((s) => [s.path, s.signedUrl]));
+
+  const byMessageId = new Map<string, MessageAttachment[]>();
+  for (const a of attachments) {
+    const list = byMessageId.get(a.messageId) ?? [];
+    list.push({ id: a.id, fileName: a.fileName, mimeType: a.mimeType, sizeBytes: a.sizeBytes, url: urlByPath.get(a.storagePath) ?? null });
+    byMessageId.set(a.messageId, list);
+  }
+  for (const m of messages) m.attachments = byMessageId.get(m.id) ?? [];
+  return messages;
 }
 
-export async function addMessage(msg: Omit<Message, "id" | "createdAt">): Promise<Message> {
+export async function addMessage(
+  msg: Omit<Message, "id" | "createdAt" | "attachments">,
+  attachments?: { storagePath: string; fileName: string; mimeType: string; sizeBytes: number }[]
+): Promise<Message> {
   const supabase = await sb();
   const { data, error } = await supabase
     .from("messages")
@@ -2541,7 +3492,26 @@ export async function addMessage(msg: Omit<Message, "id" | "createdAt">): Promis
     .select()
     .single();
   if (error || !data) throw new Error(error?.message ?? "Kon bericht niet opslaan");
-  return rowToMessage(data);
+  const message = rowToMessage(data);
+
+  if (attachments && attachments.length > 0) {
+    const { error: attachError } = await supabase.from("message_attachments").insert(
+      attachments.map((a) => ({
+        message_id: message.id,
+        storage_path: a.storagePath,
+        file_name: a.fileName,
+        mime_type: a.mimeType,
+        size_bytes: a.sizeBytes,
+      }))
+    );
+    // Het bericht zelf staat er al (met tekst) — een mislukte bijlage-insert
+    // (zeer onwaarschijnlijk, RLS is al gepasseerd bij de upload zelf) mag
+    // dat niet met terugwerkende kracht ongedaan maken. We laten de bijlage
+    // dan gewoon weg i.p.v. de hele verzending te laten falen.
+    if (!attachError) message.attachments = attachments.map((a, i) => ({ id: `pending-${i}`, fileName: a.fileName, mimeType: a.mimeType, sizeBytes: a.sizeBytes, url: null }));
+  }
+
+  return message;
 }
 
 /* ------------------------------------------------------------------ */
@@ -2847,8 +3817,23 @@ async function pushNotificationOnce(
  */
 const EMAIL_NOTIFICATION_TYPES = new Set<AppNotification["type"]>(["new_request", "new_offer", "supplier_responded", "deadline_approaching"]);
 
+/**
+ * BUGFIX (livegang-audit augustus 2026): gebruikte hier tot nu toe `sb()`
+ * (de sessie-gebonden client) voor de insert — maar de aanroeper van
+ * pushNotification() is bijna altijd een ANDERE gebruiker dan de ontvanger
+ * (een leverancier die de organisator meldt dat er gereageerd is, een
+ * organisator die een leverancier een nieuwe aanvraag stuurt, een admin die
+ * een geschil oplost, ...). De RLS-policy op `notifications` staat alleen
+ * `auth.uid() = user_id` toe (migratie 0001), dus zo'n insert voor een
+ * ANDERE gebruiker werd altijd stilzwijgend geweigerd — deze functie gaf
+ * dan gewoon `null` terug zonder dat er ergens een fout zichtbaar werd. Het
+ * commentaar hieronder bij de e-mail-stap signaleerde dit probleem al
+ * (vandaar de admin-client dáár), maar miste dat de insert er zelf ook aan
+ * leed. Zelfde `admin ?? sb()`-terugvalpatroon als bij resolveDispute()/
+ * approveSupplierVerification() hierboven.
+ */
 export async function pushNotification(n: Omit<AppNotification, "id" | "createdAt" | "read">): Promise<AppNotification | null> {
-  const supabase = await sb();
+  const supabase = createSupabaseAdminClient() ?? (await sb());
   const { data, error } = await supabase
     .from("notifications")
     .insert({ user_id: n.userId, event_id: n.eventId, type: n.type, title: n.title, body: n.body, href: n.href })

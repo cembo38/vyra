@@ -1,18 +1,23 @@
+import { AdminAccountDeletionRequestActions } from "@/components/app/AdminAccountDeletionRequestActions";
 import { AdminUserActions } from "@/components/app/AdminUserActions";
 import { AdminServiceRoleBanner } from "@/components/app/AdminServiceRoleBanner";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { listAllUsers } from "@/lib/data/store";
+import { listAllUsers, listPendingAccountDeletionRequests } from "@/lib/data/store";
 import { isServiceRoleConfigured } from "@/lib/supabase/admin";
 import { USER_ROLE_LABELS } from "@/lib/types";
+import { formatDateNL } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { Ban } from "lucide-react";
+import { Ban, Trash2 } from "lucide-react";
 
 export const metadata = { title: "Gebruikers — Vyra Admin" };
 
 export default async function AdminUsersPage() {
-  const users = await listAllUsers();
   const serviceRoleConfigured = isServiceRoleConfigured();
+  const [users, deletionRequests] = await Promise.all([
+    listAllUsers(),
+    serviceRoleConfigured ? listPendingAccountDeletionRequests() : Promise.resolve([]),
+  ]);
 
   return (
     <div className="mx-auto max-w-6xl px-6 py-10">
@@ -22,6 +27,33 @@ export default async function AdminUsersPage() {
       {!serviceRoleConfigured && (
         <div className="mt-6">
           <AdminServiceRoleBanner />
+        </div>
+      )}
+
+      {deletionRequests.length > 0 && (
+        <div className="mt-8">
+          <Card>
+            <div className="mb-1 flex items-center gap-2">
+              <Trash2 className="size-4.5 text-danger" />
+              <h2 className="font-display text-lg text-ink">Verwijderingsverzoeken</h2>
+              <span className="rounded-full bg-danger-50 px-2 py-0.5 text-xs font-medium text-danger">{deletionRequests.length}</span>
+            </div>
+            <p className="mb-4 text-xs text-ink-faint">
+              Zelfbedienings AVG-verzoeken (via &quot;Privacy &amp; gegevens&quot; op /profile of /supplier/profile). &quot;Goedkeuren&quot; bevestigt het verzoek — de daadwerkelijke, onomkeerbare verwijdering doe je daarna zelf in het Supabase-dashboard.
+            </p>
+            <div className="space-y-3">
+              {deletionRequests.map((r) => (
+                <div key={r.id} className="rounded-xl border border-line-soft px-3.5 py-3 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="font-medium text-ink">{r.email}</p>
+                    <span className="text-xs text-ink-faint">Aangevraagd {formatDateNL(r.createdAt)}</span>
+                  </div>
+                  {r.reason && <p className="mt-1 text-xs text-ink-soft">Reden: {r.reason}</p>}
+                  <AdminAccountDeletionRequestActions requestId={r.id} />
+                </div>
+              ))}
+            </div>
+          </Card>
         </div>
       )}
 

@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { signUpWithPassword, signInWithPassword, signOut, getCurrentUser, requestPasswordReset, updatePassword } from "@/lib/auth";
-import { updateUser, getSupplierAccountByOwner } from "@/lib/data/store";
+import { grantReferralRewardIfEligible, updateUser, getSupplierAccountByOwner } from "@/lib/data/store";
 
 async function siteOrigin() {
   const h = await headers();
@@ -55,6 +55,7 @@ function signupRetryParams(params: {
   email: string;
   asOrganizer: boolean;
   asSupplier: boolean;
+  ref?: string;
 }): string {
   const qs = new URLSearchParams({
     error: params.error,
@@ -64,6 +65,7 @@ function signupRetryParams(params: {
     asOrganizer: params.asOrganizer ? "1" : "0",
     asSupplier: params.asSupplier ? "1" : "0",
   });
+  if (params.ref) qs.set("ref", params.ref);
   return `/signup?${qs.toString()}`;
 }
 
@@ -75,7 +77,14 @@ export async function signupAction(formData: FormData) {
   const consent = formData.get("consent");
   const asOrganizer = formData.get("asOrganizer") === "on";
   const asSupplier = formData.get("asSupplier") === "on";
-  const retryParams = (error: string) => signupRetryParams({ error, firstName, lastName, email, asOrganizer, asSupplier });
+  // Referral-programma (livegang-audit) — "ref" komt mee als verborgen
+  // formulierveld (zie app/signup/page.tsx, gevuld vanuit ?ref=... in de
+  // URL). Puur doorgeven aan signUpWithPassword; de échte validatie
+  // (bestaat dit id, is het niet iemands eigen id) gebeurt server-side in
+  // handle_new_user() (migratie 0045) — een verzonnen/foutieve waarde hier
+  // resulteert daar gewoon stilzwijgend in geen referral, nooit een fout.
+  const ref = String(formData.get("ref") ?? "").trim();
+  const retryParams = (error: string) => signupRetryParams({ error, firstName, lastName, email, asOrganizer, asSupplier, ref });
 
   if (!asOrganizer && !asSupplier) redirect(retryParams("role"));
   if (!consent) redirect(retryParams("consent"));
@@ -83,15 +92,18 @@ export async function signupAction(formData: FormData) {
 
   const role = asOrganizer && asSupplier ? "both" : asSupplier ? "supplier" : "customer";
   const origin = await siteOrigin();
-  const { error, confirmedSession } = await signUpWithPassword({
+  const { error, confirmedSession, userId } = await signUpWithPassword({
     email,
     password,
     firstName,
     lastName,
     role,
     emailRedirectTo: `${origin}/auth/callback`,
+    referredBy: ref || null,
   });
   if (error) redirect(retryParams(authErrorCode(error)));
+
+  if (userId) await grantReferralRewardIfEligible(userId);
 
   if (!confirmedSession) {
     // "Confirm email" staat nog aan in Supabase — pas na het klikken op de

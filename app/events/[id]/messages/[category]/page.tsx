@@ -3,6 +3,7 @@ import { Sparkles } from "lucide-react";
 import { getEvent, getMessages, getRequestsForEvent, resolveSupplierDisplay } from "@/lib/data/store";
 import { SupplierAvatar } from "@/components/ui/Avatar";
 import { BackLink } from "@/components/ui/BackLink";
+import { MessageAttachments } from "@/components/app/MessageAttachments";
 import { MessageComposer } from "@/components/app/MessageComposer";
 import { RealtimeRefresh } from "@/components/app/RealtimeRefresh";
 import { SUPPLIER_CATEGORY_LABELS, SupplierCategory } from "@/lib/types";
@@ -63,6 +64,7 @@ export default async function MessageThreadPage(props: PageProps<"/events/[id]/m
                 )}
               >
                 {m.text}
+                <MessageAttachments attachments={m.attachments} tone={m.sender === "customer" ? "dark" : "light"} />
                 <p className={cn("mt-1 text-[11px]", m.sender === "customer" ? "text-paper/60" : "text-ink-faint")}>{formatDateNL(m.createdAt.slice(0, 10))}</p>
               </div>
             )}

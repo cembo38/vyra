@@ -2,9 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
-import { getEvent, getOffer, getSupplierAccountByOwner, submitReview } from "@/lib/data/store";
+import { getEvent, getOffer, getSupplierAccountByOwner, submitReview, uploadSupplierFile } from "@/lib/data/store";
 import { ReviewerRole } from "@/lib/types";
-import { clamp } from "@/lib/utils";
+import { clamp, getVideoEmbedUrl } from "@/lib/utils";
+
+// "Foto/video bij beoordelingen" (livegang-audit) — zelfde ondergrenzen als
+// message-actions.ts (MAX_ATTACHMENTS_PER_MESSAGE/MESSAGE_ATTACHMENT_MAX_BYTES),
+// hier los gehouden omdat het een ander soort upload is (openbare
+// review-foto's, geen privé-berichtbijlage).
+const MAX_REVIEW_PHOTOS = 4;
+const MAX_REVIEW_PHOTO_BYTES = 5 * 1024 * 1024;
 
 /**
  * Wederzijdse beoordeling na een geaccepteerde boeking (spec-item,
@@ -24,9 +31,23 @@ export async function submitReviewAction(input: {
   rating: number;
   comment: string;
   noShow?: boolean;
+  photos?: File[];
+  videoUrl?: string;
 }): Promise<{ ok: boolean; error?: string }> {
   const user = await getCurrentUser();
   if (!user) return { ok: false, error: "Niet ingelogd." };
+
+  // Een beoordeling is niet meer te wijzigen na het versturen (zie migratie
+  // 0033) — dus liever hier vooraf een duidelijke foutmelding dan straks
+  // een permanent opgeslagen review met een stille, genegeerde video-link.
+  let videoUrl: string | null = null;
+  const rawVideoUrl = (input.videoUrl ?? "").trim();
+  if (rawVideoUrl) {
+    if (!getVideoEmbedUrl(rawVideoUrl)) {
+      return { ok: false, error: "Deze videolink lijkt niet geldig (alleen YouTube/Vimeo)." };
+    }
+    videoUrl = rawVideoUrl;
+  }
 
   const offer = await getOffer(input.offerId);
   if (!offer || offer.status !== "accepted") return { ok: false, error: "Deze boeking is niet gevonden." };
@@ -55,6 +76,14 @@ export async function submitReviewAction(input: {
   const rating = clamp(Math.round(input.rating), 1, 5);
   const comment = input.comment.trim();
 
+  // Foto's die te groot zijn worden gewoon overgeslagen (net als bij
+  // MessageComposer.tsx's client-zijde check) i.p.v. de hele beoordeling te
+  // blokkeren — de gebruiker heeft in de UI al een client-zijde melding
+  // gezien voordat het zover kwam.
+  const validPhotos = (input.photos ?? []).filter((f) => f && f.size > 0 && f.size <= MAX_REVIEW_PHOTO_BYTES && f.type.startsWith("image/")).slice(0, MAX_REVIEW_PHOTOS);
+  const uploadedUrls = await Promise.all(validPhotos.map((f) => uploadSupplierFile(user.id, f, "review")));
+  const photoUrls = uploadedUrls.filter((u): u is string => u !== null);
+
   const review = await submitReview({
     offerId: offer.id,
     eventId: event.id,
@@ -63,6 +92,8 @@ export async function submitReviewAction(input: {
     rating,
     comment: comment.length > 0 ? comment : null,
     noShow: reviewerRole === "supplier" ? Boolean(input.noShow) : false,
+    photoUrls,
+    videoUrl,
   });
   if (!review) return { ok: false, error: "Opslaan is niet gelukt — mogelijk heb je deze boeking al beoordeeld." };
 

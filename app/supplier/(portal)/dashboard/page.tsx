@@ -13,6 +13,7 @@ import { getCurrentUser } from "@/lib/auth";
 import {
   getCachedSupplierBriefing,
   getSupplierAccountByOwner,
+  getSupplierAssistantUsageStatus,
   getSupplierEarningsSummary,
   getSupplierEffectiveTierDefinition,
   getSupplierLeads,
@@ -20,11 +21,21 @@ import {
 } from "@/lib/data/store";
 import { formatCurrency } from "@/lib/config";
 import { EVENT_TYPE_LABELS, SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
-import { CalendarClock, CheckCircle2, Clock, Inbox, TrendingUp, Wallet } from "lucide-react";
+import { ArrowRight, BadgeCheck, CalendarClock, CheckCircle2, Clock, ImagePlus, Inbox, Package, TrendingUp, Wallet } from "lucide-react";
 
 export const metadata = { title: "Dashboard — Vyra voor leveranciers" };
 
-export default async function SupplierDashboardPage() {
+export default async function SupplierDashboardPage(props: PageProps<"/supplier/dashboard">) {
+  const params = await props.searchParams;
+  // "Onboarding: foto + KVK + pakketten-nudge" (livegang-audit) — logo en
+  // KVK-nummer kunnen sinds deze audit al tijdens onboarding zelf worden
+  // ingevuld (zie app/supplier/onboarding/page.tsx); pakketten zijn pas
+  // bewerkbaar vanaf Pro, dus die nudge hoort hier op het dashboard i.p.v.
+  // op onboarding zelf een formulier te tonen dat toch niets kan opslaan.
+  // `onboarded=1` (gezet door createSupplierProfileAction) toont dit
+  // eenmalig direct na de eerste registratie — daarna is het weg.
+  const justOnboarded = params.onboarded === "1";
+
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   const supplier = await getSupplierAccountByOwner(user.id);
@@ -37,6 +48,10 @@ export default async function SupplierDashboardPage() {
     getSupplierEffectiveTierDefinition(supplier.id),
     getCachedSupplierBriefing(supplier.id),
   ]);
+  // "Resterende VyrAI-limiet zichtbaar maken" (livegang-audit) — alleen
+  // nodig op te halen als de assistent überhaupt beschikbaar is (Pro+),
+  // anders is er niets zinvols om te tonen.
+  const assistantUsage = tierDefinition.assistantTier >= 1 ? await getSupplierAssistantUsageStatus(supplier.id) : null;
 
   const openLeads = leads.filter((l) => l.target.status === "pending").slice(0, 5);
   const upcomingOrders = [...orders]
@@ -57,6 +72,37 @@ export default async function SupplierDashboardPage() {
         <p className="mt-3 rounded-xl border border-line-soft bg-paper-dim px-3.5 py-2.5 text-sm text-ink-soft">
           Je winkel staat op gesloten — organisatoren kunnen je nu niet vinden via zoeken of nieuwe aanvragen. Zet &apos;m weer open zodra je nieuwe boekingen kunt aannemen.
         </p>
+      )}
+
+      {justOnboarded && (
+        <div className="mt-4 rounded-xl border border-sage/30 bg-sage-50 p-4">
+          <p className="text-sm font-medium text-ink">Je profiel staat live! Nog een paar dingen die helpen om sneller aanvragen te krijgen:</p>
+          <div className="mt-3 flex flex-col gap-2">
+            {!supplier.logoUrl && (
+              <Link href="/supplier/profile" className="chip-hover flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm text-ink hover:text-sage-dark">
+                <ImagePlus className="size-4 shrink-0 text-sage" />
+                <span className="flex-1">Voeg een logo en foto&apos;s van je werk toe</span>
+                <ArrowRight className="size-3.5 shrink-0 text-ink-faint" />
+              </Link>
+            )}
+            {!supplier.verified && !supplier.verificationRequestedAt && (
+              <Link href="/supplier/profile" className="chip-hover flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm text-ink hover:text-sage-dark">
+                <BadgeCheck className="size-4 shrink-0 text-sage" />
+                <span className="flex-1">Vraag verificatie aan met je KVK-nummer</span>
+                <ArrowRight className="size-3.5 shrink-0 text-ink-faint" />
+              </Link>
+            )}
+            <Link href="/supplier/profile" className="chip-hover flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm text-ink hover:text-sage-dark">
+              <Package className="size-4 shrink-0 text-sage" />
+              <span className="flex-1">
+                {tierDefinition.packagesEnabled
+                  ? "Stel vaste pakketten in, zodat organisatoren snel kunnen vergelijken"
+                  : "Vanaf Pro kun je vaste pakketten aanbieden — bekijk de abonnementen"}
+              </span>
+              <ArrowRight className="size-3.5 shrink-0 text-ink-faint" />
+            </Link>
+          </div>
+        </div>
       )}
 
       <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -90,7 +136,7 @@ export default async function SupplierDashboardPage() {
       </Card>
 
       <div className="mt-6 flex flex-col gap-6">
-        <SupplierAssistantWidget enabled={tierDefinition.assistantTier >= 1} />
+        <SupplierAssistantWidget enabled={tierDefinition.assistantTier >= 1} usage={assistantUsage} />
         {tierDefinition.assistantTier >= 2 && <SupplierBriefingCard initialNarrative={cachedBriefing?.narrative ?? null} />}
       </div>
 

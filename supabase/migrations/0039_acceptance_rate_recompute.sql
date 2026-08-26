@@ -1,0 +1,24 @@
+-- ─────────────────────────────────────────────────────────────
+-- Vyra — echte acceptatiegraad voor leveranciers
+--
+-- `suppliers.accepted_offer_rate` (migratie 0002) staat er al sinds het
+-- begin, maar wordt voor échte accounts nergens herberekend — alleen de
+-- statische demo-catalogus (lib/data/suppliers.ts) heeft een zinvolle
+-- waarde. De Pro-tier-tekst belooft expliciet "acceptatiegraad t.o.v. het
+-- categoriegemiddelde", dus dit vult een bestaande, betaalde belofte in.
+--
+-- Nieuwe kolom `offers_submitted_count`: laat onderscheid toe tussen "0%
+-- acceptatie" (heeft wel offertes ingediend, allemaal afgewezen/verlopen)
+-- en "nog geen data" (nul offertes ooit ingediend) — anders zou een
+-- gloednieuwe leverancier een ontmoedigende "0%" te zien krijgen in plaats
+-- van simpelweg "nog geen offertes". Zelfde soort onderscheid als
+-- `categoryAvgPriceCents` al maakt voor leveranciers zonder ingevulde prijs
+-- (lib/data/store.ts, getSupplierPerformanceInsights).
+--
+-- Herberekening loopt via app/api/cron/recompute-acceptance-rate/route.ts,
+-- exact hetzelfde patroon als recompute-response-times (service-role-
+-- client, geen ingelogde sessie nodig, dagelijks via vercel.json).
+--
+-- Plak dit hieronder in de Supabase SQL Editor en klik "Run".
+
+alter table suppliers add column if not exists offers_submitted_count int not null default 0;

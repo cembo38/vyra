@@ -5,17 +5,27 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import {
   addSupplierFavorite,
+  createFavoriteCollection,
   createSavedSearch,
+  deleteFavoriteCollection,
+  deletePushSubscription,
   deleteSavedSearch,
   getEvent,
   getSavedSearchesForUser,
+  listFavoriteCollections,
   markAllNotificationsRead,
   markNotificationRead,
+  moveFavoriteToCollection,
   removeSupplierFavorite,
+  renameFavoriteCollection,
+  savePushSubscription,
   toggleTaskDone,
   toggleTimelineDone,
 } from "@/lib/data/store";
-import { SupplierCategory } from "@/lib/types";
+import { SupplierCategory, SupplierFavoriteCollection } from "@/lib/types";
+
+const MAX_COLLECTION_NAME_LENGTH = 60;
+const MAX_COLLECTIONS_PER_USER = 30;
 
 /**
  * Controleerde tot nu toe nergens wie er aanriep, of dat diegene ook echt
@@ -136,4 +146,91 @@ export async function deleteSavedSearchAction(id: string) {
   if (!user) redirect("/login");
   await deleteSavedSearch(id, user.id);
   revalidatePath("/mijn-leveranciers");
+}
+
+/**
+ * Genoemde collecties voor favorieten (spec-item #129) — "Mijn
+ * leveranciers" was tot nu toe altijd één platte lijst. Zelfde
+ * ok/error-vorm als `toggleSupplierFavoriteAction` hierboven, zodat de
+ * pagina zonder volledige navigatie kan bijwerken.
+ */
+export async function createFavoriteCollectionAction(name: string): Promise<{ ok: boolean; error?: string; collection?: SupplierFavoriteCollection }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Niet ingelogd." };
+
+  const trimmed = name.trim().slice(0, MAX_COLLECTION_NAME_LENGTH);
+  if (!trimmed) return { ok: false, error: "Geef de collectie een naam." };
+
+  const existing = await listFavoriteCollections(user.id);
+  if (existing.length >= MAX_COLLECTIONS_PER_USER) {
+    return { ok: false, error: `Je kunt maximaal ${MAX_COLLECTIONS_PER_USER} collecties aanmaken — verwijder er eerst één.` };
+  }
+  if (existing.some((c) => c.name.toLowerCase() === trimmed.toLowerCase())) {
+    return { ok: false, error: "Je hebt al een collectie met deze naam." };
+  }
+
+  const collection = await createFavoriteCollection(user.id, trimmed);
+  if (!collection) return { ok: false, error: "Aanmaken is niet gelukt, probeer het nogmaals." };
+
+  revalidatePath("/mijn-leveranciers");
+  return { ok: true, collection };
+}
+
+export async function renameFavoriteCollectionAction(collectionId: string, name: string): Promise<{ ok: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Niet ingelogd." };
+
+  const trimmed = name.trim().slice(0, MAX_COLLECTION_NAME_LENGTH);
+  if (!trimmed) return { ok: false, error: "Geef de collectie een naam." };
+
+  const ok = await renameFavoriteCollection(collectionId, user.id, trimmed);
+  if (!ok) return { ok: false, error: "Hernoemen is niet gelukt." };
+
+  revalidatePath("/mijn-leveranciers");
+  return { ok: true };
+}
+
+/** Verwijdert alleen de collectie — favorieten die erin zaten vallen terug op "Niet ingedeeld", ze worden nooit zelf verwijderd. */
+export async function deleteFavoriteCollectionAction(collectionId: string): Promise<{ ok: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Niet ingelogd." };
+
+  await deleteFavoriteCollection(collectionId, user.id);
+  revalidatePath("/mijn-leveranciers");
+  return { ok: true };
+}
+
+export async function moveFavoriteToCollectionAction(supplierId: string, collectionId: string | null): Promise<{ ok: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Niet ingelogd." };
+
+  const ok = await moveFavoriteToCollection(user.id, supplierId, collectionId);
+  if (!ok) return { ok: false, error: "Verplaatsen is niet gelukt." };
+
+  revalidatePath("/mijn-leveranciers");
+  return { ok: true };
+}
+
+/**
+ * Browser-pushmeldingen (spec-item #131) — de browser levert het
+ * abonnement (endpoint + sleutels) pas op ná `PushManager.subscribe()`,
+ * dus dit MOET vanuit een client component aangeroepen worden (de server
+ * kan `PushManager` niet zelf aanroepen). Zelfde ok/error-vorm als de
+ * andere acties hier.
+ */
+export async function savePushSubscriptionAction(sub: { endpoint: string; p256dh: string; authKey: string }): Promise<{ ok: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Niet ingelogd." };
+  if (!sub.endpoint || !sub.p256dh || !sub.authKey) return { ok: false, error: "Ongeldig push-abonnement." };
+
+  const ok = await savePushSubscription(user.id, sub);
+  if (!ok) return { ok: false, error: "Opslaan is niet gelukt." };
+  return { ok: true };
+}
+
+export async function deletePushSubscriptionAction(endpoint: string): Promise<{ ok: boolean }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false };
+  await deletePushSubscription(user.id, endpoint);
+  return { ok: true };
 }

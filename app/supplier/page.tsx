@@ -8,7 +8,25 @@ import { Badge } from "@/components/ui/Badge";
 import { LinkButton } from "@/components/ui/Button";
 import { SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
 import { SUBSCRIPTION_TIERS, SUBSCRIPTION_TIER_ORDER, TRIAL_BOOKING_COUNT, formatCurrency } from "@/lib/config";
-import { CheckCircle2, Clock, Crown, Percent, Sparkles, Star } from "lucide-react";
+import { CheckCircle2, Clock, Crown, FileText, MessageCircle, Percent, Radar, Sparkles, Star, TrendingUp, Wand2 } from "lucide-react";
+
+// "VyrAI zichtbaar maken op /supplier" (livegang-audit) — de zes echte
+// assistent-functies (spec-items #90-98) stonden tot nu toe onzichtbaar
+// voor iedereen die nog geen leverancier is: deze wervingspagina noemde
+// alleen de losse offerte-demo hieronder, nooit "VyrAI" als naam of het
+// bredere pakket eromheen. `minTier` bepaalt het "Vanaf ..."-label per
+// kaart — rechtstreeks afgeleid van assistantTier in lib/config.ts
+// (0 = Starter/Groei, 1 = Pro, 2 = Premium/Enterprise) i.p.v. een los
+// bijgehouden lijstje dat uit sync kan raken met de echte tier-gating.
+const VYRAI_FEATURES: { icon: ReactNode; title: string; description: string; minTier: "Pro" | "Premium" | "Enterprise" }[] = [
+  { icon: <MessageCircle className="size-5" />, title: "VyrAI-assistent", description: "Stel een vraag over je eigen cijfers, aanvragen of het platform — direct antwoord, dag en nacht.", minTier: "Pro" },
+  { icon: <Wand2 className="size-5" />, title: "Conceptantwoorden", description: "Eén klik op een conceptreactie op een bericht van een organisator, die je nog zelf aanpast voor je 'm verstuurt.", minTier: "Pro" },
+  { icon: <FileText className="size-5" />, title: "Offertehulp", description: "Typ in gewone taal wat je aanbiedt — VyrAI zet het om in een complete, gestructureerde offerte.", minTier: "Pro" },
+  { icon: <Sparkles className="size-5" />, title: "Dagelijkse briefing", description: "Elke ochtend een korte samenvatting van wat vandaag aandacht nodig heeft — nieuwe aanvragen, deadlines, openstaande berichten.", minTier: "Premium" },
+  { icon: <TrendingUp className="size-5" />, title: "Prijsadvies", description: "Zie hoe je prijzen zich verhouden tot vergelijkbare leveranciers, met concreet advies om je acceptatiegraad te verbeteren.", minTier: "Premium" },
+  { icon: <Wand2 className="size-5" />, title: "Profieltekst-hulp", description: "Laat VyrAI meeschrijven aan je bedrijfsomschrijving en tagline, op basis van wat je al hebt ingevuld.", minTier: "Premium" },
+  { icon: <Radar className="size-5" />, title: "Proactieve signalen", description: "VyrAI seint zelf wanneer een lead dreigt te verlopen of een gesprek stilligt — zonder dagelijkse limiet.", minTier: "Enterprise" },
+];
 
 export const metadata = { title: "Voor leveranciers — Vyra" };
 
@@ -25,7 +43,7 @@ export default function SupplierLandingPage() {
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <LinkButton href="/signup?intent=supplier" size="lg">Registreer je bedrijf</LinkButton>
-            <LinkButton href="#offerte-assistent" size="lg" variant="outline">Bekijk de AI-offerte-assistent</LinkButton>
+            <LinkButton href="#vyrai" size="lg" variant="outline">Maak kennis met VyrAI</LinkButton>
           </div>
         </section>
 
@@ -38,6 +56,40 @@ export default function SupplierLandingPage() {
                 een abonnement. Zie de vergelijkingstabel verderop op deze pagina. */}
             <Stat icon={<Percent className="size-5" />} title={`Eerste ${TRIAL_BOOKING_COUNT} boekingen gratis`} description="Volledige toegang tot alles wat Vyra te bieden heeft, zonder abonnement — kies daarna het niveau dat bij je past." />
             <Stat icon={<Star className="size-5" />} title="Bouw je reputatie op" description="Reviews, reactiesnelheid en acceptatiegraad verbeteren je positie in de matching." />
+          </div>
+        </section>
+
+        {/* "VyrAI zichtbaar maken op /supplier" (livegang-audit): tot nu toe
+            was VyrAI hier onzichtbaar — deze pagina noemde alleen een losse
+            "AI-offerte-assistent"-demo, nooit de naam VyrAI of het bredere
+            pakket van zes assistent-functies die vanaf Pro/Premium/
+            Enterprise daadwerkelijk meekomen (spec-items #90-98). */}
+        <section id="vyrai" className="mx-auto max-w-5xl px-6 py-16">
+          <div className="mb-8 text-center">
+            <span className="mb-2 inline-flex items-center gap-1.5 text-sm font-medium uppercase tracking-wide text-sage">
+              <Sparkles className="motion-icon-twinkle size-4" /> VyrAI
+            </span>
+            <h2 className="font-display text-2xl text-ink">Je eigen AI-assistent, ingebouwd in het portaal</h2>
+            <p className="mx-auto mt-2 max-w-xl text-sm text-ink-soft">
+              Vanaf Pro krijg je toegang tot VyrAI — een assistent die meedenkt in je aanvragen, berichten en offertes, zodat je minder tijd
+              kwijt bent aan administratie en meer aan je vak.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {VYRAI_FEATURES.map((f) => (
+              <div key={f.title} className="rounded-2xl border border-line-soft bg-white p-5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex size-9 items-center justify-center rounded-lg bg-sage-50 text-sage">{f.icon}</div>
+                  <Badge tone={f.minTier === "Enterprise" ? "clay" : "ochre"}>Vanaf {f.minTier}</Badge>
+                </div>
+                <p className="mt-3 font-medium text-ink">{f.title}</p>
+                <p className="mt-1 text-sm text-ink-soft">{f.description}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-10">
+            <SupplierOfferBuilder />
           </div>
         </section>
 
@@ -105,10 +157,6 @@ export default function SupplierLandingPage() {
               <span className="text-ink-faint">Budget-indicatie: {formatCurrency(650000)}</span>
             </div>
           </Card>
-
-          <div id="offerte-assistent" className="mt-10">
-            <SupplierOfferBuilder />
-          </div>
         </section>
 
         <section className="mx-auto max-w-3xl px-6 pb-20">

@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Sparkles, Loader2, Send } from "lucide-react";
 import { generateSupplierOfferPreviewAction, submitSupplierOfferAction } from "@/lib/actions/supplier-actions";
 import { writeSupplierOfferTextAction } from "@/lib/actions/supplier-assistant-actions";
+import { TemplatePicker } from "@/components/app/TemplatePicker";
 import { formatCurrency } from "@/lib/config";
 import { StructuredSupplierOffer } from "@/lib/ai/supplierOffer";
 import { Badge } from "@/components/ui/Badge";
@@ -40,27 +41,30 @@ export function SupplierOfferForm({
         Beschrijf in gewone taal wat je kunt aanbieden — de AI zet het om in een gestructureerde offerte die de organisator te zien krijgt. Controleer de prijs voordat je verstuurt.
       </p>
 
-      {assistantEnabled && (
-        <button
-          type="button"
-          disabled={!text.trim() || writing}
-          onClick={() => {
-            setWriteNote(null);
-            startWrite(async () => {
-              const res = await writeSupplierOfferTextAction(text);
-              if (res.blocked) {
-                setWriteNote(res.text);
-                return;
-              }
-              setText(res.text);
-            });
-          }}
-          className="chip-hover mb-2 inline-flex items-center gap-1.5 rounded-full border border-line bg-sage-50 px-3 py-1.5 text-xs font-medium text-sage-dark disabled:opacity-40 disabled:pointer-events-none"
-        >
-          {writing ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="motion-icon-twinkle size-3.5" />}
-          VyrAI: werk dit uit
-        </button>
-      )}
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <TemplatePicker kind="offer" currentText={text} onInsert={setText} />
+        {assistantEnabled && (
+          <button
+            type="button"
+            disabled={!text.trim() || writing}
+            onClick={() => {
+              setWriteNote(null);
+              startWrite(async () => {
+                const res = await writeSupplierOfferTextAction(text);
+                if (res.blocked) {
+                  setWriteNote(res.text);
+                  return;
+                }
+                setText(res.text);
+              });
+            }}
+            className="chip-hover inline-flex items-center gap-1.5 rounded-full border border-line bg-sage-50 px-3 py-1.5 text-xs font-medium text-sage-dark disabled:opacity-40 disabled:pointer-events-none"
+          >
+            {writing ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="motion-icon-twinkle size-3.5" />}
+            VyrAI: werk dit uit
+          </button>
+        )}
+      </div>
       {writeNote && <p className="mb-2 rounded-lg bg-ochre-50 px-3 py-1.5 text-xs text-ink-soft">{writeNote}</p>}
 
       <Textarea

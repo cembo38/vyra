@@ -5,12 +5,15 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { SupplierAvatar } from "@/components/ui/Avatar";
 import { FavoriteSupplierButton } from "@/components/app/FavoriteSupplierButton";
+import { CreateFavoriteCollectionForm } from "@/components/app/CreateFavoriteCollectionForm";
+import { FavoriteCollectionHeader } from "@/components/app/FavoriteCollectionHeader";
+import { FavoriteCollectionSelect } from "@/components/app/FavoriteCollectionSelect";
 import { getCurrentUser } from "@/lib/auth";
-import { getSavedSearchesForUser, listFavoriteSuppliers } from "@/lib/data/store";
+import { getFavoriteSupplierEngagements, getSavedSearchesForUser, listFavoriteCollections, listFavoriteSuppliers } from "@/lib/data/store";
 import { deleteSavedSearchAction } from "@/lib/actions/misc-actions";
 import { formatCurrency } from "@/lib/config";
-import { SUPPLIER_CATEGORY_LABELS, SavedSearch } from "@/lib/types";
-import { BookmarkX, Heart, MapPin, Search, ShieldCheck, Star } from "lucide-react";
+import { SUPPLIER_CATEGORY_LABELS, SavedSearch, SupplierAccount, SupplierFavorite } from "@/lib/types";
+import { BookmarkX, FolderHeart, Heart, MapPin, MessageSquareText, Search, ShieldCheck, Star } from "lucide-react";
 
 /** "Cateraars in Utrecht" / "Alle leveranciers" — leesbare samenvatting van een bewaarde zoekopdracht. */
 function describeSearch(s: SavedSearch): string {
@@ -37,6 +40,87 @@ function searchHref(s: SavedSearch): string {
 export const metadata = { title: "Mijn leveranciers — Vyra" };
 
 /**
+ * Eén favoriet-kaart — los getrokken uit de pagina zelf zodat 'm zowel in de
+ * platte grid (geen collecties) als in elke collectie-groep hergebruikt kan
+ * worden zonder de opmaak te dupliceren. `FavoriteCollectionSelect` staat
+ * BUITEN de `<Link>` (net als `FavoriteSupplierButton`) — een `<select>`
+ * genest in een `<a>` is ongeldige/onvoorspelbare HTML, zelfde reden als
+ * elders in de app (zie CompareCheckbox.tsx).
+ */
+function FavoriteCard({
+  supplier,
+  favoriteCollectionId,
+  collectionsList,
+  activeEngagements,
+}: {
+  supplier: SupplierAccount;
+  favoriteCollectionId: string | null;
+  collectionsList: { id: string; name: string }[];
+  activeEngagements: { eventId: string; eventName: string; categoryKey: string }[];
+}) {
+  return (
+    <div className="card-hover relative rounded-2xl border border-line bg-white p-5 hover:border-clay/50 [box-shadow:var(--shadow-card)]">
+      <div className="absolute right-4 top-4">
+        <FavoriteSupplierButton supplierId={supplier.id} initialFavorited />
+      </div>
+      <Link href={`/leveranciers/${supplier.id}`} className="block pr-12">
+        <div className="flex items-start gap-3">
+          <SupplierAvatar
+            gradient={["#E8C9A8", "#B5674A"]}
+            initials={supplier.companyName.slice(0, 2).toUpperCase()}
+            imageUrl={supplier.logoUrl}
+            verified={supplier.verified}
+            size={48}
+          />
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-medium text-ink">{supplier.companyName}</p>
+            <div className="mt-0.5 flex items-center gap-1 text-xs text-ink-faint">
+              {supplier.ratingCount > 0 ? (
+                <>
+                  <Star className="size-3 fill-ochre text-ochre" /> {supplier.ratingAvg.toFixed(1)} ({supplier.ratingCount})
+                </>
+              ) : (
+                <span>Nog geen reviews</span>
+              )}
+              {supplier.verified && <ShieldCheck className="ml-1 size-3 text-sage" />}
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {(supplier.categories.length > 0 ? supplier.categories : [supplier.category]).slice(0, 3).map((c) => (
+            <Badge key={c} tone="sage">{SUPPLIER_CATEGORY_LABELS[c]}</Badge>
+          ))}
+        </div>
+
+        <div className="mt-3 flex items-center justify-between border-t border-line-soft pt-3 text-sm">
+          <span className="flex items-center gap-1 text-ink-faint"><MapPin className="size-3.5" /> {supplier.baseLocation || "Onbekend"}</span>
+          <span className="font-medium text-ink">vanaf {formatCurrency(supplier.minPriceCents)}</span>
+        </div>
+      </Link>
+      {activeEngagements.length > 0 && (
+        <div className="mt-3 space-y-1 border-t border-line-soft pt-3">
+          {activeEngagements.map((e) => (
+            <Link
+              key={`${e.eventId}-${e.categoryKey}`}
+              href={`/events/${e.eventId}/shortlist`}
+              className="chip-hover flex items-center gap-1.5 rounded-lg bg-sage-50 px-2.5 py-1.5 text-xs font-medium text-sage-dark hover:underline"
+            >
+              <MessageSquareText className="size-3.5 shrink-0" /> Actief bij {e.eventName} — bekijk shortlist
+            </Link>
+          ))}
+        </div>
+      )}
+      {collectionsList.length > 0 && (
+        <div className="mt-3 border-t border-line-soft pt-3">
+          <FavoriteCollectionSelect supplierId={supplier.id} currentCollectionId={favoriteCollectionId} collections={collectionsList} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * Overzicht van opgeslagen favoriete leveranciers (spec-item #54:
  * organisatoren laten terugkeren). Elke kaart linkt naar het bestaande
  * leveranciersprofiel — dat heeft al een "Vraag maatwerk aan"-formulier,
@@ -47,7 +131,29 @@ export default async function MyFavoriteSuppliersPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login?redirect=/mijn-leveranciers");
 
-  const [favorites, savedSearches] = await Promise.all([listFavoriteSuppliers(user.id), getSavedSearchesForUser(user.id)]);
+  const [favorites, savedSearches, collections] = await Promise.all([
+    listFavoriteSuppliers(user.id),
+    getSavedSearchesForUser(user.id),
+    listFavoriteCollections(user.id),
+  ]);
+  // Kruislink met de per-evenement shortlist (livegang-audit) — een
+  // favoriet die momenteel ook echt actief is (geaccepteerd/shortlisted)
+  // voor een van je evenementen krijgt hieronder een directe link daar
+  // naartoe, i.p.v. dat je los moet onthouden in welk evenement dat was.
+  const engagements = await getFavoriteSupplierEngagements(user.id, favorites.map((f) => f.supplier.id));
+
+  // Genoemde collecties (spec-item #129) — alleen groeperen zodra er
+  // daadwerkelijk collecties bestaan; iemand die nog nooit heeft ingedeeld
+  // krijgt gewoon de vertrouwde platte grid, geen kale "Niet ingedeeld"-kop
+  // boven alles.
+  const collectionsList = collections.map((c) => ({ id: c.id, name: c.name }));
+  const groups: { id: string | null; name: string; favorites: { favorite: SupplierFavorite; supplier: SupplierAccount }[] }[] =
+    collections.length > 0
+      ? [
+          ...collections.map((c) => ({ id: c.id, name: c.name, favorites: favorites.filter((f) => f.favorite.collectionId === c.id) })),
+          { id: null, name: "Niet ingedeeld", favorites: favorites.filter((f) => f.favorite.collectionId === null) },
+        ]
+      : [];
 
   return (
     <div className="min-h-screen bg-paper">
@@ -91,50 +197,58 @@ export default async function MyFavoriteSuppliersPage() {
             </div>
           </Card>
         ) : (
-          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {favorites.map(({ supplier }) => (
-              <div key={supplier.id} className="card-hover relative rounded-2xl border border-line bg-white p-5 hover:border-clay/50 [box-shadow:var(--shadow-card)]">
-                <div className="absolute right-4 top-4">
-                  <FavoriteSupplierButton supplierId={supplier.id} initialFavorited />
-                </div>
-                <Link href={`/leveranciers/${supplier.id}`} className="block pr-12">
-                  <div className="flex items-start gap-3">
-                    <SupplierAvatar
-                      gradient={["#E8C9A8", "#B5674A"]}
-                      initials={supplier.companyName.slice(0, 2).toUpperCase()}
-                      imageUrl={supplier.logoUrl}
-                      verified={supplier.verified}
-                      size={48}
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-ink">{supplier.companyName}</p>
-                      <div className="mt-0.5 flex items-center gap-1 text-xs text-ink-faint">
-                        {supplier.ratingCount > 0 ? (
-                          <>
-                            <Star className="size-3 fill-ochre text-ochre" /> {supplier.ratingAvg.toFixed(1)} ({supplier.ratingCount})
-                          </>
-                        ) : (
-                          <span>Nog geen reviews</span>
-                        )}
-                        {supplier.verified && <ShieldCheck className="ml-1 size-3 text-sage" />}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {(supplier.categories.length > 0 ? supplier.categories : [supplier.category]).slice(0, 3).map((c) => (
-                      <Badge key={c} tone="sage">{SUPPLIER_CATEGORY_LABELS[c]}</Badge>
-                    ))}
-                  </div>
-
-                  <div className="mt-3 flex items-center justify-between border-t border-line-soft pt-3 text-sm">
-                    <span className="flex items-center gap-1 text-ink-faint"><MapPin className="size-3.5" /> {supplier.baseLocation || "Onbekend"}</span>
-                    <span className="font-medium text-ink">vanaf {formatCurrency(supplier.minPriceCents)}</span>
-                  </div>
-                </Link>
+          <>
+            <Card className="mt-6">
+              <h2 className="flex items-center gap-1.5 text-sm font-medium uppercase tracking-wide text-ink-faint">
+                <FolderHeart className="size-3.5" /> Collecties
+              </h2>
+              <p className="mt-1 text-sm text-ink-soft">Deel je favorieten in per evenement of gelegenheid (bv. &quot;Bruiloft 2027&quot;) — puur voor jezelf, verandert niets aan de leverancier zelf.</p>
+              <div className="mt-3">
+                <CreateFavoriteCollectionForm />
               </div>
-            ))}
-          </div>
+            </Card>
+
+            {groups.length > 0 ? (
+              <div className="mt-6 space-y-8">
+                {groups.map((group) => (
+                  <div key={group.id ?? "unsorted"}>
+                    {group.id ? (
+                      <FavoriteCollectionHeader collectionId={group.id} name={group.name} count={group.favorites.length} />
+                    ) : (
+                      <h2 className="flex items-center gap-1.5 font-display text-lg text-ink-faint">{group.name} <span className="text-xs">({group.favorites.length})</span></h2>
+                    )}
+                    {group.favorites.length === 0 ? (
+                      <p className="mt-2 text-sm text-ink-faint">Nog geen favorieten in deze collectie — verplaats er hieronder een naartoe via het keuzemenu op een kaart.</p>
+                    ) : (
+                      <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                        {group.favorites.map(({ favorite, supplier }) => (
+                          <FavoriteCard
+                            key={supplier.id}
+                            supplier={supplier}
+                            favoriteCollectionId={favorite.collectionId}
+                            collectionsList={collectionsList}
+                            activeEngagements={engagements.get(supplier.id) ?? []}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {favorites.map(({ favorite, supplier }) => (
+                  <FavoriteCard
+                    key={supplier.id}
+                    supplier={supplier}
+                    favoriteCollectionId={favorite.collectionId}
+                    collectionsList={collectionsList}
+                    activeEngagements={engagements.get(supplier.id) ?? []}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
       </div>

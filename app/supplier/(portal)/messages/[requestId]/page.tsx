@@ -3,6 +3,7 @@ import { Sparkles } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth";
 import { getMessages, getSupplierAccountByOwner, getSupplierEffectiveTierDefinition, getSupplierLead } from "@/lib/data/store";
 import { BackLink } from "@/components/ui/BackLink";
+import { MessageAttachments } from "@/components/app/MessageAttachments";
 import { MessageComposer } from "@/components/app/MessageComposer";
 import { RealtimeRefresh } from "@/components/app/RealtimeRefresh";
 import { EVENT_TYPE_LABELS, SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
@@ -63,6 +64,7 @@ export default async function SupplierMessageThreadPage(props: PageProps<"/suppl
                 )}
               >
                 {m.text}
+                <MessageAttachments attachments={m.attachments} tone={m.sender === "supplier" ? "dark" : "light"} />
                 <p className={cn("mt-1 text-[11px]", m.sender === "supplier" ? "text-paper/60" : "text-ink-faint")}>{formatDateNL(m.createdAt.slice(0, 10))}</p>
               </div>
             )}

@@ -25,6 +25,7 @@ export default async function SupplierOnboardingPage(props: PageProps<"/supplier
   const prevDescription = str(params.description);
   const prevMinPrice = str(params.minPrice);
   const prevAvgPrice = str(params.avgPrice);
+  const prevKvkNumber = str(params.kvkNumber);
   const prevCategories = new Set(Array.isArray(params.categories) ? params.categories : params.categories ? [params.categories] : []);
 
   const user = await getCurrentUser();
@@ -102,6 +103,28 @@ export default async function SupplierOnboardingPage(props: PageProps<"/supplier
               <Field label="Gemiddelde prijs (€)" required hint="Typische orderwaarde">
                 <Input name="avgPrice" type="number" min={0} step={1} required placeholder="850" defaultValue={prevAvgPrice} />
               </Field>
+            </div>
+
+            {/* "Onboarding: foto + KVK + pakketten-nudge" (livegang-audit) —
+                allebei optioneel, precies zoals bij de latere profielbewerking
+                (app/supplier/(portal)/profile/page.tsx), maar nu meteen
+                aangeboden i.p.v. pas later: een profiel met logo en
+                KVK-nummer oogt vanaf dag één vertrouwder voor organisatoren,
+                en scheelt een aparte trip terug naar het profiel. */}
+            <div className="border-t border-line-soft pt-4">
+              <Field label="Logo" hint="Optioneel — kan ook later, vierkante afbeelding werkt het best">
+                <input
+                  type="file"
+                  name="logo"
+                  accept="image/*"
+                  className="block w-full text-sm text-ink-soft file:mr-3 file:rounded-full file:border-0 file:bg-paper-dim file:px-3.5 file:py-2 file:text-xs file:font-medium file:text-ink hover:file:bg-line"
+                />
+              </Field>
+              <div className="mt-3">
+                <Field label="KVK-nummer" hint="Optioneel — versterkt vertrouwen bij organisatoren en is nodig om verificatie aan te vragen">
+                  <Input name="kvkNumber" placeholder="12345678" defaultValue={prevKvkNumber} />
+                </Field>
+              </div>
             </div>
 
             <button type="submit" className="lift-hover w-full rounded-xl bg-clay py-2.5 text-sm font-medium text-white hover:bg-clay-dark">

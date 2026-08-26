@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { DisputeReporter } from "@/components/app/DisputeReporter";
 import { ReviewComposer } from "@/components/app/ReviewComposer";
+import { SupplierOrdersExport } from "@/components/app/SupplierOrdersExport";
 import { getCurrentUser } from "@/lib/auth";
 import { getDisputesForSupplier, getSupplierAccountByOwner, getSupplierOrders, getReviewsForOffer } from "@/lib/data/store";
 import { Dispute, EVENT_TYPE_LABELS, Review } from "@/lib/types";
@@ -46,10 +47,22 @@ export default async function SupplierOrdersPage() {
   const totalPaid = orders.filter((o) => o.payment?.status === "paid").reduce((sum, o) => sum + (o.payment?.totalCents ?? 0), 0);
   const totalPending = orders.filter((o) => o.payment && o.payment.status !== "paid").reduce((sum, o) => sum + (o.payment?.totalCents ?? 0), 0);
 
+  // Voor de jaarfilter bij de CSV-export (spec-item #130) — alleen jaren
+  // tonen waar ook echt een boeking in valt, i.p.v. een vaste reeks te
+  // gokken.
+  const orderYears = [...new Set(orders.map((o) => o.event?.date?.slice(0, 4)).filter((y): y is string => Boolean(y)))]
+    .map(Number)
+    .sort((a, b) => b - a);
+
   return (
     <div>
-      <h1 className="font-display text-3xl text-ink">Orders</h1>
-      <p className="mt-1 text-ink-soft">Al je geaccepteerde boekingen, inclusief bevestigingsstatus.</p>
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-3xl text-ink">Orders</h1>
+          <p className="mt-1 text-ink-soft">Al je geaccepteerde boekingen, inclusief bevestigingsstatus.</p>
+        </div>
+        {orders.length > 0 && <SupplierOrdersExport years={orderYears} />}
+      </div>
 
       {/*
         Vyra verwerkt op dit moment nog geen betalingen zelf — het geld gaat

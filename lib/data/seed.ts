@@ -313,6 +313,11 @@ function buildWeddingEvent(ownerId: string): EventBundle {
       provider: "mock",
       installment: "full",
       parentPaymentId: null,
+      stripePaymentIntentId: null,
+      stripeCheckoutSessionId: null,
+      stripeTransferId: null,
+      payoutStatus: "not_applicable",
+      payoutReleasedAt: null,
     },
   ];
 
@@ -339,9 +344,9 @@ function buildWeddingEvent(ownerId: string): EventBundle {
   ];
 
   const messages: Message[] = [
-    { id: uid("msg"), eventId, categoryKey: "catering", supplierId: "sup_catering_01", sender: "customer", text: "Is het dessert inbegrepen in de offerte, of moeten we dat los boeken bij de bakker?", createdAt: new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString() },
-    { id: uid("msg"), eventId, categoryKey: "catering", supplierId: "sup_catering_01", sender: "supplier", text: "Goede vraag! Dessert is inbegrepen in het menu, los van de bruidstaart. Extra bedienend personeel na 24:00 kost €350 in totaal.", createdAt: new Date(now.getTime() - 47 * 60 * 60 * 1000).toISOString() },
-    { id: uid("msg"), eventId, categoryKey: "catering", supplierId: "sup_catering_01", sender: "ai_summary", text: "Samenvatting: de cateraar heeft bevestigd dat dessert is inbegrepen. Extra personeel na 24:00 kost €350. Laatste bevestiging van het menu voor 1 mei 2027.", createdAt: new Date(now.getTime() - 46 * 60 * 60 * 1000).toISOString() },
+    { id: uid("msg"), eventId, categoryKey: "catering", supplierId: "sup_catering_01", sender: "customer", text: "Is het dessert inbegrepen in de offerte, of moeten we dat los boeken bij de bakker?", attachments: [], createdAt: new Date(now.getTime() - 48 * 60 * 60 * 1000).toISOString() },
+    { id: uid("msg"), eventId, categoryKey: "catering", supplierId: "sup_catering_01", sender: "supplier", text: "Goede vraag! Dessert is inbegrepen in het menu, los van de bruidstaart. Extra bedienend personeel na 24:00 kost €350 in totaal.", attachments: [], createdAt: new Date(now.getTime() - 47 * 60 * 60 * 1000).toISOString() },
+    { id: uid("msg"), eventId, categoryKey: "catering", supplierId: "sup_catering_01", sender: "ai_summary", text: "Samenvatting: de cateraar heeft bevestigd dat dessert is inbegrepen. Extra personeel na 24:00 kost €350. Laatste bevestiging van het menu voor 1 mei 2027.", attachments: [], createdAt: new Date(now.getTime() - 46 * 60 * 60 * 1000).toISOString() },
   ];
 
   return { event, interview, requirements, timeline, tasks, risks, requests, offers, payments, messages };

@@ -6,13 +6,15 @@ import { EventTypesGrid } from "@/components/marketing/EventTypesGrid";
 import { TrustSection } from "@/components/marketing/TrustSection";
 import { SwipeTeaser } from "@/components/marketing/SwipeTeaser";
 import { Footer } from "@/components/marketing/Footer";
+import { getPlatformStats } from "@/lib/data/store";
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const stats = await getPlatformStats();
   return (
     <>
       <MarketingHeader />
       <main>
-        <Hero />
+        <Hero eventCount={stats.eventCount} avgRating={stats.avgRating} ratingCount={stats.ratingCount} />
         <HowItWorks />
         <EventTicker />
         <TrustSection />

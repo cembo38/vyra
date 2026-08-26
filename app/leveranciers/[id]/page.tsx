@@ -22,14 +22,25 @@ import { FavoriteSupplierButton } from "@/components/app/FavoriteSupplierButton"
 import { SupplierMap } from "@/components/ui/SupplierMap";
 import { formatCurrency } from "@/lib/config";
 import { SUPPLIER_CATEGORY_LABELS, SupplierPackageTier } from "@/lib/types";
+import { isTrustedSupplier, MIN_OFFERS_FOR_ACCEPTANCE_RATE, TRUST_BADGE_EXPLANATION } from "@/lib/trust";
 import { formatDateNL, getVideoEmbedUrl } from "@/lib/utils";
-import { CheckCircle2, Clock, Crown, ExternalLink, Link2, Lock, MapPin, MoonStar, Package, ShieldCheck, Sparkles, Star } from "lucide-react";
+import { Calendar, CheckCircle2, Clock, Crown, ExternalLink, Link2, Lock, MapPin, MoonStar, Package, Percent, ShieldCheck, Sparkles, Star } from "lucide-react";
 
 const PACKAGE_TIER_LABELS: Record<SupplierPackageTier, string> = {
   basis: "Basis",
   standaard: "Standaard",
   premium: "Premium",
 };
+
+// "Vertrouwenscijfers" (livegang-audit, vergelijkbaar met Etsy's
+// verkoperscijfers op een winkelpagina) — de acceptatiegraad wordt bewust
+// pas getoond vanaf een minimum aantal ingediende offertes. Zonder die
+// ondergrens zou een leverancier die net is begonnen en zijn eerste offerte
+// toevallig ziet afgewezen een keihard "0% geaccepteerd" te zien krijgen —
+// precies het "0 ziet eruit als een bug, niet als data"-patroon dat elders
+// in de app al is opgelost (zie EVENT_COUNT_THRESHOLD in Hero.tsx).
+// (MIN_OFFERS_FOR_ACCEPTANCE_RATE zelf woont nu in lib/trust.ts, gedeeld
+// met de "samengevoegd vertrouwens-badge"-berekening hieronder.)
 
 export const metadata = { title: "Leveranciersprofiel — Vyra" };
 
@@ -99,8 +110,12 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
                 <Badge key={c} tone="sage">{SUPPLIER_CATEGORY_LABELS[c]}</Badge>
               ))}
               {supplier.categoryOther && <Badge tone="neutral">{supplier.categoryOther}</Badge>}
-              {supplier.verified && (
-                <Badge tone="success" icon={<ShieldCheck className="size-3" />}>Geverifieerd</Badge>
+              {isTrustedSupplier(supplier) ? (
+                <span title={TRUST_BADGE_EXPLANATION}>
+                  <Badge tone="success" icon={<ShieldCheck className="size-3" />}>Vertrouwde leverancier</Badge>
+                </span>
+              ) : (
+                supplier.verified && <Badge tone="success" icon={<ShieldCheck className="size-3" />}>Geverifieerd</Badge>
               )}
               {tierDefinition.badge === "elite" && (
                 <Badge tone="clay" icon={<Crown className="size-3" />}>Vyra Elite Partner</Badge>
@@ -120,7 +135,13 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
                 <span className="flex items-center gap-1 text-ink-faint"><Star className="size-3.5" /> Nog geen reviews</span>
               )}
               <span className="flex items-center gap-1"><Clock className="size-3.5" /> Reageert meestal binnen {supplier.avgResponseHours} uur</span>
+              {supplier.offersSubmittedCount >= MIN_OFFERS_FOR_ACCEPTANCE_RATE && (
+                <span className="flex items-center gap-1">
+                  <Percent className="size-3.5" /> {Math.round(supplier.acceptedOfferRate * 100)}% van de aanvragen geaccepteerd
+                </span>
+              )}
               <span className="flex items-center gap-1"><MapPin className="size-3.5" /> {supplier.baseLocation} · straal {supplier.serviceRadiusKm} km</span>
+              <span className="flex items-center gap-1"><Calendar className="size-3.5" /> Op Vyra sinds {new Date(supplier.createdAt).getFullYear()}</span>
             </div>
 
             {(supplier.website || supplier.socialFacebook || supplier.socialInstagram || supplier.socialTiktok) && (

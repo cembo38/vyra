@@ -44,6 +44,8 @@ function baseSupplier(overrides: Partial<SupplierAccount> = {}): SupplierAccount
     verificationRequestedAt: null,
     avgResponseHours: 6,
     acceptedOfferRate: 0,
+    offersSubmittedCount: 0,
+    bonusSpotlightCredits: 0,
     tags: [],
     yearsActive: 3,
     portfolioHighlights: [],
@@ -82,6 +84,9 @@ function baseCtx(overrides: Partial<SupplierAssistantContext> = {}): SupplierAss
       categoryPeerCount: 5,
       avgPriceCents: 80_000,
       categoryAvgPriceCents: 75_000,
+      acceptedOfferRate: 0.7,
+      offersSubmittedCount: 10,
+      categoryAvgAcceptedOfferRate: 0.6,
     },
     ...overrides,
   };
@@ -170,7 +175,7 @@ describe("mockSupplierAssistantAnswer", () => {
   it("vergelijkt reactiesnelheid correct tegen het categoriegemiddelde (sneller)", () => {
     const answer = mockSupplierAssistantAnswer(
       "Hoe is mijn reactiesnelheid?",
-      baseCtx({ insights: { avgResponseHours: 3, ratingAvg: 4.8, ratingCount: 5, categoryAvgResponseHours: 10, categoryAvgRating: 4, categoryPeerCount: 3, avgPriceCents: 80_000, categoryAvgPriceCents: 75_000 } })
+      baseCtx({ insights: { avgResponseHours: 3, ratingAvg: 4.8, ratingCount: 5, categoryAvgResponseHours: 10, categoryAvgRating: 4, categoryPeerCount: 3, avgPriceCents: 80_000, categoryAvgPriceCents: 75_000, acceptedOfferRate: 0.7, offersSubmittedCount: 10, categoryAvgAcceptedOfferRate: 0.6 } })
     );
     expect(answer).toMatch(/sneller dan het categoriegemiddelde/);
   });
@@ -178,7 +183,7 @@ describe("mockSupplierAssistantAnswer", () => {
   it("vergelijkt reactiesnelheid correct tegen het categoriegemiddelde (trager)", () => {
     const answer = mockSupplierAssistantAnswer(
       "Wat is mijn reactietijd?",
-      baseCtx({ insights: { avgResponseHours: 20, ratingAvg: 4.8, ratingCount: 5, categoryAvgResponseHours: 10, categoryAvgRating: 4, categoryPeerCount: 3, avgPriceCents: 80_000, categoryAvgPriceCents: 75_000 } })
+      baseCtx({ insights: { avgResponseHours: 20, ratingAvg: 4.8, ratingCount: 5, categoryAvgResponseHours: 10, categoryAvgRating: 4, categoryPeerCount: 3, avgPriceCents: 80_000, categoryAvgPriceCents: 75_000, acceptedOfferRate: 0.7, offersSubmittedCount: 10, categoryAvgAcceptedOfferRate: 0.6 } })
     );
     expect(answer).toMatch(/trager dan het categoriegemiddelde/);
   });
@@ -186,7 +191,7 @@ describe("mockSupplierAssistantAnswer", () => {
   it("valt netjes terug op 'geen beoordelingen' als ratingCount 0 is (geen NaN of crash)", () => {
     const answer = mockSupplierAssistantAnswer(
       "Wat is mijn beoordeling?",
-      baseCtx({ insights: { avgResponseHours: 5, ratingAvg: 0, ratingCount: 0, categoryAvgResponseHours: null, categoryAvgRating: null, categoryPeerCount: 0, avgPriceCents: 80_000, categoryAvgPriceCents: null } })
+      baseCtx({ insights: { avgResponseHours: 5, ratingAvg: 0, ratingCount: 0, categoryAvgResponseHours: null, categoryAvgRating: null, categoryPeerCount: 0, avgPriceCents: 80_000, categoryAvgPriceCents: null, acceptedOfferRate: 0, offersSubmittedCount: 0, categoryAvgAcceptedOfferRate: null } })
     );
     expect(answer).toMatch(/nog geen beoordelingen/);
     expect(answer).not.toMatch(/NaN/);

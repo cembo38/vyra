@@ -2,17 +2,22 @@ import { AdminSupplierVerificationActions } from "@/components/app/AdminSupplier
 import { AdminRevokeVerificationButton } from "@/components/app/AdminRevokeVerificationButton";
 import { AdminServiceRoleBanner } from "@/components/app/AdminServiceRoleBanner";
 import { AdminGeocodeBackfillButton } from "@/components/app/AdminGeocodeBackfillButton";
+import { AdminSpotlightBoostRequestActions } from "@/components/app/AdminSpotlightBoostRequestActions";
+import { AdminTierUpgradeRequestActions } from "@/components/app/AdminTierUpgradeRequestActions";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
-import { listAllSupplierAccounts } from "@/lib/data/store";
+import { listAllSupplierAccounts, listPendingSpotlightBoostRequests, listPendingTierUpgradeRequests } from "@/lib/data/store";
+import { SUBSCRIPTION_TIERS } from "@/lib/config";
 import { isServiceRoleConfigured } from "@/lib/supabase/admin";
 import { isValidKvkFormat, kvkLookupUrl } from "@/lib/utils";
-import { BadgeCheck, Clock, ExternalLink, Star } from "lucide-react";
+import { ArrowUpCircle, BadgeCheck, Clock, ExternalLink, Star, Zap } from "lucide-react";
 
 export const metadata = { title: "Leveranciers — Vyra Admin" };
 
 export default async function AdminSuppliersPage() {
   const suppliers = await listAllSupplierAccounts();
+  const pendingTierUpgradeRequests = await listPendingTierUpgradeRequests();
+  const pendingSpotlightBoostRequests = await listPendingSpotlightBoostRequests();
   const serviceRoleConfigured = isServiceRoleConfigured();
   const pendingVerifications = suppliers.filter((s) => !s.verified && s.verificationRequestedAt);
   // "Locatie op een kaart" — leveranciers die zich vóór deze feature
@@ -84,6 +89,83 @@ export default async function AdminSuppliersPage() {
                   </div>
                 );
               })}
+            </div>
+          )}
+        </Card>
+      </div>
+
+      <div className="mt-6">
+        <Card>
+          <div className="mb-1 flex items-center justify-between">
+            <h2 className="font-display text-lg text-ink">Upgrade-aanvragen</h2>
+            {pendingTierUpgradeRequests.length > 0 && (
+              <span className="flex items-center gap-1 rounded-full bg-ochre-50 px-2.5 py-1 text-xs font-medium text-ochre">
+                <Clock className="size-3.5" /> {pendingTierUpgradeRequests.length} in behandeling
+              </span>
+            )}
+          </div>
+          <p className="mb-4 text-xs text-ink-faint">
+            Leveranciers kunnen zelf een upgrade naar een hoger abonnementsniveau aanvragen — er is nog geen automatische betaalflow,
+            dus elke aanvraag wordt hier handmatig beoordeeld. Neem bij goedkeuring buiten Vyra om contact op om de betaling te
+            regelen.
+          </p>
+          {!serviceRoleConfigured ? (
+            <p className="text-sm text-ink-faint">Vereist de service-role sleutel (zie melding bovenaan) om aanvragen te kunnen goed- of afkeuren.</p>
+          ) : pendingTierUpgradeRequests.length === 0 ? (
+            <p className="text-sm text-ink-faint">Geen openstaande upgrade-aanvragen.</p>
+          ) : (
+            <div className="space-y-2">
+              {pendingTierUpgradeRequests.map((r) => (
+                <div key={r.id} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-line-soft px-3.5 py-2.5 text-sm">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-ink">{r.companyName}</p>
+                      <Badge tone="ochre" icon={<ArrowUpCircle className="size-3.5" />}>
+                        {SUBSCRIPTION_TIERS[r.currentTier].label} → {SUBSCRIPTION_TIERS[r.requestedTier as typeof r.currentTier].label}
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-ink-faint">Aangevraagd op {new Date(r.createdAt).toLocaleDateString("nl-NL")}</p>
+                    <AdminTierUpgradeRequestActions requestId={r.id} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
+
+      <div className="mt-6">
+        <Card>
+          <div className="mb-1 flex items-center justify-between">
+            <h2 className="font-display text-lg text-ink">Boost-aanvragen</h2>
+            {pendingSpotlightBoostRequests.length > 0 && (
+              <span className="flex items-center gap-1 rounded-full bg-ochre-50 px-2.5 py-1 text-xs font-medium text-ochre">
+                <Clock className="size-3.5" /> {pendingSpotlightBoostRequests.length} in behandeling
+              </span>
+            )}
+          </div>
+          <p className="mb-4 text-xs text-ink-faint">
+            Losse Spotlight-boosts (zie /supplier/marketing) — ook hier nog geen automatische betaalflow, dus handmatig beoordelen en
+            buiten Vyra om afrekenen. Goedkeuren geeft de leverancier meteen +1 spotlight-credit.
+          </p>
+          {!serviceRoleConfigured ? (
+            <p className="text-sm text-ink-faint">Vereist de service-role sleutel (zie melding bovenaan) om aanvragen te kunnen goed- of afkeuren.</p>
+          ) : pendingSpotlightBoostRequests.length === 0 ? (
+            <p className="text-sm text-ink-faint">Geen openstaande boost-aanvragen.</p>
+          ) : (
+            <div className="space-y-2">
+              {pendingSpotlightBoostRequests.map((r) => (
+                <div key={r.id} className="flex flex-wrap items-start justify-between gap-3 rounded-xl border border-line-soft px-3.5 py-2.5 text-sm">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium text-ink">{r.companyName}</p>
+                      <Badge tone="ochre" icon={<Zap className="size-3.5" />}>Losse boost</Badge>
+                    </div>
+                    <p className="text-xs text-ink-faint">Aangevraagd op {new Date(r.createdAt).toLocaleDateString("nl-NL")}</p>
+                    <AdminSpotlightBoostRequestActions requestId={r.id} />
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </Card>

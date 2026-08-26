@@ -10,7 +10,10 @@ import {
   rejectSupplierVerification,
   revokeSupplierVerification,
   pushNotification,
+  resolveAccountDeletionRequest,
   resolveDispute,
+  resolveSpotlightBoostRequest,
+  resolveTierUpgradeRequest,
   generateAndStoreDailyBriefing,
   markBriefingItemStatus,
   listAllSupplierAccounts,
@@ -210,6 +213,108 @@ export async function dismissDisputeAction(formData: FormData): Promise<ActionRe
     if (!dispute) throw new Error("Kon geschil niet afwijzen (service-role sleutel niet geconfigureerd?).");
 
     revalidatePath("/admin/geschillen");
+  });
+}
+
+/**
+ * Abonnements-upgrade goed-/afkeuren (livegang-audit augustus 2026) —
+ * mirror van resolveDisputeAction/dismissDisputeAction hierboven. Bij
+ * goedkeuring zet resolveTierUpgradeRequest() in lib/data/store.ts het
+ * abonnement meteen echt om; een toelichting is bij afwijzen verplicht
+ * (dezelfde reden als bij een geschil: de leverancier moet begrijpen
+ * waarom), bij goedkeuren optioneel.
+ */
+export async function approveTierUpgradeRequestAction(formData: FormData): Promise<ActionResult> {
+  return runAction(async () => {
+    await requireAdmin();
+    const requestId = String(formData.get("requestId") ?? "").trim();
+    const adminResponse = String(formData.get("adminResponse") ?? "").trim();
+    if (!requestId) throw new Error("Geen aanvraag opgegeven.");
+
+    const request = await resolveTierUpgradeRequest(requestId, "approved", adminResponse || null);
+    if (!request) throw new Error("Kon aanvraag niet goedkeuren (service-role sleutel niet geconfigureerd?).");
+
+    revalidatePath("/admin/leveranciers");
+  });
+}
+
+export async function declineTierUpgradeRequestAction(formData: FormData): Promise<ActionResult> {
+  return runAction(async () => {
+    await requireAdmin();
+    const requestId = String(formData.get("requestId") ?? "").trim();
+    const adminResponse = String(formData.get("adminResponse") ?? "").trim();
+    if (!requestId) throw new Error("Geen aanvraag opgegeven.");
+    if (!adminResponse) throw new Error("Geef een toelichting op je afwijzing.");
+
+    const request = await resolveTierUpgradeRequest(requestId, "declined", adminResponse);
+    if (!request) throw new Error("Kon aanvraag niet afwijzen (service-role sleutel niet geconfigureerd?).");
+
+    revalidatePath("/admin/leveranciers");
+  });
+}
+
+export async function approveSpotlightBoostRequestAction(formData: FormData): Promise<ActionResult> {
+  return runAction(async () => {
+    await requireAdmin();
+    const requestId = String(formData.get("requestId") ?? "").trim();
+    const adminResponse = String(formData.get("adminResponse") ?? "").trim();
+    if (!requestId) throw new Error("Geen aanvraag opgegeven.");
+
+    const request = await resolveSpotlightBoostRequest(requestId, "approved", adminResponse || null);
+    if (!request) throw new Error("Kon aanvraag niet goedkeuren (service-role sleutel niet geconfigureerd?).");
+
+    revalidatePath("/admin/leveranciers");
+  });
+}
+
+export async function declineSpotlightBoostRequestAction(formData: FormData): Promise<ActionResult> {
+  return runAction(async () => {
+    await requireAdmin();
+    const requestId = String(formData.get("requestId") ?? "").trim();
+    const adminResponse = String(formData.get("adminResponse") ?? "").trim();
+    if (!requestId) throw new Error("Geen aanvraag opgegeven.");
+    if (!adminResponse) throw new Error("Geef een toelichting op je afwijzing.");
+
+    const request = await resolveSpotlightBoostRequest(requestId, "declined", adminResponse);
+    if (!request) throw new Error("Kon aanvraag niet afwijzen (service-role sleutel niet geconfigureerd?).");
+
+    revalidatePath("/admin/leveranciers");
+  });
+}
+
+/**
+ * Keurt Cem een verwijderingsverzoek goed, dan is de daadwerkelijke
+ * verwijdering (nog) een handmatige vervolgstap in het Supabase-dashboard
+ * — zie de uitleg bij resolveAccountDeletionRequest() in lib/data/store.ts.
+ * Deze actie zet alleen de status om, zodat de gebruiker weet dat zijn
+ * verzoek is gezien en wat de vervolgstap is.
+ */
+export async function approveAccountDeletionRequestAction(formData: FormData): Promise<ActionResult> {
+  return runAction(async () => {
+    await requireAdmin();
+    const requestId = String(formData.get("requestId") ?? "").trim();
+    const adminResponse = String(formData.get("adminResponse") ?? "").trim();
+    if (!requestId) throw new Error("Geen verzoek opgegeven.");
+
+    const request = await resolveAccountDeletionRequest(requestId, "approved", adminResponse || null);
+    if (!request) throw new Error("Kon verzoek niet goedkeuren (service-role sleutel niet geconfigureerd?).");
+
+    revalidatePath("/admin/gebruikers");
+  });
+}
+
+export async function declineAccountDeletionRequestAction(formData: FormData): Promise<ActionResult> {
+  return runAction(async () => {
+    await requireAdmin();
+    const requestId = String(formData.get("requestId") ?? "").trim();
+    const adminResponse = String(formData.get("adminResponse") ?? "").trim();
+    if (!requestId) throw new Error("Geen verzoek opgegeven.");
+    if (!adminResponse) throw new Error("Geef een toelichting op je afwijzing.");
+
+    const request = await resolveAccountDeletionRequest(requestId, "declined", adminResponse);
+    if (!request) throw new Error("Kon verzoek niet afwijzen (service-role sleutel niet geconfigureerd?).");
+
+    revalidatePath("/admin/gebruikers");
   });
 }
 

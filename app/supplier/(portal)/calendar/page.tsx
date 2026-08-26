@@ -3,9 +3,18 @@ import Link from "next/link";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { SupplierBlockedDatesManager } from "@/components/app/SupplierBlockedDatesManager";
+import { SupplierRecurringBlocksManager } from "@/components/app/SupplierRecurringBlocksManager";
+import { SupplierIcalSubscribeSection } from "@/components/app/SupplierIcalSubscribeSection";
 import { getCurrentUser } from "@/lib/auth";
-import { getSupplierAccountByOwner, getSupplierBlockedDates, getSupplierLeads, getSupplierOrders } from "@/lib/data/store";
-import { formatCurrency } from "@/lib/config";
+import {
+  getOrCreateSupplierIcalToken,
+  getSupplierAccountByOwner,
+  getSupplierBlockedDates,
+  getSupplierLeads,
+  getSupplierOrders,
+  getSupplierRecurringBlocks,
+} from "@/lib/data/store";
+import { formatCurrency, SITE_URL } from "@/lib/config";
 import { ChevronLeft, ChevronRight, Clock, PartyPopper, CalendarOff } from "lucide-react";
 
 export const metadata = { title: "Kalender — Vyra voor leveranciers" };
@@ -56,18 +65,31 @@ export default async function SupplierCalendarPage(props: PageProps<"/supplier/c
   const mondayOffset = (dow + 6) % 7;
   const gridStart = new Date(year, monthIndex, 1 - mondayOffset);
 
-  const [orders, leads, blockedDates] = await Promise.all([
+  const [orders, leads, blockedDates, recurringBlocks, icalToken] = await Promise.all([
     getSupplierOrders(supplier.id),
     getSupplierLeads(supplier.id),
     getSupplierBlockedDates(supplier.id),
+    getSupplierRecurringBlocks(supplier.id),
+    getOrCreateSupplierIcalToken(supplier.id),
   ]);
   const blockedKeys = new Set(blockedDates.map((b) => b.date));
+  const recurringWeekdays = new Set(recurringBlocks.map((b) => b.weekday));
 
   const days: DayEntry[] = [];
   for (let i = 0; i < 42; i++) {
     const d = new Date(gridStart.getFullYear(), gridStart.getMonth(), gridStart.getDate() + i);
     const key = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
-    days.push({ key, day: d.getDate(), inMonth: d.getMonth() === monthIndex, bookings: [], deadlines: [], blocked: blockedKeys.has(key) });
+    // (getDay() + 6) % 7: zet JS' 0=zondag-conventie om naar dezelfde
+    // 0=maandag..6=zondag-conventie als supplier_recurring_blocks.weekday.
+    const isoWeekday = (d.getDay() + 6) % 7;
+    days.push({
+      key,
+      day: d.getDate(),
+      inMonth: d.getMonth() === monthIndex,
+      bookings: [],
+      deadlines: [],
+      blocked: blockedKeys.has(key) || recurringWeekdays.has(isoWeekday),
+    });
   }
   const dayByKey = new Map(days.map((d) => [d.key, d]));
 
@@ -188,8 +210,18 @@ export default async function SupplierCalendarPage(props: PageProps<"/supplier/c
       </div>
 
       <Card className="mt-8">
+        <SupplierRecurringBlocksManager initialWeekdays={recurringBlocks.map((b) => b.weekday)} />
+      </Card>
+
+      <Card className="mt-6">
         <SupplierBlockedDatesManager initialBlockedDates={blockedDates.map((b) => b.date)} />
       </Card>
+
+      {icalToken && (
+        <Card className="mt-6">
+          <SupplierIcalSubscribeSection initialUrl={`${SITE_URL}/api/supplier/ical/${icalToken}`} />
+        </Card>
+      )}
     </div>
   );
 }

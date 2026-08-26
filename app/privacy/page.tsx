@@ -42,7 +42,7 @@ export default function PrivacyPage() {
             </Section>
 
             <Section title="3. Waarvoor gebruiken we deze gegevens">
-              <p>Het aanmaken en beheren van je account; het genereren van een eventplan en het matchen met leveranciers via AI; het namens jou versturen van aanvragen naar leveranciers; het verwerken van betalingen en het innen van de platformcommissie (zie de algemene voorwaarden voor de actuele tarieven); en het verbeteren van het platform.</p>
+              <p>Het aanmaken en beheren van je account; het genereren van een eventplan en het matchen met leveranciers via AI; het namens jou versturen van aanvragen naar leveranciers; het bijhouden van de status van een boeking (zie hierboven onder Betaalgegevens); en het verbeteren van het platform. Als organisator betaal je geen platformkosten of commissie aan Vyra — zie de algemene voorwaarden voor hoe Vyra wél verdient (via abonnementen van leveranciers).</p>
             </Section>
 
             <Section title="4. Rechtsgrond voor de verwerking">
@@ -51,14 +51,14 @@ export default function PrivacyPage() {
 
             <Section title="5. Met wie delen we gegevens">
               <p><strong className="text-ink">Supabase</strong> — database en accountbeheer, gehost in de EU (Frankfurt).</p>
-              <p><strong className="text-ink">OpenAI</strong> — verwerkt de tekst van je AI-interview en vragen aan de AI-assistent om antwoorden/aanbevelingen te genereren; gevestigd in de VS. Bij zakelijk gebruik via de API gebruikt OpenAI deze gegevens niet om hun modellen mee te trainen.</p>
-              <p><strong className="text-ink">Stripe</strong> — verwerkt betalingen; PCI-DSS gecertificeerd.</p>
+              <p><strong className="text-ink">Anthropic (Claude)</strong> — verwerkt de tekst van je AI-interview en vragen aan de AI-assistent om antwoorden/aanbevelingen te genereren; gevestigd in de VS. Bij zakelijk gebruik via de API gebruikt Anthropic deze gegevens niet om hun modellen mee te trainen.</p>
+              <p><strong className="text-ink">Stripe</strong> — zodra betalen via het platform beschikbaar komt (zie hierboven onder Betaalgegevens), verwerkt deze PCI-DSS-gecertificeerde partij die betalingen. Tot die tijd deelt Vyra geen betaalgegevens met Stripe.</p>
               <p><strong className="text-ink">Vercel</strong> — hosting van de website.</p>
               <p>We verkopen je gegevens nooit aan derden voor marketingdoeleinden.</p>
             </Section>
 
             <Section title="6. Doorgifte buiten de EU">
-              <p>OpenAI en Stripe kunnen gegevens verwerken buiten de EU (met name de VS). Deze partijen hanteren passende waarborgen (zoals Standard Contractual Clauses) om een vergelijkbaar beschermingsniveau te garanderen als binnen de EU.</p>
+              <p>Anthropic en (zodra in gebruik) Stripe kunnen gegevens verwerken buiten de EU (met name de VS). Deze partijen hanteren passende waarborgen (zoals Standard Contractual Clauses) om een vergelijkbaar beschermingsniveau te garanderen als binnen de EU.</p>
             </Section>
 
             <Section title="7. Hoe lang bewaren we je gegevens">

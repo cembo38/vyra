@@ -1,12 +1,15 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { AppTopBar } from "@/components/app/AppTopBar";
+import { PrivacyDataSection } from "@/components/app/PrivacyDataSection";
+import { ReferralSection } from "@/components/app/ReferralSection";
 import { Card } from "@/components/ui/Card";
 import { Field, Input, Select } from "@/components/ui/Form";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { getCurrentUser } from "@/lib/auth";
-import { getSupplierAccountByOwner, listEventsForUser } from "@/lib/data/store";
+import { countReferrals, getPendingAccountDeletionRequest, getSupplierAccountByOwner, listEventsForUser } from "@/lib/data/store";
 import { updateProfileAction, updateRoleAction, logoutAction } from "@/lib/actions/auth-actions";
+import { SITE_URL } from "@/lib/config";
 import { USER_ROLE_LABELS } from "@/lib/types";
 
 export const metadata = { title: "Profiel — Vyra" };
@@ -15,7 +18,12 @@ export default async function ProfilePage(props: PageProps<"/profile">) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   const searchParams = await props.searchParams;
-  const [events, supplier] = await Promise.all([listEventsForUser(user.id), getSupplierAccountByOwner(user.id)]);
+  const [events, supplier, pendingDeletionRequest, referralCount] = await Promise.all([
+    listEventsForUser(user.id),
+    getSupplierAccountByOwner(user.id),
+    getPendingAccountDeletionRequest(user.id),
+    countReferrals(user.id),
+  ]);
   const errorCode = typeof searchParams.error === "string" ? searchParams.error : undefined;
 
   return (
@@ -80,7 +88,7 @@ export default async function ProfilePage(props: PageProps<"/profile">) {
         <Card className="mt-6">
           <h2 className="mb-2 font-display text-lg text-ink">Account</h2>
           <p className="text-sm text-ink-soft">{events.length} evenement{events.length !== 1 ? "en" : ""} · {USER_ROLE_LABELS[user.role]}-account (gratis)</p>
-          <p className="mt-1 text-xs text-ink-faint">Een account aanmaken en evenementen plannen is altijd gratis. Alleen bij het daadwerkelijk boeken van een leverancier komen er platformkosten bovenop de leveranciersprijs — vooraf zichtbaar bij het afrekenen.</p>
+          <p className="mt-1 text-xs text-ink-faint">Een account aanmaken en evenementen plannen is altijd gratis — ook bij het boeken van een leverancier betaal je precies de prijs die de leverancier je biedt, zonder platformkosten of opslag.</p>
           <div className="mt-4 flex gap-3">
             <form action={logoutAction}>
               <button type="submit" className="lift-hover rounded-xl border border-line px-4 py-2 text-sm font-medium text-ink-soft hover:bg-paper-dim">
@@ -127,12 +135,14 @@ export default async function ProfilePage(props: PageProps<"/profile">) {
           </form>
         </Card>
 
-        <Card className="mt-6 border-dashed">
-          <h2 className="mb-1 font-display text-base text-ink">Privacy & je gegevens</h2>
-          <p className="text-sm text-ink-soft">
-            Je kunt op elk moment een export van je gegevens aanvragen of je account laten verwijderen. Neem hiervoor contact op — deze zelfbedieningsfuncties komen in een volgende versie.
-          </p>
+        <Card className="mt-6">
+          <h2 className="mb-1 font-display text-lg text-ink">Nodig anderen uit</h2>
+          <ReferralSection referralUrl={`${SITE_URL}/signup?ref=${user.id}`} referralCount={referralCount} showSpotlightNote={Boolean(supplier)} />
         </Card>
+
+        <div className="mt-6">
+          <PrivacyDataSection pendingDeletionRequest={pendingDeletionRequest} />
+        </div>
       </div>
       </div>
     </div>

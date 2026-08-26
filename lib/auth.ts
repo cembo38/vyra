@@ -56,7 +56,9 @@ export async function signUpWithPassword(params: {
   lastName: string;
   role: "customer" | "supplier" | "both";
   emailRedirectTo: string;
-}): Promise<{ error: string | null; confirmedSession: boolean }> {
+  /** Referral-programma (migratie 0045) — id van de uitnodigende gebruiker, gelezen door handle_new_user() en gevalideerd/opgeslagen als profiles.referred_by. */
+  referredBy?: string | null;
+}): Promise<{ error: string | null; confirmedSession: boolean; userId: string | null }> {
   const supabase = await createSupabaseServerClient();
   if (!supabase) authFailure();
 
@@ -65,11 +67,16 @@ export async function signUpWithPassword(params: {
     password: params.password,
     options: {
       emailRedirectTo: params.emailRedirectTo,
-      data: { first_name: params.firstName, last_name: params.lastName, role: params.role },
+      data: {
+        first_name: params.firstName,
+        last_name: params.lastName,
+        role: params.role,
+        ...(params.referredBy ? { referred_by: params.referredBy } : {}),
+      },
     },
   });
-  if (error) return { error: error.message, confirmedSession: false };
-  return { error: null, confirmedSession: !!data.session };
+  if (error) return { error: error.message, confirmedSession: false, userId: null };
+  return { error: null, confirmedSession: !!data.session, userId: data.user?.id ?? null };
 }
 
 export async function signInWithPassword(email: string, password: string): Promise<{ error: string | null }> {

@@ -4,10 +4,14 @@ import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { CollapsibleSection } from "@/components/ui/Collapsible";
 import { Field, Input, Textarea } from "@/components/ui/Form";
+import { PrivacyDataSection } from "@/components/app/PrivacyDataSection";
+import { PushNotificationToggle } from "@/components/app/PushNotificationToggle";
 import { SubscriptionTierPicker } from "@/components/app/SubscriptionTierPicker";
 import { SupplierDescriptionField } from "@/components/app/SupplierDescriptionField";
 import { getCurrentUser } from "@/lib/auth";
 import {
+  getPendingAccountDeletionRequest,
+  getPendingTierUpgradeRequest,
   getSupplierAccountByOwner,
   getSupplierCommissionStatus,
   getSupplierEffectiveTierDefinition,
@@ -19,7 +23,8 @@ import {
   requestSupplierVerificationAction,
 } from "@/lib/actions/supplier-actions";
 import { SUPPLIER_CATEGORY_LABELS, SupplierPackageTier } from "@/lib/types";
-import { BadgeCheck, CheckCircle2, Clock, ExternalLink, ImagePlus, Lock, Package, X } from "lucide-react";
+import { PUSH_ENABLED } from "@/lib/config";
+import { BadgeCheck, Bell, CheckCircle2, Clock, ExternalLink, ImagePlus, Lock, Package, X } from "lucide-react";
 
 const PACKAGE_TIER_LABELS: Record<SupplierPackageTier, string> = {
   basis: "Basis",
@@ -66,6 +71,8 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
   if (!supplier) redirect("/supplier/onboarding");
   const commissionStatus = await getSupplierCommissionStatus(supplier.id);
   const tierDefinition = await getSupplierEffectiveTierDefinition(supplier.id);
+  const pendingUpgradeRequest = await getPendingTierUpgradeRequest(supplier.id);
+  const pendingDeletionRequest = await getPendingAccountDeletionRequest(user.id);
   const packageByTier = new Map(supplier.packages.map((p) => [p.tier, p]));
 
   return (
@@ -416,9 +423,32 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
             currentTier={supplier.subscriptionTier}
             inTrial={commissionStatus.inTrial}
             trialBookingsRemaining={commissionStatus.trialBookingsRemaining}
+            pendingUpgradeRequest={pendingUpgradeRequest}
           />
         </CollapsibleSection>
       </Card>
+
+      {PUSH_ENABLED && (
+        <div className="mx-auto mt-6 max-w-lg">
+          <Card>
+            <div className="flex items-center gap-2 text-ink">
+              <Bell className="size-4.5 text-sage" />
+              <h2 className="font-display text-lg">Meldingen</h2>
+            </div>
+            <p className="mt-1 text-sm text-ink-soft">
+              Ontvang proactieve VyrAI-signalen (bv. een aanvraag die bijna verloopt, of een boeking die er binnenkort aankomt) als
+              browsermelding op dit apparaat — ook als je Vyra niet open hebt staan.
+            </p>
+            <div className="mt-3">
+              <PushNotificationToggle />
+            </div>
+          </Card>
+        </div>
+      )}
+
+      <div className="mx-auto mt-6 max-w-lg">
+        <PrivacyDataSection pendingDeletionRequest={pendingDeletionRequest} />
+      </div>
     </div>
   );
 }

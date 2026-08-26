@@ -427,7 +427,19 @@ export const SUPPLIERS_PER_REQUEST = { min: 3, max: 5 };
  */
 export const AI_ENABLED = Boolean(process.env.ANTHROPIC_API_KEY);
 
-export const PAYMENTS_ENABLED = Boolean(process.env.STRIPE_SECRET_KEY);
+/**
+ * Of er een compleet Stripe-sleutelpaar geconfigureerd is. Vandaag nog
+ * NERGENS in de app gelezen: dit is puur voorbereiding voor een echte
+ * betaalflow (spec-item #132, zie supabase/migrations/0049_stripe_payment_prep.sql
+ * en app/api/webhooks/stripe/route.ts). De organisator rekent op dit
+ * moment altijd rechtstreeks af met de leverancier — zie de toelichting op
+ * de checkoutpagina (app/events/[id]/checkout/[paymentId]/page.tsx) voor
+ * waarom dat bewust zo is, en niet stilzwijgend "Stripe" toont zonder dat
+ * er ooit een betaling wordt verwerkt. Vereist alledrie de Stripe-env-vars
+ * (niet alleen de secret key) omdat pas met alledrie een échte checkout +
+ * webhook-verwerking mogelijk is.
+ */
+export const PAYMENTS_ENABLED = Boolean(process.env.STRIPE_SECRET_KEY && process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY && process.env.STRIPE_WEBHOOK_SECRET);
 
 /**
  * Of er e-mailmeldingen worden verstuurd (nieuwe aanvraag, nieuwe offerte,
@@ -439,6 +451,22 @@ export const PAYMENTS_ENABLED = Boolean(process.env.STRIPE_SECRET_KEY);
 export const EMAIL_ENABLED = Boolean(process.env.RESEND_API_KEY);
 
 export const EMAIL_FROM = process.env.EMAIL_FROM ?? "Vyra <onboarding@resend.dev>";
+
+/**
+ * Of er browser-pushmeldingen kunnen worden verstuurd (spec-item #131:
+ * e-mail/push bij proactieve Enterprise-signalen), naast de bestaande
+ * in-app-meldingen en e-mail. Vereist een zelf-gegenereerd VAPID-sleutelpaar
+ * (GEEN account bij een externe partij nodig, in tegenstelling tot bv.
+ * Stripe/Resend — het is puur een cryptografisch sleutelpaar). De publieke
+ * sleutel staat bewust als NEXT_PUBLIC_-variabele (ook clientside nodig voor
+ * `PushManager.subscribe`) — dat is prima ook server-side te lezen, dus één
+ * variabele voor beide kanten i.p.v. 'm dubbel te definiëren. Zonder deze
+ * sleutels blijft de app volledig werken, alleen dan zonder push — zelfde
+ * "graceful fallback"-patroon als EMAIL_ENABLED hierboven. Zie lib/push.ts.
+ */
+export const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
+
+export const PUSH_ENABLED = Boolean(VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
 
 /** Volledige site-URL, voor absolute links in e-mails (relatieve links werken niet in een mailclient). */
 export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://vyra.now";

@@ -9,17 +9,23 @@ import {
   activateSpotlight,
   blockSupplierDate,
   blockSupplierDateRange,
+  consumeBonusSpotlightCredit,
   countSpotlightActivationsThisMonth,
   createSupplierAccount,
   getActiveSpotlightsForSupplier,
+  getPendingTierUpgradeRequest,
   getRequest,
   getSupplierAccount,
   getSupplierAccountByOwner,
   getSupplierEffectiveTierDefinition,
   pushNotification,
+  regenerateSupplierIcalToken,
+  requestSpotlightBoost,
+  requestSupplierTierUpgrade,
   requestSupplierVerification,
   resolveEffectiveSupplierTier,
   sendCustomSupplierRequest,
+  setSupplierRecurringBlock,
   setSupplierStoreOpen,
   setSupplierSubscriptionTier,
   submitSupplierOffer,
@@ -28,9 +34,10 @@ import {
   updateSupplierPackages,
   uploadSupplierFile,
 } from "@/lib/data/store";
-import { SPOTLIGHT_MONTHLY_QUOTA, SUBSCRIPTION_TIER_ORDER, SubscriptionTier } from "@/lib/config";
+import { ADMIN_EMAILS, SPOTLIGHT_MONTHLY_QUOTA, SUBSCRIPTION_TIER_ORDER, SUBSCRIPTION_TIERS, SubscriptionTier } from "@/lib/config";
 import { SupplierCategory, SupplierPackage, SupplierPackageTier } from "@/lib/types";
 import { getVideoEmbedUrl, isValidKvkFormat } from "@/lib/utils";
+import { sendNotificationEmail } from "@/lib/email/send";
 
 function optionalTrim(value: FormDataEntryValue | null): string | null {
   const str = String(value ?? "").trim();
@@ -62,6 +69,7 @@ function onboardingRetryParams(fields: {
   description: string;
   minPriceRaw: string;
   avgPriceRaw: string;
+  kvkNumber: string | null;
 }): string {
   const qs = new URLSearchParams({
     error: "1",
@@ -73,6 +81,7 @@ function onboardingRetryParams(fields: {
     description: fields.description,
     minPrice: fields.minPriceRaw,
     avgPrice: fields.avgPriceRaw,
+    kvkNumber: fields.kvkNumber ?? "",
   });
   for (const c of fields.categories) qs.append("categories", c);
   return `/supplier/onboarding?${qs.toString()}`;
@@ -97,10 +106,17 @@ export async function createSupplierProfileAction(formData: FormData) {
   const serviceRadiusKm = Number(serviceRadiusKmRaw);
   const minPriceEuros = Number(minPriceRaw);
   const avgPriceEuros = Number(avgPriceRaw);
+  // "Onboarding: foto + KVK + pakketten-nudge" (livegang-audit) — allebei
+  // bewust optioneel, net als bij de latere profielbewerking: een nieuwe
+  // leverancier die dit nu meteen invult, hoeft niet nog een keer terug
+  // naar het profiel om verificatie aan te kunnen vragen of vertrouwd over
+  // te komen op zijn eerste, nog lege profiel.
+  const kvkNumber = optionalTrim(formData.get("kvkNumber"));
+  const logoFile = formData.get("logo");
 
   if (!companyName || !contactPerson || categories.length === 0 || !baseLocation || !description) {
     redirect(
-      onboardingRetryParams({ companyName, contactPerson, categories, categoryOther, baseLocation, serviceRadiusKmRaw, description, minPriceRaw, avgPriceRaw })
+      onboardingRetryParams({ companyName, contactPerson, categories, categoryOther, baseLocation, serviceRadiusKmRaw, description, minPriceRaw, avgPriceRaw, kvkNumber })
     );
   }
 
@@ -110,6 +126,11 @@ export async function createSupplierProfileAction(formData: FormData) {
   // een onherkend adres — dat blokkeert de onboarding niet, de leverancier
   // verschijnt dan gewoon zonder marker op de kaart.
   const coords = await geocodeLocation(baseLocation);
+
+  let logoUrl: string | null = null;
+  if (logoFile instanceof File && logoFile.size > 0) {
+    logoUrl = await uploadSupplierFile(user!.id, logoFile, "logo");
+  }
 
   await createSupplierAccount(user!.id, {
     companyName,
@@ -121,17 +142,24 @@ export async function createSupplierProfileAction(formData: FormData) {
     description,
     minPriceCents: Math.round(minPriceEuros * 100),
     avgPriceCents: Math.round(avgPriceEuros * 100),
-    kvkNumber: null,
+    kvkNumber,
     website: null,
     socialFacebook: null,
     socialInstagram: null,
     socialTiktok: null,
     lat: coords?.lat ?? null,
     lng: coords?.lng ?? null,
+    logoUrl,
   });
 
   revalidatePath("/", "layout");
-  redirect("/supplier/dashboard");
+  // Pakketten-nudge (spec: "onboarding foto + KVK + pakketten-nudge"):
+  // pakketten zijn pas bewerkbaar vanaf Pro (packagesEnabled, lib/config.ts)
+  // — een verse Starter-registratie zou een lege pakkettensectie zien, dus
+  // de nudge zit in de dashboard-welkomstmelding i.p.v. hier een formulier
+  // te tonen dat toch niets kan opslaan. Zie SupplierDashboardWelcome/
+  // app/supplier/(portal)/dashboard/page.tsx.
+  redirect("/supplier/dashboard?onboarded=1");
 }
 
 export async function updateSupplierProfileAction(formData: FormData) {
@@ -371,6 +399,45 @@ export async function blockSupplierDateRangeAction(startDate: string, endDate: s
 }
 
 /**
+ * Structurele weekdag-blokkade ("elke maandag niet beschikbaar") —
+ * spec-item #128. Zelfde vorm als `toggleSupplierBlockedDateAction`, maar
+ * dan voor een terugkerende weekdag i.p.v. een eenmalige datum. `weekday`:
+ * 0=maandag..6=zondag.
+ */
+export async function toggleSupplierRecurringBlockAction(weekday: number, blocked: boolean): Promise<{ ok: boolean; error?: string }> {
+  if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6) return { ok: false, error: "Ongeldige weekdag." };
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Niet ingelogd." };
+  const supplier = await getSupplierAccountByOwner(user.id);
+  if (!supplier) return { ok: false, error: "Geen leveranciersaccount gevonden." };
+
+  const result = await setSupplierRecurringBlock(supplier.id, weekday, blocked);
+  if (!result.ok) return { ok: false, error: "Dit is niet gelukt." };
+
+  revalidatePath("/supplier/calendar");
+  return { ok: true };
+}
+
+/**
+ * Vervangt de iCal-abonnement-token van deze leverancier door een nieuwe
+ * (spec-item #128) — bv. als de oude URL per ongeluk gedeeld is. De oude
+ * abonnement-URL stopt daarna direct met werken in elke agenda-app die 'm
+ * gebruikte.
+ */
+export async function regenerateIcalTokenAction(): Promise<{ ok: boolean; error?: string; token?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Niet ingelogd." };
+  const supplier = await getSupplierAccountByOwner(user.id);
+  if (!supplier) return { ok: false, error: "Geen leveranciersaccount gevonden." };
+
+  const token = await regenerateSupplierIcalToken(supplier.id);
+  if (!token) return { ok: false, error: "Kon geen nieuwe link genereren." };
+
+  revalidatePath("/supplier/calendar");
+  return { ok: true, token };
+}
+
+/**
  * "Winkel open/gesloten" (spec-item #55) — leverancier zet zichzelf
  * tijdelijk onvindbaar in zoeken en matching.
  */
@@ -422,6 +489,44 @@ export async function setSubscriptionTierAction(tier: SubscriptionTier): Promise
 }
 
 /**
+ * Zelfbedienings-upgrade-aanvraag (livegang-audit augustus 2026) — het
+ * alternatief voor de dode "Work in progress"-knop hierboven. Registreert
+ * de aanvraag (Cem keurt 'm goed/af op /admin/leveranciers) en mailt Cem
+ * meteen ook zelf, zodat een aanvraag niet onopgemerkt blijft liggen tot
+ * de eerstvolgende keer dat hij toevallig het adminpaneel opent.
+ */
+export async function requestSubscriptionUpgradeAction(tier: SubscriptionTier): Promise<{ ok: boolean; error?: string }> {
+  if (!SUBSCRIPTION_TIER_ORDER.includes(tier)) return { ok: false, error: "Onbekend abonnementsniveau." };
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Niet ingelogd." };
+  const supplier = await getSupplierAccountByOwner(user.id);
+  if (!supplier) return { ok: false, error: "Geen leveranciersaccount gevonden." };
+
+  const currentIndex = SUBSCRIPTION_TIER_ORDER.indexOf(supplier.subscriptionTier);
+  const requestedIndex = SUBSCRIPTION_TIER_ORDER.indexOf(tier);
+  if (requestedIndex <= currentIndex) return { ok: false, error: "Dit is geen upgrade ten opzichte van je huidige niveau." };
+
+  const existing = await getPendingTierUpgradeRequest(supplier.id);
+  if (existing) return { ok: false, error: "Je hebt al een openstaande upgrade-aanvraag — we nemen zo snel mogelijk contact op." };
+
+  const request = await requestSupplierTierUpgrade(supplier.id, tier);
+  if (!request) return { ok: false, error: "Aanvragen is niet gelukt. Probeer het nog eens." };
+
+  const tierLabel = SUBSCRIPTION_TIERS[tier].label;
+  for (const adminEmail of ADMIN_EMAILS) {
+    await sendNotificationEmail({
+      to: adminEmail,
+      title: `Upgrade-aanvraag: ${supplier.companyName} → ${tierLabel}`,
+      body: `${supplier.companyName} (nu: ${SUBSCRIPTION_TIERS[supplier.subscriptionTier].label}) vraagt een upgrade naar ${tierLabel} aan. Beoordeel dit op het adminpaneel.`,
+      href: "/admin/leveranciers",
+    });
+  }
+
+  revalidatePath("/supplier/profile");
+  return { ok: true };
+}
+
+/**
  * Leverancier zet één van zijn eigen categorieën 3 dagen "in de spotlight"
  * (hoger + met badge in de openbare /leveranciers-zoekresultaten) — zelfde
  * `{ ok, error }`-vorm als `setSubscriptionTierAction`. Beschikbaar vanaf
@@ -439,28 +544,55 @@ export async function activateSpotlightAction(categoryKey: SupplierCategory): Pr
     return { ok: false, error: "Dit is niet een van je eigen categorieën." };
   }
 
-  const tier = await resolveEffectiveSupplierTier(supplier.id);
-  const quota = SPOTLIGHT_MONTHLY_QUOTA[tier];
-  if (quota <= 0) {
-    return { ok: false, error: "Spotlights zijn beschikbaar vanaf het Pro-abonnement. Kies hierboven een hoger niveau om deze functie te gebruiken." };
-  }
-
   const active = await getActiveSpotlightsForSupplier(supplier.id);
   if (active.some((s) => s.categoryKey === categoryKey)) {
     return { ok: false, error: "Deze categorie staat al in de spotlight." };
   }
 
-  const usedThisMonth = await countSpotlightActivationsThisMonth(supplier.id);
-  if (usedThisMonth >= quota) {
-    return { ok: false, error: `Je hebt je limiet van ${quota} spotlight${quota !== 1 ? "s" : ""} deze maand al gebruikt.` };
+  const tier = await resolveEffectiveSupplierTier(supplier.id);
+  const quota = SPOTLIGHT_MONTHLY_QUOTA[tier];
+  const usedThisMonth = quota > 0 ? await countSpotlightActivationsThisMonth(supplier.id) : 0;
+  // Referral-beloningen en goedgekeurde losse boost-aanvragen geven
+  // bonus_spotlight_credits — die gelden OOK voor een leverancier zonder
+  // eigen quotum (Starter/Groei), en worden hier altijd EERST verbruikt
+  // vóór het gewone maandquotum wordt aangesproken (zie
+  // consumeBonusSpotlightCredit in lib/data/store.ts).
+  const usedBonusCredit = quota <= 0 || usedThisMonth >= quota ? await consumeBonusSpotlightCredit(supplier.id) : false;
+
+  if (!usedBonusCredit) {
+    if (quota <= 0) {
+      return { ok: false, error: "Spotlights zijn beschikbaar vanaf het Pro-abonnement, of via een losse boost-aanvraag (zie hieronder)." };
+    }
+    if (usedThisMonth >= quota) {
+      return { ok: false, error: `Je hebt je limiet van ${quota} spotlight${quota !== 1 ? "s" : ""} deze maand al gebruikt. Vraag hieronder een losse boost aan, of wacht tot volgende maand.` };
+    }
   }
 
   const spotlight = await activateSpotlight(supplier.id, categoryKey);
   if (!spotlight) return { ok: false, error: "Activeren is niet gelukt. Probeer het nog eens." };
 
   revalidatePath("/supplier/profile");
+  revalidatePath("/supplier/marketing");
   revalidatePath("/leveranciers");
   revalidatePath(`/leveranciers/${supplier.id}`);
+  return { ok: true };
+}
+
+/**
+ * "Losse Spotlight-boost" (livegang-audit) — self-service AANVRAAG, geen
+ * directe activatie: Vyra verwerkt nog geen betalingen zelf, zie de
+ * uitleg bij requestSpotlightBoost() in lib/data/store.ts.
+ */
+export async function requestSpotlightBoostAction(): Promise<{ ok: boolean; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { ok: false, error: "Niet ingelogd." };
+  const supplier = await getSupplierAccountByOwner(user.id);
+  if (!supplier) return { ok: false, error: "Geen leveranciersaccount gevonden." };
+
+  const request = await requestSpotlightBoost(supplier.id);
+  if (!request) return { ok: false, error: "Je hebt al een openstaande boost-aanvraag — die wordt binnenkort beoordeeld." };
+
+  revalidatePath("/supplier/marketing");
   return { ok: true };
 }
 
