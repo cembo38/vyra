@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { buildIcsCalendar, IcsEvent } from "@/lib/ical";
-import { getSupplierAccount, getSupplierBlockedDates, getSupplierIdByIcalToken, getSupplierOrders } from "@/lib/data/store";
+import { getSupplierAccount, getSupplierBlockedDates, getSupplierIdByIcalToken, getSupplierOrdersForIcalFeed } from "@/lib/data/store";
 
 /**
  * Kalenderabonnement-feed (.ics) voor een leverancier — spec-item #128.
@@ -19,6 +19,16 @@ import { getSupplierAccount, getSupplierBlockedDates, getSupplierIdByIcalToken, 
  * bij matching (zie `getUnavailableSupplierIds` in lib/data/store.ts), maar
  * ze als wekelijks terugkerende RRULE-afspraken exporteren is losse,
  * aparte scope; geen stille omissie, alleen nog niet gebouwd.
+ *
+ * Bugfix (aug. 2026, bij live-verificatie ontdekt): de boekingen kwamen
+ * hier eerst via `getSupplierOrders()`, die intern `sb()` (de sessie-client)
+ * gebruikt — prima op /supplier/orders waar de leverancier zelf is
+ * ingelogd, maar de `offers`/`payments`-RLS staat select alleen toe aan de
+ * eigenaar zelf. Bij een écht sessieloze aanvraag (geen Vyra-cookie, exact
+ * het scenario waar deze route voor bestaat) gaf dat altijd een stilzwijgend
+ * LEEG abonnement terug, ongeacht hoeveel boekingen er echt waren. Nu via
+ * `getSupplierOrdersForIcalFeed()` (service-role), net als de token-lookup
+ * hierboven al deed.
  */
 export async function GET(_req: Request, ctx: RouteContext<"/api/supplier/ical/[token]">) {
   const { token } = await ctx.params;
@@ -33,7 +43,7 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/supplier/ical/[
     return new NextResponse("Niet gevonden.", { status: 404 });
   }
 
-  const [orders, blockedDates] = await Promise.all([getSupplierOrders(supplierId), getSupplierBlockedDates(supplierId)]);
+  const [orders, blockedDates] = await Promise.all([getSupplierOrdersForIcalFeed(supplierId), getSupplierBlockedDates(supplierId)]);
 
   const events: IcsEvent[] = [];
   for (const { offer, event } of orders) {

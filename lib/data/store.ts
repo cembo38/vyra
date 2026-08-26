@@ -1505,6 +1505,34 @@ export async function getSupplierIdByIcalToken(token: string): Promise<string | 
   return (data?.supplier_id as string | undefined) ?? null;
 }
 
+/**
+ * Bevestigde boekingen voor de .ics-route zelf — BEWUST via de service-role
+ * i.p.v. de gewone `getSupplierOrders()` hierboven. Die laatste gebruikt
+ * `sb()` (de sessie-client) en werkt daardoor prima op /supplier/orders,
+ * waar de leverancier zelf is ingelogd — maar de `offers`/`payments`-RLS-
+ * policies staan select alleen toe aan de eigenaar zelf (`auth.uid()`), dus
+ * bij een écht sessieloze aanvraag van een externe agenda-app (geen
+ * Vyra-cookie, precies het scenario waar deze route voor bestaat) zou
+ * `getSupplierOrders()` altijd een lege lijst teruggeven — geen fout, maar
+ * een stilzwijgend LEEG abonnement, ongeacht hoeveel boekingen er echt
+ * zijn. De token-verificatie hiervoor in de route (`getSupplierIdByIcalToken`)
+ * is al de enige autorisatie die nodig is, dus hier evenzo de service-role
+ * gebruiken past bij hetzelfde vertrouwensniveau. Alleen wat de .ics-feed
+ * nodig heeft (offerte + evenement) — geen betaalgegevens, die staan hier
+ * toch niet in.
+ */
+export async function getSupplierOrdersForIcalFeed(supplierId: string): Promise<Array<{ offer: OfferOption; event: EventCore | null }>> {
+  const admin = createSupabaseAdminClient();
+  if (!admin) return [];
+  const { data } = await admin
+    .from("offers")
+    .select("*, event:events(*)")
+    .eq("supplier_id", supplierId)
+    .eq("status", "accepted")
+    .order("responded_at", { ascending: false });
+  return (data ?? []).map((o: Row) => ({ offer: rowToOffer(o), event: o.event ? rowToEvent(o.event) : null }));
+}
+
 /* ------------------------------------------------------------------ */
 /* ORGANISATOR — FAVORIETE LEVERANCIERS (spec-item #54: terugkeer)     */
 /* ------------------------------------------------------------------ */
