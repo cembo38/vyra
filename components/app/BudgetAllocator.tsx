@@ -248,11 +248,21 @@ export function BudgetAllocator({
       <div className="mt-4 space-y-3">
         {items.map((it, i) => {
           const locked = lockedIds.has(it.categoryId);
-          // De werkelijke haalbare bovengrens voor déze schuif: wat er al
-          // aan zit, plus wat de gedeelde pot nog te bieden heeft — nooit
-          // meer, dus de schuif belooft ook visueel nooit meer dan wat
-          // daadwerkelijk toegepast zal worden.
-          const max = hasFixedTotal ? it.cents + Math.max(0, remaining ?? 0) : Math.max(it.cents * 3, 100_000);
+          // BUGFIX (gemeld door Cem, aug. 2026: "shuifjes doen niks"): de
+          // eerdere versie zette de bovengrens van de schuif op "huidig
+          // bedrag + wat de pot nog heeft" — zodra de pot leeg of negatief
+          // was (bv. dit evenement zit al boven budget), werd dat exact
+          // gelijk aan het huidige bedrag. Elke schuif stond dan altijd op
+          // 100%, ongeacht het werkelijke bedrag, en kon met geen mogelijkheid
+          // meer bewegen (ook niet zichtbaar naar links, want min/max/value
+          // vielen bijna samen). De daadwerkelijke grens (nooit meer opeisen
+          // dan de pot toestaat) wordt toch al hard afgedwongen in
+          // `slideItem` zelf zodra je loslaat — deze `max` is puur hoe ver je
+          // de schuif visueel kunt verslepen, dus die mag gewoon altijd ruim
+          // zijn. Sleep je voorbij wat er echt beschikbaar is, dan springt
+          // het bedrag bij loslaten terug naar wat wél kon — normaal
+          // schuifgedrag, geen bug.
+          const max = Math.max(it.cents * 3, 100_000);
           return (
             <div key={it.categoryId}>
               <div className="mb-1 flex items-center justify-between text-xs">
