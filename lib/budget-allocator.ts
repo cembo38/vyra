@@ -31,6 +31,34 @@ export interface AllocatorItem {
 }
 
 /**
+ * Absolute veiligheidsgrens (in centen) voor wat een categoriebedrag hier
+ * ooit mag zijn — onafhankelijk van eventuele foute data die nog in de
+ * database staat. Zelfde grens als MAX_PLAUSIBLE_CATEGORY_BUDGET_CENTS in
+ * lib/ai/catalog.ts (de server-kant van dezelfde bescherming, bij het
+ * genereren/opslaan), hier bewust als eigen losse constante i.p.v. een
+ * import — dit bestand blijft afhankelijkheidsvrij zodat vitest het zonder
+ * franje kan testen.
+ *
+ * BUGFIX (gemeld door Cem, aug. 2026, met video): een categorie met nog een
+ * oud, absurd groot bedrag (van vóór de AI-vangnetfix) maakte de schuif
+ * volledig onbruikbaar. Bij zulke extreme `max`-waarden op een
+ * <input type="range"> verliest de browser alle precisie in het omrekenen
+ * van vingerpositie naar waarde — elke tik met je vinger leverde een
+ * compleet ander, nóg absurder getal op ("shuifjes doen niks", "vinger-
+ * suggesties werken niet"). Het extreem lange bedrag ("€ 14.305.806...")
+ * duwde bovendien de hele rij (en daarmee de pagina) breder dan het scherm,
+ * wat leek alsof de pagina zelf heen en weer schoof. Deze klem zorgt dat
+ * zo'n getal nooit het scherm bereikt, ongeacht wat er nog in de database
+ * staat.
+ */
+export const MAX_SANE_CATEGORY_CENTS = 50_000_000; // € 500.000
+
+/** Klemt elke categorie in `items` af op MAX_SANE_CATEGORY_CENTS — zie de toelichting daarboven. */
+export function sanitizeItems(items: AllocatorItem[]): AllocatorItem[] {
+  return items.map((it) => ({ ...it, cents: Math.min(Math.max(0, it.cents), MAX_SANE_CATEGORY_CENTS) }));
+}
+
+/**
  * Hoeveel van het totaalbudget nog niet aan een categorie is toegewezen.
  * `null` zonder vast totaalbudget (er is dan niets om tegen af te zetten).
  * Kan negatief zijn (bv. bestaande data van vóór dit herontwerp, of een
@@ -56,18 +84,27 @@ export function remainingCents(items: AllocatorItem[], totalBudgetCents: number 
  *   Geen enkele ANDERE categorie verandert hierbij ooit mee.
  */
 export function slideItem(items: AllocatorItem[], index: number, rawValue: number, totalBudgetCents: number | null): AllocatorItem[] {
-  const current = items[index]?.cents ?? 0;
-  const clampedRaw = Math.max(0, Math.round(rawValue));
+  // sanitizeItems op de VOLLEDIGE invoer, niet alleen op de gesleepte
+  // categorie: bij een al-corrupt bedrag (bv. nog een oud getal van vóór de
+  // AI-vangnetfix) levert `current + delta`-rekenwerk verderop anders een
+  // compleet ander fout getal op door verlies van precisie bij zulke extreme
+  // groottes (double-precision floats hebben maar ~15-17 significante
+  // cijfers) — dus eerst alles naar een betrouwbare grootte terugbrengen,
+  // dan pas rekenen. Maakt deze functie ook bruikbaar zonder dat de
+  // aanroeper zelf al aan sanitizeItems heeft gedacht.
+  const sane = sanitizeItems(items);
+  const current = sane[index]?.cents ?? 0;
+  const clampedRaw = Math.min(Math.max(0, Math.round(rawValue)), MAX_SANE_CATEGORY_CENTS);
 
   if (totalBudgetCents == null || totalBudgetCents <= 0) {
-    return items.map((it, i) => (i === index ? { ...it, cents: clampedRaw } : it));
+    return sane.map((it, i) => (i === index ? { ...it, cents: clampedRaw } : it));
   }
 
   let delta = clampedRaw - current;
   if (delta > 0) {
-    const pot = Math.max(0, remainingCents(items, totalBudgetCents) ?? 0);
+    const pot = Math.max(0, remainingCents(sane, totalBudgetCents) ?? 0);
     delta = Math.min(delta, pot); // kan nooit meer opeisen dan de pot nog heeft
   }
 
-  return items.map((it, i) => (i === index ? { ...it, cents: Math.max(0, current + delta) } : it));
+  return sane.map((it, i) => (i === index ? { ...it, cents: Math.max(0, current + delta) } : it));
 }

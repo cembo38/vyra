@@ -6,7 +6,7 @@ import { Check, Loader2, Lock, RotateCcw, Unlock } from "lucide-react";
 import { updateRequirementBudgetsAction } from "@/lib/actions/event-actions";
 import { formatCurrency } from "@/lib/config";
 import { cn } from "@/lib/utils";
-import { AllocatorItem, remainingCents, slideItem } from "@/lib/budget-allocator";
+import { AllocatorItem, remainingCents, sanitizeItems, slideItem } from "@/lib/budget-allocator";
 
 export type { AllocatorItem };
 
@@ -109,11 +109,16 @@ export function BudgetAllocator({
   variant?: "dark" | "light";
 }) {
   const t = THEME[variant];
-  const [items, setItems] = useState(initialItems);
+  // sanitizeItems: een categorie kan hier nog een oud, absurd groot bedrag
+  // hebben staan (van vóór de AI-vangnetfix, zie MAX_SANE_CATEGORY_CENTS in
+  // lib/budget-allocator.ts) — dat wordt hier bij binnenkomst al onschadelijk
+  // gemaakt, vóórdat het ooit een schuif of bedrag op het scherm bereikt.
+  const sanitizedInitialItems = sanitizeItems(initialItems);
+  const [items, setItems] = useState(sanitizedInitialItems);
   const [lockedIds, setLockedIds] = useState<Set<string>>(new Set());
   const [saving, startSaveTransition] = useTransition();
   const [justSaved, setJustSaved] = useState(false);
-  const savedCentsRef = useRef(initialItems.map((i) => i.cents));
+  const savedCentsRef = useRef(sanitizedInitialItems.map((i) => i.cents));
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const router = useRouter();
 
@@ -126,7 +131,7 @@ export function BudgetAllocator({
   const hasFixedTotal = totalBudgetCents != null && totalBudgetCents > 0;
   const total = items.reduce((sum, it) => sum + it.cents, 0);
   const remaining = remainingCents(items, totalBudgetCents);
-  const changedFromAi = items.some((it, i) => it.cents !== initialItems[i]?.cents);
+  const changedFromAi = items.some((it, i) => it.cents !== sanitizedInitialItems[i]?.cents);
   // Waar de gekleurde segmenten hun percentage van de balk tegen afzetten:
   // mét vast totaalbudget tegen dát totaal (zodat er ruimte overblijft voor
   // het grijze "nog te verdelen"-stukje hieronder), anders gewoon tegen de
@@ -175,7 +180,7 @@ export function BudgetAllocator({
   function resetToAiSuggestion() {
     // Vastgezette categorieën blijven met rust — "vastzetten" zou weinig
     // voorstellen als een reset ze alsnog zou terugzetten.
-    scheduleSave(items.map((it, i) => (lockedIds.has(it.categoryId) ? it : initialItems[i])));
+    scheduleSave(items.map((it, i) => (lockedIds.has(it.categoryId) ? it : sanitizedInitialItems[i])));
   }
 
   if (items.length === 0) return null;
@@ -265,13 +270,17 @@ export function BudgetAllocator({
           const max = Math.max(it.cents * 3, 100_000);
           return (
             <div key={it.categoryId}>
-              <div className="mb-1 flex items-center justify-between text-xs">
-                <span className={`flex items-center gap-1.5 ${t.itemLabel}`}>
-                  <span className="size-2 rounded-full" style={{ backgroundColor: SEGMENT_COLORS[i % SEGMENT_COLORS.length] }} />
-                  {it.label}
+              {/* min-w-0 + truncate op beide kanten: extra vangnet naast de
+                  MAX_SANE_CATEGORY_CENTS-klem hierboven — een label of bedrag
+                  kan zo nooit meer de hele pagina breder duwen dan het scherm
+                  (zie de toelichting bij `max` hierboven voor de aanleiding). */}
+              <div className="mb-1 flex items-center justify-between gap-2 text-xs">
+                <span className={`flex min-w-0 items-center gap-1.5 ${t.itemLabel}`}>
+                  <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: SEGMENT_COLORS[i % SEGMENT_COLORS.length] }} />
+                  <span className="truncate">{it.label}</span>
                 </span>
-                <span className="flex items-center gap-1.5">
-                  <span className={`font-medium ${t.amount}`}>{formatCurrency(it.cents)}</span>
+                <span className="flex shrink-0 items-center gap-1.5">
+                  <span className={`truncate font-medium ${t.amount}`}>{formatCurrency(it.cents)}</span>
                   <button
                     type="button"
                     onClick={() => toggleLock(it.categoryId)}

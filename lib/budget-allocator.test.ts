@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { remainingCents, slideItem } from "@/lib/budget-allocator";
+import { MAX_SANE_CATEGORY_CENTS, remainingCents, sanitizeItems, slideItem } from "@/lib/budget-allocator";
 
 /**
  * De schuiven op de planpagina (BudgetAllocator.tsx, gemeld aug. 2026): dit
@@ -68,6 +68,41 @@ describe("slideItem mét een vast totaalbudget (envelope-model)", () => {
   it("laat de versleepte categorie zelf ook nooit negatief worden", () => {
     const result = slideItem(items, 0, -1000, totalBudget);
     expect(result[0].cents).toBe(0);
+  });
+});
+
+describe("sanitizeItems", () => {
+  it("klemt een absurd groot bedrag af op MAX_SANE_CATEGORY_CENTS", () => {
+    const corrupted = [{ categoryId: "tent_rental", label: "Tentverhuur", cents: 46_728_576_851_286_940_000_000_000 }];
+    const result = sanitizeItems(corrupted);
+    expect(result[0].cents).toBe(MAX_SANE_CATEGORY_CENTS);
+  });
+
+  it("laat normale bedragen ongemoeid", () => {
+    const result = sanitizeItems(items);
+    expect(result).toEqual(items);
+  });
+
+  it("klemt ook negatieve bedragen af op 0", () => {
+    const result = sanitizeItems([{ categoryId: "venue", label: "Locatie", cents: -500 }]);
+    expect(result[0].cents).toBe(0);
+  });
+});
+
+describe("slideItem klemt een corrupt groot bedrag af, ook tijdens het slepen zelf", () => {
+  it("zonder vast totaalbudget: een absurde ruwe waarde van de browser wordt nooit toegepast", () => {
+    const result = slideItem(items, 0, 46_728_576_851_286_940_000_000_000, null);
+    expect(result[0].cents).toBe(MAX_SANE_CATEGORY_CENTS);
+  });
+
+  it("mét vast totaalbudget: een al-corrupt bedrag op de gesleepte categorie wordt teruggebracht naar wat er ingetypt/gesleept werd", () => {
+    const corrupted = [
+      { categoryId: "venue", label: "Locatie", cents: 46_728_576_851_286_940_000_000_000 },
+      { categoryId: "catering", label: "Catering", cents: 15_000 },
+    ];
+    const result = slideItem(corrupted, 0, 20_000, 60_000);
+    expect(result[0].cents).toBe(20_000);
+    expect(result[1].cents).toBe(15_000); // de andere categorie blijft ongemoeid
   });
 });
 
