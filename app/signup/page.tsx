@@ -3,6 +3,7 @@ import { Logo } from "@/components/marketing/Logo";
 import { Field, Input } from "@/components/ui/Form";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { AuthErrorBanner } from "@/components/app/AuthErrorBanner";
+import { SocialLoginButtons } from "@/components/app/SocialLoginButtons";
 import { signupAction } from "@/lib/actions/auth-actions";
 
 export const metadata = { title: "Account aanmaken — Vyra" };
@@ -113,6 +114,8 @@ export default async function SignupPage(props: PageProps<"/signup">) {
               Account aanmaken
             </button>
           </form>
+
+          <SocialLoginButtons />
 
           <p className="mt-6 text-center text-sm text-ink-faint">
             Heb je al een account? <Link href="/login" className="font-medium text-clay hover:underline">Log in</Link>
