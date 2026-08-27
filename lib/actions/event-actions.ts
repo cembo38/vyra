@@ -23,6 +23,7 @@ import {
 } from "@/lib/data/store";
 import { extractEventFields, generateNextQuestion } from "@/lib/ai/interview";
 import { generateRequirementPlan, generateTimeline, detectRisks, draftSupplierMessages } from "@/lib/ai/planning";
+import { MAX_PLAUSIBLE_CATEGORY_BUDGET_CENTS } from "@/lib/ai/catalog";
 import { detectChangeImpact } from "@/lib/ai/assistant";
 import { EVENT_TYPE_LABELS, EventCore } from "@/lib/types";
 import { uid } from "@/lib/utils";
@@ -243,13 +244,21 @@ export async function updateRequirementBudgetsAction(eventId: string, updates: {
   const event = await getEvent(eventId);
   if (!event || event.ownerId !== user.id) redirect("/events");
 
-  // Nooit ongefilterd doorgeven aan de database — een negatief of niet-
-  // numeriek bedrag kan hooguit via een handmatige aanroep buiten de UI om
-  // binnenkomen (de sliders zelf klemmen dit al af), maar dit is de plek
-  // waar dat hard afgedwongen wordt.
+  // Nooit ongefilterd doorgeven aan de database — een negatief, niet-
+  // numeriek of absurd hoog bedrag kan hooguit via een handmatige aanroep
+  // buiten de UI om binnenkomen (de sliders zelf klemmen dit al af, zie
+  // lib/budget-allocator.ts), maar dit is de plek waar dat hard afgedwongen
+  // wordt. De bovengrens is dezelfde als bij een AI-schatting (zie
+  // MAX_PLAUSIBLE_CATEGORY_BUDGET_CENTS in lib/ai/catalog.ts) — een al
+  // bestaand, absurd bedrag in de database (bv. van vóór die vangnetfix)
+  // wordt zo bij de eerstvolgende keer opslaan alsnog teruggebracht i.p.v.
+  // stilzwijgend opnieuw weggeschreven.
   const clean = updates
     .filter((u) => Number.isFinite(u.estimatedBudgetCents))
-    .map((u) => ({ categoryId: u.categoryId, estimatedBudgetCents: Math.max(0, Math.round(u.estimatedBudgetCents)) }));
+    .map((u) => ({
+      categoryId: u.categoryId,
+      estimatedBudgetCents: Math.min(MAX_PLAUSIBLE_CATEGORY_BUDGET_CENTS, Math.max(0, Math.round(u.estimatedBudgetCents))),
+    }));
   if (clean.length === 0) return;
 
   await updateRequirementBudgets(eventId, clean);

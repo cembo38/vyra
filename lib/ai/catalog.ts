@@ -33,6 +33,35 @@ export const TYPICAL_CATEGORY_COST_CENTS: Partial<Record<SupplierCategory, numbe
   return result;
 })();
 
+/**
+ * Harde bovengrens voor wat een AI-geschat categoriebudget mag zijn, in
+ * centen — een vangnet tegen een taalmodel dat een absurd getal
+ * hallucineert (gemeld door Cem, aug. 2026: "Tentverhuur" kreeg een schatting
+ * van tientallen miljarden euro's voor een gewoon dansfeest, terwijl de
+ * organisator nog geen totaalbudget had opgegeven — `capEstimatesToBudget`
+ * hieronder grijpt dan niet in, want die heeft niets om tegen te toetsen).
+ * Ruim boven wat één categorie voor een privé-evenement in Nederland ooit
+ * realistisch zou moeten kosten, maar laag genoeg om zo'n hallucinatie er
+ * gegarandeerd uit te filteren.
+ */
+export const MAX_PLAUSIBLE_CATEGORY_BUDGET_CENTS = 50_000_000; // € 500.000
+
+/**
+ * Filtert één door de AI geschat categoriebudget door de plausibiliteits-
+ * check hierboven. Niet-eindig (NaN/Infinity), negatief of absurd hoog valt
+ * terug op de typische marktprijs voor die categorie (of `null` als die niet
+ * bekend is) — dezelfde vangnetgedachte als de bestaande `mockFallback` bij
+ * een AI-fout, nu ook voor een AI-antwoord dat wél binnenkomt maar
+ * onbruikbaar is.
+ */
+export function sanitizeEstimatedBudgetCents(value: number | null, categoryKey: SupplierCategory): number | null {
+  if (value == null) return null;
+  if (!Number.isFinite(value) || value < 0 || value > MAX_PLAUSIBLE_CATEGORY_BUDGET_CENTS) {
+    return TYPICAL_CATEGORY_COST_CENTS[categoryKey] ?? null;
+  }
+  return Math.round(value);
+}
+
 interface Template {
   categoryKey: SupplierCategory;
   priority: RequirementPriority;

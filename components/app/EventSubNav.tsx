@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { ScrollFadeX } from "@/components/ui/ScrollFadeX";
 
 export function EventSubNav({ eventId }: { eventId: string }) {
   const pathname = usePathname();
@@ -21,7 +22,7 @@ export function EventSubNav({ eventId }: { eventId: string }) {
 
   return (
     <div className="border-b border-line bg-white">
-      <nav className="scroll-fade-x-white mx-auto flex max-w-6xl gap-1 overflow-x-auto px-6 no-scrollbar">
+      <ScrollFadeX variant="white" className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-6 no-scrollbar">
         {tabs.map((tab) => {
           const active = tab.match ? tab.match(pathname) : pathname === tab.href;
           return (
@@ -38,7 +39,7 @@ export function EventSubNav({ eventId }: { eventId: string }) {
             </Link>
           );
         })}
-      </nav>
+      </ScrollFadeX>
     </div>
   );
 }

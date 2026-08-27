@@ -429,41 +429,16 @@ button {
 }
 
 /**
- * Scroll-schaduw-hint (pure CSS, geen JS): op een horizontaal scrollende
- * strook (EventSubNav-tabs, de vergelijkingstabel) laat dit een subtiele
- * schaduw zien aan de kant(en) waar nog meer inhoud verborgen zit, en laat
- * 'm vanzelf verdwijnen zodra je aan dat uiteinde bent. Klassieke 4-lagen
- * truc: twee "dekkende" fades die MET de inhoud meescrollen
- * (`background-attachment: local`, dus ze zitten altijd precies op de
- * echte rand van de inhoud) verbergen de schaduw zodra je daar bent; twee
- * schaduw-gradients die VAST staan t.o.v. de container
- * (`background-attachment: scroll`) zijn verder altijd zichtbaar.
- * `.scroll-fade-x` is voor stroken op de --color-paper achtergrond,
- * `.scroll-fade-x-white` voor stroken op een witte kaart/balk.
+ * Scroll-schaduw-hint — GEEN pure CSS meer sinds aug. 2026. De vorige versie
+ * (`.scroll-fade-x`/`.scroll-fade-x-white`, een 4-lagen `background-
+ * attachment: local`/`scroll`-truc) bleek op iOS Safari onbetrouwbaar: bij
+ * verticaal pagina-scrollen repaint't Safari de achtergrond van een geneste
+ * horizontaal-scrollbare strip soms niet correct, wat als een uitgesmeerde
+ * grijze balk over EventSubNav's tabs bleef hangen (gemeld door Cem met een
+ * live screenshot: "de carrousel verdwijnt"). Vervangen door
+ * `components/ui/ScrollFadeX.tsx`, dezelfde optische schaduw maar via
+ * scrollpositie + opacity in JS — zie de toelichting daar.
  */
-/* Was 24px/0.1 — bij een live mobiele screenshot-toets (EventSubNav, 9
-   tabbladen op 375px) bleek dat nauwelijks zichtbaar, waardoor niet
-   duidelijk was dat er nog 5 tabbladen buiten beeld stonden. Iets breder
-   en donkerder blijft subtiel maar is nu daadwerkelijk een herkenbare
-   aanwijzing. */
-.scroll-fade-x {
-  background:
-    linear-gradient(to right, var(--color-paper) 0, transparent 100%) local,
-    linear-gradient(to left, var(--color-paper) 0, transparent 100%) 100% 0 local,
-    linear-gradient(to right, rgba(43, 40, 35, 0.18), transparent 100%) scroll,
-    linear-gradient(to left, rgba(43, 40, 35, 0.18), transparent 100%) 100% 0 scroll;
-  background-repeat: no-repeat;
-  background-size: 32px 100%;
-}
-.scroll-fade-x-white {
-  background:
-    linear-gradient(to right, white 0, transparent 100%) local,
-    linear-gradient(to left, white 0, transparent 100%) 100% 0 local,
-    linear-gradient(to right, rgba(43, 40, 35, 0.18), transparent 100%) scroll,
-    linear-gradient(to left, rgba(43, 40, 35, 0.18), transparent 100%) 100% 0 scroll;
-  background-repeat: no-repeat;
-  background-size: 32px 100%;
-}
 
 /**
  * ── PERMANENTE ZIJBALK (NavShell.tsx, >= md) ───────────────────────────

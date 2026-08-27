@@ -1,7 +1,13 @@
 import "server-only";
 import { callStructuredAI } from "@/lib/ai/client";
 import { REQUIREMENT_GENERATOR_PROMPT, TIMELINE_ASSISTANT_PROMPT, RISK_DETECTION_PROMPT, REQUEST_MESSAGE_DRAFTER_PROMPT } from "@/lib/ai/prompts";
-import { ALL_SUPPLIER_CATEGORIES, buildDefaultRequirements, capEstimatesToBudget, TYPICAL_CATEGORY_COST_CENTS } from "@/lib/ai/catalog";
+import {
+  ALL_SUPPLIER_CATEGORIES,
+  buildDefaultRequirements,
+  capEstimatesToBudget,
+  sanitizeEstimatedBudgetCents,
+  TYPICAL_CATEGORY_COST_CENTS,
+} from "@/lib/ai/catalog";
 import { EventCore, EventTimelineItem, RequirementCategory, RequirementPriority, RiskFlag, SupplierCategory, EVENT_TYPE_LABELS, SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
 import { formatCurrency } from "@/lib/config";
 import { uid, formatDateNL } from "@/lib/utils";
@@ -77,7 +83,11 @@ export async function generateRequirementPlan(event: EventCore) {
     priority: c.priority,
     aiRationale: c.rationale,
     selected: c.priority !== "optional",
-    estimatedBudgetCents: c.estimatedBudgetCents,
+    // sanitizeEstimatedBudgetCents (aug. 2026): het taalmodel geeft hier
+    // geformeel gewoon een "number" terug, maar dat garandeert niets over de
+    // grootte — zie de toelichting bij MAX_PLAUSIBLE_CATEGORY_BUDGET_CENTS
+    // in lib/ai/catalog.ts voor de live hallucinatie die dit veroorzaakte.
+    estimatedBudgetCents: sanitizeEstimatedBudgetCents(c.estimatedBudgetCents, c.categoryKey),
     draftMessage: null,
     status: "suggested",
   }));

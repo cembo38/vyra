@@ -3,6 +3,7 @@ import { LayoutGrid } from "lucide-react";
 import { SUPPLIER_CATEGORY_LABELS, SupplierCategory } from "@/lib/types";
 import { SUPPLIER_CATEGORY_EMOJI } from "@/components/app/SupplierCategoryIcons";
 import { cn } from "@/lib/utils";
+import { ScrollFadeX } from "@/components/ui/ScrollFadeX";
 
 /**
  * Doorschuifbare rij categorie-chips boven de zoekresultaten op
@@ -36,7 +37,7 @@ export function CategoryIconBar({
   allHref: string;
 }) {
   return (
-    <div className="scroll-fade-x -mx-1 flex gap-2 overflow-x-auto px-1 pb-1 no-scrollbar">
+    <ScrollFadeX className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 no-scrollbar">
       <Link
         href={allHref}
         className={cn(
@@ -61,7 +62,7 @@ export function CategoryIconBar({
           {it.label}
         </Link>
       ))}
-    </div>
+    </ScrollFadeX>
   );
 }
 

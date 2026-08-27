@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { redistributeSlide } from "@/lib/budget-allocator";
+import { remainingCents, slideItem } from "@/lib/budget-allocator";
 
 /**
  * De schuiven op de planpagina (BudgetAllocator.tsx, gemeld aug. 2026): dit
  * is de rekenlogica erachter, apart getest omdat een fout hier een
  * organisator een verkeerd verdeeld budget laat zien — precies het soort
  * bug dat aanleiding was voor deze hele feature (zie ook
- * lib/ai/catalog.test.ts).
+ * lib/ai/catalog.test.ts). Herschreven (aug. 2026) samen met het
+ * "envelope budgeting"-herontwerp — zie de toelichting bovenaan
+ * lib/budget-allocator.ts voor waarom.
  */
 const items = [
   { categoryId: "venue", label: "Locatie", cents: 20_000 },
@@ -15,68 +17,72 @@ const items = [
 ];
 const total = items.reduce((s, i) => s + i.cents, 0); // 50.000
 
-describe("redistributeSlide zonder vast totaalbudget", () => {
+describe("slideItem zonder vast totaalbudget", () => {
   it("verandert alleen de versleepte categorie, de rest blijft ongemoeid", () => {
-    const result = redistributeSlide(items, 0, 30_000, false);
+    const result = slideItem(items, 0, 30_000, null);
     expect(result[0].cents).toBe(30_000);
     expect(result[1].cents).toBe(15_000);
     expect(result[2].cents).toBe(15_000);
   });
 
   it("klemt af op 0, nooit negatief", () => {
-    const result = redistributeSlide(items, 0, -500, false);
+    const result = slideItem(items, 0, -500, null);
     expect(result[0].cents).toBe(0);
   });
 });
 
-describe("redistributeSlide mét een vast totaalbudget", () => {
-  it("houdt de som na het verhogen van één schuif exact gelijk aan het totaal ervoor", () => {
-    const result = redistributeSlide(items, 0, 30_000, true);
-    const sum = result.reduce((s, i) => s + i.cents, 0);
-    expect(sum).toBe(total);
-    expect(result[0].cents).toBe(30_000);
-  });
+describe("slideItem mét een vast totaalbudget (envelope-model)", () => {
+  const totalBudget = 60_000; // 10.000 nog niet toegewezen t.o.v. de 50.000 hierboven
 
-  it("houdt de som na het verlagen van één schuif ook exact gelijk aan het totaal ervoor", () => {
-    const result = redistributeSlide(items, 0, 10_000, true);
-    const sum = result.reduce((s, i) => s + i.cents, 0);
-    expect(sum).toBe(total);
-    expect(result[0].cents).toBe(10_000);
-  });
-
-  it("verdeelt de verandering naar verhouding over de andere categorieën (gelijke categorieën krijgen een gelijke aanpassing)", () => {
-    const result = redistributeSlide(items, 0, 30_000, true); // +10.000 opgeëist bij "venue"
-    // catering en photography stonden allebei op 15.000 (gelijke verhouding), dus verliezen ze allebei evenveel.
-    expect(result[1].cents).toBe(result[2].cents);
-    expect(result[1].cents).toBe(10_000);
-  });
-
-  it("kan nooit meer opeisen dan de andere categorieën samen nog hebben — klemt de schuif zelf af", () => {
-    // "venue" probeert naar 100.000 te gaan, terwijl de rest samen maar 30.000 heeft.
-    const result = redistributeSlide(items, 0, 100_000, true);
-    const sum = result.reduce((s, i) => s + i.cents, 0);
-    expect(sum).toBe(total);
-    expect(result[0].cents).toBe(50_000); // 20.000 + alles wat de rest kon missen (30.000)
-    expect(result[1].cents).toBe(0);
-    expect(result[2].cents).toBe(0);
-  });
-
-  it("verdeelt vrijgekomen budget gelijk als alle andere categorieën al op €0 stonden", () => {
-    const zeroed = [
-      { categoryId: "venue", label: "Locatie", cents: 50_000 },
-      { categoryId: "catering", label: "Catering", cents: 0 },
-      { categoryId: "photography", label: "Fotografie", cents: 0 },
-    ];
-    const result = redistributeSlide(zeroed, 0, 20_000, true); // venue levert 30.000 in
-    const sum = result.reduce((s, i) => s + i.cents, 0);
-    expect(sum).toBe(50_000);
-    expect(result[0].cents).toBe(20_000);
+  it("verhogen haalt uit de 'nog te verdelen'-pot, andere categorieën blijven ongemoeid", () => {
+    const result = slideItem(items, 0, 25_000, totalBudget); // +5.000, pot had 10.000
+    expect(result[0].cents).toBe(25_000);
     expect(result[1].cents).toBe(15_000);
     expect(result[2].cents).toBe(15_000);
+    expect(remainingCents(result, totalBudget)).toBe(5_000);
   });
 
-  it("laat geen enkele categorie negatief worden", () => {
-    const result = redistributeSlide(items, 0, 45_000, true);
-    for (const it of result) expect(it.cents).toBeGreaterThanOrEqual(0);
+  it("verlagen geeft terug aan de pot, andere categorieën blijven ongemoeid", () => {
+    const result = slideItem(items, 0, 12_000, totalBudget); // -8.000
+    expect(result[0].cents).toBe(12_000);
+    expect(result[1].cents).toBe(15_000);
+    expect(result[2].cents).toBe(15_000);
+    expect(remainingCents(result, totalBudget)).toBe(18_000);
+  });
+
+  it("klemt een verhoging af op wat de pot daadwerkelijk heeft — andere categorieën blijven ongemoeid", () => {
+    // pot heeft maar 10.000, "venue" probeert er 50.000 bij te vragen
+    const result = slideItem(items, 0, 70_000, totalBudget);
+    expect(result[0].cents).toBe(30_000); // 20.000 + de volledige pot (10.000), niet meer
+    expect(result[1].cents).toBe(15_000);
+    expect(result[2].cents).toBe(15_000);
+    expect(remainingCents(result, totalBudget)).toBe(0);
+  });
+
+  it("kan niet verhogen als de pot al op 0 staat", () => {
+    const fullyAllocated = 50_000; // exact gelijk aan de som hierboven
+    const result = slideItem(items, 0, 30_000, fullyAllocated);
+    expect(result[0].cents).toBe(20_000); // ongewijzigd: geen pot om uit te putten
+  });
+
+  it("laat de versleepte categorie zelf ook nooit negatief worden", () => {
+    const result = slideItem(items, 0, -1000, totalBudget);
+    expect(result[0].cents).toBe(0);
+  });
+});
+
+describe("remainingCents", () => {
+  it("is null zonder vast totaalbudget", () => {
+    expect(remainingCents(items, null)).toBeNull();
+    expect(remainingCents(items, 0)).toBeNull();
+  });
+
+  it("is het totaalbudget min de som van alle categorieën, kan negatief zijn", () => {
+    expect(remainingCents(items, 60_000)).toBe(10_000);
+    expect(remainingCents(items, 40_000)).toBe(-10_000);
+  });
+
+  it("blijft consistent met total (som van items) als sanity-check", () => {
+    expect(remainingCents(items, total)).toBe(0);
   });
 });

@@ -4,6 +4,7 @@ import { Footer } from "@/components/marketing/Footer";
 import { AppTopBar } from "@/components/app/AppTopBar";
 import { BackLink } from "@/components/ui/BackLink";
 import { Badge } from "@/components/ui/Badge";
+import { ScrollFadeX } from "@/components/ui/ScrollFadeX";
 import { SupplierAvatar } from "@/components/ui/Avatar";
 import { getCurrentUser } from "@/lib/auth";
 import { getSupplierAccount } from "@/lib/data/store";
@@ -41,7 +42,11 @@ export default async function CompareSuppliersPage(props: PageProps<"/leverancie
           <Link href="/leveranciers" className="font-medium text-clay hover:underline">zoekresultaten</Link>.
         </div>
       ) : (
-        <div className="scroll-fade-x-white mt-6 overflow-x-auto rounded-2xl border border-line bg-white [box-shadow:var(--shadow-card)]">
+        <ScrollFadeX
+          variant="white"
+          containerClassName="mt-6 overflow-hidden rounded-2xl border border-line bg-white [box-shadow:var(--shadow-card)]"
+          className="overflow-x-auto"
+        >
           <table className="w-full min-w-[640px] border-collapse text-sm">
             <thead>
               <tr className="border-b border-line-soft">
@@ -137,7 +142,7 @@ export default async function CompareSuppliersPage(props: PageProps<"/leverancie
               </tr>
             </tbody>
           </table>
-        </div>
+        </ScrollFadeX>
       )}
     </div>
   );
