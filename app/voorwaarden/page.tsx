@@ -85,7 +85,9 @@ export default function TermsPage() {
                 maandbedrag) of een jaartarief (lager maandbedrag, in één keer per jaar vooruit afgeschreven); het bijbehorende
                 bedrag wordt automatisch via Stripe geïncasseerd. Downgraden naar Instap vanuit een betaald niveau behoudt de
                 reeds betaalde periode: de wijziging gaat pas in zodra die periode afloopt, zonder terugbetaling van het
-                resterende bedrag.
+                resterende bedrag. Wisselt een leverancier tussentijds naar een ANDER betaald niveau (of van maandelijks naar
+                jaarlijks of andersom), dan wordt het nog niet gebruikte deel van de huidige, al betaalde periode automatisch
+                verrekend met de eerstvolgende afschrijving van het nieuwe niveau.
               </p>
               <p className="mt-2.5">
                 Een jaartarief is een verplichting voor de volledige looptijd van één jaar: dit is niet tussentijds op

@@ -498,6 +498,24 @@ export async function toggleStoreOpenAction(open: boolean): Promise<{ ok: boolea
  *    gefactureerd — hooguit heel even allebei tegelijk, tot de webhook het
  *    oude opruimt.
  *
+ *    Wisselt de leverancier tussentijds van een al lopend BETAALD abonnement
+ *    (bv. Groei-jaarlijks halverwege het jaar naar Pro-jaarlijks), dan zou
+ *    hij zonder verdere maatregel het volledige nieuwe jaar-/maandbedrag
+ *    betalen BOVENOP wat al betaald was voor de rest van de oude periode —
+ *    dat nog niet-gebruikte deel gaat anders verloren. Vóór het aanmaken van
+ *    de nieuwe checkout-sessie wordt dat ongebruikte deel daarom eerst
+ *    berekend (naar rato van de resterende tijd in de huidige, al betaalde
+ *    periode × het bedrag dat de leverancier daar daadwerkelijk voor
+ *    betaalde) en als tegoed op het Stripe-klantsaldo gezet
+ *    (`stripe.customers.createBalanceTransaction`, negatief bedrag = tegoed).
+ *    Stripe verrekent een tegoed automatisch met de eerstvolgende factuur van
+ *    die klant — in dit geval dus meteen met de factuur die deze
+ *    checkout-sessie aanmaakt, waardoor het bedrag dat nu daadwerkelijk wordt
+ *    afgeschreven al automatisch lager uitvalt (nooit een losse restitutie
+ *    op het oude abonnement, dat is voor leverancier én boekhouding
+ *    eenvoudiger). Is het tegoed groter dan de nieuwe factuur, dan wordt de
+ *    rest simpelweg door Stripe bewaard voor de factuur daarna.
+ *
  * BELANGRIJK: in geen van de Stripe-paden wordt hier het niveau in onze
  * eigen database bijgewerkt — dat gebeurt uitsluitend vanuit de webhook
  * (app/api/webhooks/stripe/route.ts → applySupplierSubscriptionFromWebhook),
@@ -590,6 +608,42 @@ export async function changeSubscriptionTierAction(
       const customer = await stripe.customers.create({ email: user.email, name: supplier.companyName, metadata: { supplierId: supplier.id } });
       customerId = customer.id;
       await setSupplierStripeCustomerId(supplier.id, customerId);
+    }
+
+    // Ongebruikt deel van een al lopend BETAALD abonnement verrekenen — zie
+    // de uitgebreide toelichting bij "Pad 4" hierboven. Bewust in een eigen,
+    // NIET-fatale try/catch: als dit om wat voor reden dan ook mislukt (bv.
+    // Stripe's subscriptions.retrieve/createBalanceTransaction faalt), moet
+    // de leverancier gewoon naar de nieuwe checkout kunnen — een gemiste
+    // korting is vervelend, maar een leverancier die HELEMAAL niet kan
+    // wisselen van abonnement is erger. Alleen relevant bij een wissel
+    // TUSSEN betaalde niveaus; downgraden naar Instap loopt via het aparte
+    // cancel_at_period_end-pad hierboven en verrekent bewust niet (zie de
+    // toelichting daar en Artikel 5 van de voorwaarden).
+    if (supplier.stripeSubscriptionId) {
+      try {
+        const oldSubscription = await stripe.subscriptions.retrieve(supplier.stripeSubscriptionId);
+        const item = oldSubscription.items.data[0];
+        const nowSeconds = Date.now() / 1000;
+        if (item && supplier.subscriptionPriceCents && item.current_period_end > nowSeconds) {
+          const totalSeconds = item.current_period_end - item.current_period_start;
+          const remainingSeconds = item.current_period_end - nowSeconds;
+          const proportion = totalSeconds > 0 ? Math.min(1, remainingSeconds / totalSeconds) : 0;
+          const remainingValueCents = Math.round(supplier.subscriptionPriceCents * proportion);
+          if (remainingValueCents > 0) {
+            await stripe.customers.createBalanceTransaction(customerId, {
+              amount: -remainingValueCents,
+              currency: "eur",
+              description: `Ongebruikt deel van ${SUBSCRIPTION_TIERS[supplier.subscriptionTier].label} verrekend bij wisselen naar ${definition.label}.`,
+            });
+          }
+        }
+      } catch (err) {
+        console.error(
+          "[changeSubscriptionTierAction] verrekenen ongebruikt abonnementsdeel mislukt (wissel gaat gewoon door zonder verrekening):",
+          err instanceof Error ? err.message : err
+        );
+      }
     }
 
     const session = await stripe.checkout.sessions.create({
