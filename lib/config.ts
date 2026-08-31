@@ -9,43 +9,30 @@
  */
 
 /**
- * Leveranciers-abonnementenmodel (spec-item #53, SaaS-pivot) — vervangt het
- * eerdere drielaags-commissiemodel (instap/gestaffeld/Pro). Reden: commissie
- * innen vereist dat je het geld even vasthoudt, wat pas kan zodra er een
- * echte betaaldienst is aangesloten; een abonnement is een vast, terugkerend
- * bedrag dat de leverancier zelf betaalt, los van hoe een boeking daarna
- * wordt afgerekend — dat is nu al te innen (zie SUBSCRIPTION_TIERS
- * hieronder voor hoe, via Stripe Payment Links).
- *
- * Prijstrede: elk niveau kost ~1,5–1,6x het vorige (49 → 79 → 129 → 199 →
- * 299), een bewust AFNEMENDE verhouding i.p.v. de eerdere reeks die steeds
- * ongeveer verdubbelde (49 → 99 → 199 → 349 → 599) — die voelde voor een
- * leverancier "exponentieel" duurder bij elke stap. Met een constante,
- * lichtjes dalende factor blijft elke upgrade een herkenbare, uit te leggen
- * stap ("een derde duurder voor dit extra"), i.p.v. een sprong die steeds
- * groter aanvoelt.
+ * Leveranciers-abonnementenmodel (spec-item #53, SaaS-pivot, herzien aug.
+ * 2026 op verzoek van Cem — zie de toelichting bij SUBSCRIPTION_TIERS
+ * hieronder voor wat er precies veranderde en waarom).
  *
  * Elke nieuwe leverancier krijgt eerst `TRIAL_BOOKING_COUNT` succesvolle
  * boekingen volledig gratis, met VOLLEDIGE toegang tot alles wat Vyra te
  * bieden heeft (zie `TRIAL_TIER_DEFINITION`) — zo ervaart een leverancier
- * eerst het volledige platform vóórdat hij een abonnement kiest. Daarna kiest
- * hij een van de vijf niveaus hieronder. Zie `resolveEffectiveSupplierTier`
- * in lib/data/store.ts voor hoe dit per leverancier wordt bepaald.
+ * eerst het volledige platform vóórdat hij een niveau kiest. Zie
+ * `resolveEffectiveSupplierTier` in lib/data/store.ts voor hoe dit per
+ * leverancier wordt bepaald.
  *
- * Belangrijk: abonnementsgeld wordt nog handmatig/self-service geregeld (via
- * een Stripe Payment Link die je zelf aanmaakt, zie het leveranciersprofiel)
- * — er is nog GEEN automatische incasso. Zelfde eerlijke "mock/pilotfase"-
- * aanpak als de rest van de betaalflow in deze app.
+ * Abonnementsgeld EN commissie lopen nu via een echte Stripe-koppeling (zie
+ * lib/payments/stripe.ts, app/api/webhooks/stripe/route.ts) — dit is dus
+ * geen "mock/pilotfase" meer zoals de rest van dit bestand ooit was.
  */
 
 /** Aantal succesvolle boekingen waarvoor een NIEUWE leverancier volledig gratis, met volledige toegang, kan uitproberen. */
 export const TRIAL_BOOKING_COUNT = 3;
 
-export type SubscriptionTier = "starter" | "groei" | "pro" | "premium" | "enterprise";
-/** De proefperiode ("trial") gedraagt zich als een zesde, tijdelijke laag bovenop de vijf echte abonnementen. */
+export type SubscriptionTier = "instap" | "starter" | "groei" | "pro" | "premium";
+/** De proefperiode ("trial") gedraagt zich als een zesde, tijdelijke laag bovenop de vijf echte niveaus. */
 export type EffectiveSupplierTier = "trial" | SubscriptionTier;
 
-export const SUBSCRIPTION_TIER_ORDER: SubscriptionTier[] = ["starter", "groei", "pro", "premium", "enterprise"];
+export const SUBSCRIPTION_TIER_ORDER: SubscriptionTier[] = ["instap", "starter", "groei", "pro", "premium"];
 
 /** Hoeveel dagen een geactiveerde "spotlight" actief blijft — zie lib/data/store.ts (activateSpotlight, getActiveSpotlightsForSupplier). */
 export const SPOTLIGHT_DURATION_DAYS = 3;
@@ -61,26 +48,26 @@ export const REVIEW_REVEAL_WINDOW_DAYS = 14;
 
 /**
  * Hoeveel spotlights een leverancier per kalendermaand gratis mag activeren
- * — 0 voor Starter/Groei (geen toegang), oplopend voor de drie hoogste
- * niveaus (op verzoek: Pro 1x, Premium 2x, Enterprise 4x per maand). De
- * proefperiode krijgt, net als de rest van het platform (zie
- * TRIAL_TIER_DEFINITION), de Enterprise-hoeveelheid.
+ * — 0 voor Instap/Starter/Groei (geen toegang), oplopend voor de twee
+ * hoogste niveaus (Pro 1x, Premium 2x per maand). De proefperiode krijgt,
+ * net als de rest van het platform (zie TRIAL_TIER_DEFINITION), de hoogste
+ * hoeveelheid.
  */
 export const SPOTLIGHT_MONTHLY_QUOTA: Record<EffectiveSupplierTier, number> = {
   trial: 4,
+  instap: 0,
   starter: 0,
   groei: 0,
   pro: 1,
   premium: 2,
-  enterprise: 4,
 };
 
 export const SUBSCRIPTION_TIER_LABELS: Record<SubscriptionTier, string> = {
+  instap: "Instap",
   starter: "Starter",
   groei: "Groei",
   pro: "Pro",
   premium: "Premium",
-  enterprise: "Enterprise",
 };
 
 interface CommissionBracket {
@@ -89,12 +76,35 @@ interface CommissionBracket {
   rate: number;
 }
 
+/** Eén concreet afschrijvingsbedrag — zie `SubscriptionTierDefinition.billing` hieronder. */
+export interface SubscriptionBillingOption {
+  /** Bedrag per afschrijving, in centen (bij "annual": het HELE jaarbedrag, niet per maand). */
+  priceCents: number;
+  /** Weergavetekst, bv. "€59/maand" of "€588/jaar (≈ €49/maand)". */
+  priceLabel: string;
+}
+
 export interface SubscriptionTierDefinition {
   key: EffectiveSupplierTier;
   label: string;
-  /** null = geen vaste prijs (Enterprise: op maat). */
-  priceCents: number | null;
+  /** Korte samenvatting voor kaarten/badges — niet per se letterlijk gelijk aan `billing`, bv. "Gratis + 9% commissie" voor Instap. */
   priceLabel: string;
+  /**
+   * De twee concrete afschrijvingsopties (spec-item #53-vervolg, aug. 2026:
+   * "leveranciers kunnen kiezen voor een abonnement maandtarief die
+   * maandelijks opzegbaar is... en dat ze eventueel voor een jaar kunnen
+   * tekenen en dan blijven de maandelijkse prijzen staan zoals ze zijn").
+   * `monthly` is bewust HOGER dan de vroegere vaste prijs (de "prijs voor
+   * flexibiliteit"); `annual` is precies de oude prijs × 12, in één keer
+   * per jaar afgeschreven — geen 12 losse maandtermijnen, want dat is de
+   * eenvoudigste en betrouwbaarste manier om "een jaar vastzetten tegen het
+   * huidige tarief" in Stripe te bouwen zonder zelf een systeem te bouwen
+   * dat vroegtijdig opzeggen binnen een jaarafspraak moet blokkeren (zie
+   * lib/payments/stripe.ts voor hoe dit als Stripe-price wordt aangemaakt).
+   * `null` voor Instap (geen abonnementsprijs, alleen commissie) en de
+   * proefperiode (gratis).
+   */
+  billing: { monthly: SubscriptionBillingOption; annual: SubscriptionBillingOption } | null;
   tagline: string;
   /** null = onbeperkt. */
   maxCategories: number | null;
@@ -140,7 +150,10 @@ export interface SubscriptionTierDefinition {
    * "Proactieve signalen" — VyrAI seint zelf (via de bestaande
    * notificatie-infrastructuur) als een lead dreigt te verlopen of een
    * gesprek al een tijd stilligt, i.p.v. dat de leverancier er zelf naar
-   * moet vragen. Alleen Enterprise (en de proefperiode).
+   * moet vragen. Was ooit een Enterprise-exclusieve perk; sinds dat niveau
+   * verwijderd is (aug. 2026) staat dit voorlopig bij geen enkel betaald
+   * niveau meer aan — alleen de proefperiode heeft dit nu nog (zie
+   * app/api/cron/supplier-proactive-signals/route.ts).
    */
   assistantProactiveSignals: boolean;
   /** Weergavetekst voor de vergelijkingstabel op het leveranciersprofiel. */
@@ -150,12 +163,66 @@ export interface SubscriptionTierDefinition {
 /** Maximumbedrag aan platformkosten per boeking, ongeacht het gestaffelde tarief hieronder. */
 export const COMMISSION_FEE_CAP_CENTS = 40_000; // €400
 
+/**
+ * HERZIENING (aug. 2026, op verzoek van Cem — livegang van echte Stripe-
+ * facturering): drie wijzigingen t.o.v. het eerdere vijflaags-model.
+ *
+ * 1) "Enterprise" (voorheen "vanaf €299/maand, op maat") is VERWIJDERD —
+ *    Premium blijft het hoogste, vast geprijsde niveau.
+ * 2) Nieuw niveau "Instap" toegevoegd, en de nieuwe DEFAULT voor elke
+ *    nieuwe leverancier (i.p.v. Starter voorheen) — gratis, geen
+ *    abonnementsgeld, een vlakke 9%-commissie per boeking i.p.v. een
+ *    gestaffeld tarief. Cems eigen woorden: "veel gebruikers willen eerst
+ *    aankijken hoe het platform werkt, om vervolgens een abonnement af te
+ *    nemen" — de perks zijn daarom bewust karig (gelijk aan Starters caps,
+ *    maar zonder al het andere: geen matching-boost, geen badge, geen
+ *    pakketten, geen VyrAI) zodat een groeiende leverancier al snel voordeel
+ *    ziet in overstappen op een abonnement.
+ * 3) Starter/Groei/Pro/Premium hebben nu elk TWEE prijzen (zie `billing`
+ *    hierboven) i.p.v. één: maandelijks opzegbaar (hoger dan de oude vaste
+ *    prijs) of een jaarafspraak (= de oude prijs, nu als jaarbedrag).
+ */
 export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefinition> = {
+  instap: {
+    key: "instap",
+    label: "Instap",
+    priceLabel: "Gratis + 9% commissie",
+    billing: null,
+    tagline: "Geen abonnementskosten — probeer Vyra eerst uit, betaal alleen per boeking.",
+    maxCategories: 1,
+    maxGalleryPhotos: 3,
+    maxServiceRadiusKm: 25,
+    matchingBoost: 0,
+    guaranteedTopPosition: false,
+    insightMetrics: 0,
+    badge: "none",
+    personalSupportLine: false,
+    dedicatedAccountManager: false,
+    packagesEnabled: false,
+    taglineEnabled: false,
+    coverPhotoEnabled: false,
+    introVideoEnabled: false,
+    commissionTiers: [{ uptoCents: null, rate: 0.09 }], // vlak 9%, geen schijven
+    assistantTier: 0,
+    assistantDailyLimit: 0,
+    assistantProactiveSignals: false,
+    perks: [
+      "Geen abonnementskosten",
+      "1 categorie",
+      "Tot 3 foto's in je profiel",
+      "Werkgebied tot 25 km",
+      "Onbeperkt reageren op aanvragen",
+      "9% commissie per boeking",
+    ],
+  },
   starter: {
     key: "starter",
     label: "Starter",
-    priceCents: 4_900,
-    priceLabel: "€49/maand",
+    priceLabel: "Vanaf €49/maand",
+    billing: {
+      monthly: { priceCents: 5_900, priceLabel: "€59/maand" },
+      annual: { priceCents: 58_800, priceLabel: "€588/jaar (≈ €49/maand)" },
+    },
     tagline: "Om te beginnen — één categorie, altijd zichtbaar in matching.",
     maxCategories: 1,
     maxGalleryPhotos: 3,
@@ -190,8 +257,11 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
   groei: {
     key: "groei",
     label: "Groei",
-    priceCents: 7_900,
-    priceLabel: "€79/maand",
+    priceLabel: "Vanaf €79/maand",
+    billing: {
+      monthly: { priceCents: 9_500, priceLabel: "€95/maand" },
+      annual: { priceCents: 94_800, priceLabel: "€948/jaar (≈ €79/maand)" },
+    },
     tagline: "Meer categorieën, meer zichtbaarheid, minder commissie.",
     maxCategories: 3,
     maxGalleryPhotos: 10,
@@ -228,8 +298,11 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
   pro: {
     key: "pro",
     label: "Pro",
-    priceCents: 12_900,
-    priceLabel: "€129/maand",
+    priceLabel: "Vanaf €129/maand",
+    billing: {
+      monthly: { priceCents: 15_500, priceLabel: "€155/maand" },
+      annual: { priceCents: 154_800, priceLabel: "€1.548/jaar (≈ €129/maand)" },
+    },
     tagline: "Uitgelicht profiel, geen commissie meer.",
     maxCategories: null,
     maxGalleryPhotos: null,
@@ -267,8 +340,11 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
   premium: {
     key: "premium",
     label: "Premium",
-    priceCents: 19_900,
-    priceLabel: "€199/maand",
+    priceLabel: "Vanaf €199/maand",
+    billing: {
+      monthly: { priceCents: 23_900, priceLabel: "€239/maand" },
+      annual: { priceCents: 238_800, priceLabel: "€2.388/jaar (≈ €199/maand)" },
+    },
     tagline: "Gegarandeerd bovenaan, met persoonlijke ondersteuning.",
     maxCategories: null,
     maxGalleryPhotos: null,
@@ -300,53 +376,20 @@ export const SUBSCRIPTION_TIERS: Record<SubscriptionTier, SubscriptionTierDefini
       "VyrAI-assistent: ook dagelijkse briefing, prijsadvies en profieltekst-hulp",
     ],
   },
-  enterprise: {
-    key: "enterprise",
-    label: "Enterprise",
-    priceCents: null,
-    priceLabel: "Vanaf €299/maand, op maat",
-    tagline: "Voor grote, veelboekende leveranciers — op maat.",
-    maxCategories: null,
-    maxGalleryPhotos: null,
-    maxServiceRadiusKm: null,
-    matchingBoost: 20,
-    guaranteedTopPosition: true,
-    insightMetrics: 3,
-    badge: "elite",
-    personalSupportLine: true,
-    dedicatedAccountManager: true,
-    packagesEnabled: true,
-    taglineEnabled: true,
-    coverPhotoEnabled: true,
-    introVideoEnabled: true,
-    commissionTiers: [{ uptoCents: null, rate: 0 }],
-    assistantTier: 2,
-    assistantDailyLimit: null,
-    assistantProactiveSignals: true,
-    perks: [
-      "Alles van Premium",
-      "Onbeperkt werkgebied",
-      "Dedicated accountmanager",
-      "Rapportages op aanvraag",
-      "Maatwerkafspraken mogelijk",
-      "0% commissie op boekingen",
-      "VyrAI-assistent zonder dagelijkse limiet + proactieve signalen",
-    ],
-  },
 };
 
 /**
- * Wat een leverancier tijdens de proefperiode krijgt: dezelfde perks als
- * Enterprise (zodat hij het volledige platform kan ervaren vóórdat hij een
- * abonnement kiest, zie de toelichting hierboven), maar zonder badge — die
- * hoort bij een echt gekozen (en straks betaald) abonnement — en met 0%
- * commissie.
+ * Wat een leverancier tijdens de proefperiode krijgt: het volledige
+ * platform (zodat hij alles kan ervaren vóórdat hij een abonnement kiest,
+ * zie de toelichting hierboven), inclusief functies die zelfs Premium (het
+ * hoogste betaalde niveau) niet heeft — maar zonder badge, die hoort bij
+ * een echt gekozen (en straks betaald) abonnement — en met 0% commissie.
  */
 export const TRIAL_TIER_DEFINITION: SubscriptionTierDefinition = {
   key: "trial",
   label: "Proefperiode",
-  priceCents: null,
   priceLabel: "Gratis",
+  billing: null,
   tagline: `Je eerste ${TRIAL_BOOKING_COUNT} boekingen — met volledige toegang tot alles wat Vyra te bieden heeft.`,
   maxCategories: null,
   maxGalleryPhotos: null,
@@ -367,12 +410,17 @@ export const TRIAL_TIER_DEFINITION: SubscriptionTierDefinition = {
   assistantProactiveSignals: true,
   perks: [
     `Je eerste ${TRIAL_BOOKING_COUNT} boekingen volledig gratis, 0% commissie`,
-    "Volledige toegang tot alle Enterprise-functies, zodat je eerst kunt ervaren wat Vyra voor je kan doen",
+    "Volledige toegang tot alle functies, zodat je eerst kunt ervaren wat Vyra voor je kan doen",
   ],
 };
 
 export function getEffectiveTierDefinition(tier: EffectiveSupplierTier): SubscriptionTierDefinition {
-  return tier === "trial" ? TRIAL_TIER_DEFINITION : SUBSCRIPTION_TIERS[tier];
+  if (tier === "trial") return TRIAL_TIER_DEFINITION;
+  // `?? SUBSCRIPTION_TIERS.premium`: vangnet voor een niet (meer) bestaande
+  // waarde uit de database (bv. een oude "enterprise"-rij, van vóór dat
+  // niveau verwijderd werd, aug. 2026) — nooit crashen op verouderde data,
+  // val terug op het hoogste nog bestaande niveau i.p.v. `undefined`.
+  return SUBSCRIPTION_TIERS[tier] ?? SUBSCRIPTION_TIERS.premium;
 }
 
 /**
@@ -454,7 +502,7 @@ export const EMAIL_FROM = process.env.EMAIL_FROM ?? "Vyra <onboarding@resend.dev
 
 /**
  * Of er browser-pushmeldingen kunnen worden verstuurd (spec-item #131:
- * e-mail/push bij proactieve Enterprise-signalen), naast de bestaande
+ * e-mail/push bij proactieve signalen), naast de bestaande
  * in-app-meldingen en e-mail. Vereist een zelf-gegenereerd VAPID-sleutelpaar
  * (GEEN account bij een externe partij nodig, in tegenstelling tot bv.
  * Stripe/Resend — het is puur een cryptografisch sleutelpaar). De publieke
@@ -507,7 +555,7 @@ export function formatCurrency(
  * Berekent de platformkosten voor een boeking, volgens het gestaffelde
  * tarief van het abonnementsniveau (of de proefperiode) dat op dít moment
  * voor déze leverancier geldt — zie `resolveEffectiveSupplierTier` in
- * lib/data/store.ts. Voor Pro/Premium/Enterprise (en de proefperiode) is dat
+ * lib/data/store.ts. Voor Pro/Premium (en de proefperiode) is dat
  * tarief een enkele schijf van 0%, dus dan komt hier altijd 0 platformkosten
  * uit — dezelfde functie werkt voor alle niveaus, geen aparte "pro"-tak meer
  * nodig.
@@ -517,7 +565,7 @@ export function formatCurrency(
  * schijfpercentages, maar de blend ervan (handig voor weergave, bv.
  * "Platformkosten (4,1%)" op de afrekenpagina).
  */
-export function calculateCommission(supplierAmountInCents: number, tier: EffectiveSupplierTier = "starter") {
+export function calculateCommission(supplierAmountInCents: number, tier: EffectiveSupplierTier = "instap") {
   const definition = getEffectiveTierDefinition(tier);
   let remaining = supplierAmountInCents;
   let lowerBoundCents = 0;

@@ -461,8 +461,9 @@ export async function toggleStoreOpenAction(open: boolean): Promise<{ ok: boolea
  * toelichting.
  *
  * FIX (livegang-audit augustus 2026): dit liet een leverancier voorheen
- * zelf ELK niveau kiezen, dus ook rechtstreeks "Enterprise" — zonder dat er
- * ooit betaald werd. Cem heeft dit expliciet aangemerkt als iets om nu al
+ * zelf ELK niveau kiezen, dus ook rechtstreeks het hoogste (destijds
+ * "Enterprise") — zonder dat er ooit betaald werd. Cem heeft dit expliciet
+ * aangemerkt als iets om nu al
  * dicht te timmeren (in tegenstelling tot bv. het abonnementensysteem zelf,
  * wat een bewuste pilotkeuze blijft): downgraden (of hetzelfde niveau
  * kiezen) blijft vrij self-service, maar upgraden naar een hoger niveau dan
@@ -532,7 +533,8 @@ export async function requestSubscriptionUpgradeAction(tier: SubscriptionTier): 
  * `{ ok, error }`-vorm als `setSubscriptionTierAction`. Beschikbaar vanaf
  * Pro, met een oplopende maandelijkse limiet (zie SPOTLIGHT_MONTHLY_QUOTA in
  * lib/config.ts) — tijdens de proefperiode krijgt een leverancier, net als
- * bij de rest van het platform, de Enterprise-hoeveelheid.
+ * bij de rest van het platform, de hoogste hoeveelheid (hoger dan zelfs
+ * Premium, zie de toelichting bij SPOTLIGHT_MONTHLY_QUOTA).
  */
 export async function activateSpotlightAction(categoryKey: SupplierCategory): Promise<{ ok: boolean; error?: string }> {
   const user = await getCurrentUser();

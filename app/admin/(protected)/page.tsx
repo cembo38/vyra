@@ -5,7 +5,7 @@ import { Card } from "@/components/ui/Card";
 import { StageBadge } from "@/components/ui/Badge";
 import { getLatestAdminBriefing, listAllEvents, listAllOffers, listAllPayments, listAllRequests, listAllSupplierAccounts, listAllUsers } from "@/lib/data/store";
 import { isServiceRoleConfigured } from "@/lib/supabase/admin";
-import { SUBSCRIPTION_TIERS, SUBSCRIPTION_TIER_LABELS, SUBSCRIPTION_TIER_ORDER, formatCurrency } from "@/lib/config";
+import { SUBSCRIPTION_TIER_LABELS, SUBSCRIPTION_TIER_ORDER, formatCurrency } from "@/lib/config";
 import { EVENT_TYPE_LABELS } from "@/lib/types";
 import { Building2, CalendarDays, LineChart, Percent, Star, Users, Wallet } from "lucide-react";
 
@@ -37,11 +37,18 @@ export default async function AdminOverviewPage() {
   // alle betaalde boekingen, i.p.v. een hardcoded constante die niet meer
   // overal hetzelfde is.
   const blendedCommissionRate = gmv > 0 ? (revenue / gmv) * 100 : 0;
-  // Indicatieve MRR (spec-item #53-vervolg, SaaS-pivot): som van de
-  // maandprijs van het gekozen niveau per leverancier — dit is nog GEEN
-  // daadwerkelijk geïnd bedrag (geen automatische incasso, zie
-  // SubscriptionTierPicker), puur een schatting o.b.v. de gekozen niveaus.
-  const mrrEstimateCents = suppliers.reduce((sum, s) => sum + (SUBSCRIPTION_TIERS[s.subscriptionTier]?.priceCents ?? 0), 0);
+  // MRR (na de overstap op echte Stripe-facturering, aug. 2026): niet meer
+  // de statische lijstprijs van het niveau, maar het ECHTE bedrag waar de
+  // leverancier voor tekende (`subscription_price_cents`, vastgelegd op het
+  // moment van afsluiten — kan afwijken van de huidige lijstprijs als die
+  // later wijzigt). Een jaarabonnement wordt naar een maand-equivalent
+  // omgerekend (/12) zodat maand- en jaarbetalers eerlijk worden opgeteld.
+  // Instap-leveranciers hebben geen abonnementsprijs (0% commissie via
+  // subscriptie, wél 9% commissie — die zit al in `revenue` hierboven).
+  const mrrEstimateCents = suppliers.reduce((sum, s) => {
+    if (!s.subscriptionPriceCents) return sum;
+    return sum + (s.billingInterval === "annual" ? Math.round(s.subscriptionPriceCents / 12) : s.subscriptionPriceCents);
+  }, 0);
   const tierDistribution = SUBSCRIPTION_TIER_ORDER.map((key) => ({
     key,
     label: SUBSCRIPTION_TIER_LABELS[key],

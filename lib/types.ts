@@ -345,7 +345,7 @@ export interface SupplierProfile {
   /**
    * Welk abonnements-badge (spec-item #53-vervolg, SaaS-pivot) op dit moment
    * voor deze leverancier geldt — "aanbevolen" (Pro) of "elite"
-   * (Premium/Enterprise), altijd "none" tijdens de proefperiode (ook als er
+   * (Premium), altijd "none" tijdens de proefperiode (ook als er
    * al een hoger niveau is gekozen: dat niveau gaat pas écht in ná de
    * proefperiode, zie computeEffectiveTier() in lib/data/store.ts) en altijd
    * "none"/undefined voor de statische demo-catalogus. Gebruikt overal waar
@@ -476,11 +476,22 @@ export interface SupplierAccount {
   /**
    * Gekozen abonnementsniveau (spec-item #53, SaaS-pivot) — geldt zodra de
    * proefperiode (TRIAL_BOOKING_COUNT boekingen) voorbij is; zie
-   * `resolveEffectiveSupplierTier` in lib/data/store.ts. Self-service
-   * gekozen door de leverancier zelf op zijn profiel — nog geen automatische
-   * incasso, zie lib/config.ts.
+   * `resolveEffectiveSupplierTier` in lib/data/store.ts. Standaard "instap"
+   * voor nieuwe leveranciers (aug. 2026); een betaald niveau kiezen loopt
+   * via een echte Stripe-checkout (zie lib/payments/stripe.ts), waarna de
+   * webhook dit veld bijwerkt — nooit rechtstreeks door de leverancier zelf.
    */
   subscriptionTier: SubscriptionTier;
+  /** "monthly" (opzegbaar, hoger tarief) of "annual" (jaarafspraak, huidige lagere tarief) — null voor Instap/proefperiode (geen abonnement). Gezet vanuit de Stripe-webhook. */
+  billingInterval: "monthly" | "annual" | null;
+  /** Het bedrag (in centen, per afschrijving) waar deze leverancier ECHT voor tekende — bewust los van latere prijswijzigingen in lib/config.ts, zodat een bestaand abonnement niet stilzwijgend duurder wordt. Null voor Instap/proefperiode. */
+  subscriptionPriceCents: number | null;
+  /** Spiegelt Stripe's subscription-status (aug. 2026). "active" ook voor Instap (geen echt abonnement, maar niets "mis"). */
+  subscriptionStatus: "active" | "past_due" | "canceled" | "incomplete";
+  /** Stripe Customer-id — alleen gezet zodra deze leverancier ooit een Checkout Session heeft doorlopen. */
+  stripeCustomerId: string | null;
+  /** Stripe Subscription-id van het HUIDIGE abonnement — null voor Instap/proefperiode. */
+  stripeSubscriptionId: string | null;
   /** "Winkel open/gesloten" — zet de leverancier zelf uit als hij tijdelijk geen nieuwe aanvragen kan aannemen (spec-item #55). Gesloten = niet zichtbaar in zoeken/matching. */
   storeOpen: boolean;
   /** Tot 3 vaste niveaus (Basis/Standaard/Premium) — alleen bewerkbaar vanaf Pro, zie packagesEnabled in lib/config.ts. */
@@ -706,9 +717,11 @@ export interface Payment {
   /**
    * Welk abonnementsniveau (of de proefperiode) gold bij het aanmaken van
    * deze betaling — zie lib/config.ts. Historische rijen van vóór de
-   * SaaS-pivot kunnen ook nog de oude waarden "intro"/"tiered" bevatten.
+   * SaaS-pivot kunnen ook nog de oude waarden "intro"/"tiered"/"enterprise"
+   * bevatten (Enterprise is als niveau verwijderd, maar oude betaalrijen
+   * blijven ongewijzigd staan — zie migratie 0050).
    */
-  commissionTier: "trial" | "starter" | "groei" | "pro" | "premium" | "enterprise" | "intro" | "tiered";
+  commissionTier: "trial" | "instap" | "starter" | "groei" | "pro" | "premium" | "enterprise" | "intro" | "tiered";
   status: PaymentStatus;
   createdAt: string;
   paidAt: string | null;

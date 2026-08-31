@@ -6,7 +6,7 @@ import { generateSupplierBriefingAction } from "@/lib/actions/supplier-assistant
 
 /**
  * Dagelijkse prioriteitenbriefing (Premium+, spec-item #57) — verschijnt
- * alleen op het dashboard van Premium/Enterprise-leveranciers (en tijdens
+ * alleen op het dashboard van Premium-leveranciers (en tijdens
  * de proefperiode). `initialNarrative` komt uit de server-gerenderde cache
  * van vandaag (getCachedSupplierBriefing) — is die er nog niet, dan toont
  * dit component een knop om 'm (eenmalig per dag) te genereren.

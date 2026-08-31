@@ -18,7 +18,7 @@ export interface OfferWithSupplier extends OfferOption {
 /**
  * Klein icoontje voor het abonnements-badge (spec-item #53-vervolg,
  * SaaS-pivot) — "Aanbevolen" (Pro) of "Vyra Elite Partner"
- * (Premium/Enterprise), zichtbaar op precies de plek waar organisatoren
+ * (Premium), zichtbaar op precies de plek waar organisatoren
  * offertes vergelijken en kiezen (dit is dé plek waar die badge zijn werk
  * moet doen). Rendert niets voor demo-leveranciers of tijdens de
  * proefperiode van een leverancier — zie `tierBadge` in lib/types.ts.

@@ -36,7 +36,7 @@ async function requireSupplierAssistantAccess(requiredTier: 1 | 2 = 1) {
     const message =
       access.reason === "geen_toegang"
         ? "VyrAI-assistent is beschikbaar vanaf abonnement Pro. Upgrade je abonnement om dit te gebruiken."
-        : "Je hebt je dagelijkse VyrAI-limiet voor vandaag bereikt. Morgen kun je weer verder — bij Enterprise geldt geen limiet.";
+        : "Je hebt je dagelijkse VyrAI-limiet voor vandaag bereikt. Morgen kun je weer verder — met een hoger abonnement krijg je een hogere limiet.";
     return { ok: false as const, message };
   }
   return { ok: true as const, supplier };

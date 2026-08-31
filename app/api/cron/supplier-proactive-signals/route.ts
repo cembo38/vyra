@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { sendNotificationEmail } from "@/lib/email/send";
 import { sendPushNotification } from "@/lib/push";
-import { EMAIL_ENABLED, PUSH_ENABLED, TRIAL_BOOKING_COUNT } from "@/lib/config";
+import { EMAIL_ENABLED, PUSH_ENABLED, SUBSCRIPTION_TIERS, TRIAL_BOOKING_COUNT } from "@/lib/config";
 import { SUPPLIER_CATEGORY_LABELS, SupplierCategory } from "@/lib/types";
 
 type AdminClient = NonNullable<ReturnType<typeof createSupabaseAdminClient>>;
@@ -30,17 +30,24 @@ async function notifyOwnerByEmailAndPush(supabase: AdminClient, ownerId: string,
 }
 
 /**
- * "Proactieve signalen" (Enterprise-perk uit het VyrAI-leverancier-
- * voorstel, zie scratchpad/vyrai-leverancier-assistent-voorstel.html):
- * leveranciers met `assistantProactiveSignals: true` (Enterprise, én
- * iedereen die nog in de proefperiode zit — zie hieronder) krijgen
- * automatisch een melding bij (a) een aanvraag die binnen 24 uur verloopt
- * zonder reactie, en (b) een bevestigde boeking die binnen 7 dagen
- * plaatsvindt. Dit is dus dezelfde soort signalen als de dagelijkse
- * prioriteitenbriefing (zie computeSupplierBriefingSignals in
- * lib/data/store.ts), maar dan ONGEVRAAGD/op de achtergrond bezorgd i.p.v.
- * pas zichtbaar bij een paginabezoek — precies het verschil dat het
- * voorstel voor Enterprise belooft.
+ * "Proactieve signalen" (perk uit het VyrAI-leverancier-voorstel, zie
+ * scratchpad/vyrai-leverancier-assistent-voorstel.html): leveranciers met
+ * `assistantProactiveSignals: true` op hun abonnementsniveau (én iedereen
+ * die nog in de proefperiode zit — zie hieronder) krijgen automatisch een
+ * melding bij (a) een aanvraag die binnen 24 uur verloopt zonder reactie,
+ * en (b) een bevestigde boeking die binnen 7 dagen plaatsvindt. Dit is dus
+ * dezelfde soort signalen als de dagelijkse prioriteitenbriefing (zie
+ * computeSupplierBriefingSignals in lib/data/store.ts), maar dan
+ * ONGEVRAAGD/op de achtergrond bezorgd i.p.v. pas zichtbaar bij een
+ * paginabezoek.
+ *
+ * Was oorspronkelijk een Enterprise-exclusieve perk; sinds Enterprise
+ * verwijderd is (aug. 2026, op verzoek van Cem — dat niveau is niet
+ * vervangen door een ander niveau, ook niet Premium) heeft GEEN betaald
+ * niveau dit meer standaard aan staan — alleen de proefperiode. Zet
+ * `assistantProactiveSignals: true` op een niveau in lib/config.ts om dit
+ * weer als betaalde perk aan te bieden; deze cron leest die vlag dynamisch
+ * uit, dus dat is de enige plek die dan aangepast hoeft te worden.
  *
  * Waarom dit NIET via lib/data/store.ts's sb()-gebaseerde helpers loopt
  * (getSupplierLeads, getSupplierOrders, checkSupplierAssistantAccess, ...):
@@ -51,15 +58,17 @@ async function notifyOwnerByEmailAndPush(supabase: AdminClient, ownerId: string,
  * queries via de service-role-client, en group-by-supplier in JS omdat
  * Supabase-js geen server-side GROUP BY kent.
  *
- * Voor "wie is Enterprise" wordt bewust NIET alleen op
- * `subscription_tier = 'enterprise'` gefilterd. Precies zoals
- * computeEffectiveTier() in lib/data/store.ts vastlegt, geldt de
- * proefperiode (nog geen TRIAL_BOOKING_COUNT geaccepteerde boekingen)
- * ALTIJD als volledige toegang, ongeacht het gekozen abonnement — dus ook
- * een Starter- of Pro-leverancier die nog in de proefperiode zit, krijgt
- * hier proactieve signalen. Dat is geen losse aanname maar de letterlijke
- * spiegeling van hoe lib/config.ts de trial-tier-definitie al opzet
- * (assistantProactiveSignals: true bij zowel enterprise als trial).
+ * Voor "wie krijgt proactieve signalen" wordt bewust NIET op een hardcoded
+ * tier-string gefilterd, maar op de `assistantProactiveSignals`-vlag per
+ * niveau in `SUBSCRIPTION_TIERS` (zie `PROACTIVE_SIGNAL_TIERS` hieronder) —
+ * anders blijft een verwijderd/hernoemd niveau als losse string in deze
+ * cron staan, wat precies de bug was die het verwijderen van Enterprise
+ * hier zou hebben veroorzaakt. Precies zoals computeEffectiveTier() in
+ * lib/data/store.ts vastlegt, geldt de proefperiode (nog geen
+ * TRIAL_BOOKING_COUNT geaccepteerde boekingen) ALTIJD als volledige
+ * toegang, ongeacht het gekozen abonnement — dus ook een Starter- of
+ * Pro-leverancier die nog in de proefperiode zit, krijgt hier proactieve
+ * signalen.
  *
  * Dedupe via de bestaande `notifications.dedupe_key` (migratie 0005,
  * unieke index op (user_id, dedupe_key)) — dezelfde beproefde aanpak als
@@ -110,11 +119,17 @@ export async function GET(request: NextRequest) {
     acceptedCountBySupplier.set(supplierId, (acceptedCountBySupplier.get(supplierId) ?? 0) + 1);
   }
 
+  const PROACTIVE_SIGNAL_TIERS = new Set(
+    Object.entries(SUBSCRIPTION_TIERS)
+      .filter(([, def]) => def.assistantProactiveSignals)
+      .map(([tier]) => tier)
+  );
+
   const eligibleSupplierIds = suppliers
     .filter((s) => {
       const acceptedCount = acceptedCountBySupplier.get(s.id as string) ?? 0;
       const inTrial = acceptedCount < TRIAL_BOOKING_COUNT;
-      return inTrial || s.subscription_tier === "enterprise";
+      return inTrial || PROACTIVE_SIGNAL_TIERS.has(s.subscription_tier as string);
     })
     .map((s) => s.id as string);
 

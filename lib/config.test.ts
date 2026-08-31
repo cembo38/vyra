@@ -11,8 +11,9 @@ import {
  * Geldberekeningen zijn de plek waar een bug het duurst is (verkeerd
  * uitbetaald bedrag aan een leverancier, of een verkeerde commissie voor
  * Vyra zelf) — vandaar dat dit als eerste een test krijgt. Dekt het
- * abonnementenmodel (spec-item #53, SaaS-pivot): de proefperiode en alle
- * vijf abonnementsniveaus.
+ * abonnementenmodel (spec-item #53, SaaS-pivot, herzien aug. 2026: Instap
+ * i.p.v. Starter als default, Enterprise verwijderd, echte Stripe-facturering
+ * i.p.v. handmatig): de proefperiode en alle vijf abonnementsniveaus.
  */
 describe("calculateCommission", () => {
   describe("proefperiode ('trial')", () => {
@@ -27,6 +28,25 @@ describe("calculateCommission", () => {
 
     it("gebruikt dezelfde 0%-schijf als TRIAL_TIER_DEFINITION beschrijft", () => {
       expect(TRIAL_TIER_DEFINITION.commissionTiers).toEqual([{ uptoCents: null, rate: 0 }]);
+    });
+  });
+
+  describe("Instap (gratis abonnement, vlakke 9% commissie)", () => {
+    it("rekent een vlak percentage van 9%, ongeacht het bedrag (geen schijven)", () => {
+      const result = calculateCommission(10000, "instap"); // €100
+      expect(result.platformFee).toBe(Math.round(10000 * 0.09));
+      expect(result.total).toBe(result.supplierAmount + result.platformFee);
+      expect(result.rate).toBeCloseTo(0.09, 5);
+      expect(result.tier).toBe("instap");
+    });
+
+    it("is de standaardlaag als er geen tier wordt opgegeven (nieuwe default sinds aug. 2026)", () => {
+      const result = calculateCommission(10000);
+      expect(result.tier).toBe("instap");
+    });
+
+    it("heeft geen abonnementsprijs (alleen commissie)", () => {
+      expect(SUBSCRIPTION_TIERS.instap.billing).toBeNull();
     });
   });
 
@@ -55,11 +75,6 @@ describe("calculateCommission", () => {
       expect(result.total).toBe(5_000_000 + COMMISSION_FEE_CAP_CENTS);
     });
 
-    it("is de standaardlaag als er geen tier wordt opgegeven", () => {
-      const result = calculateCommission(10000);
-      expect(result.tier).toBe("starter");
-    });
-
     it("rondt de fee af op hele centen (geen halve centen in een uitbetaling)", () => {
       const result = calculateCommission(333, "starter");
       expect(Number.isInteger(result.platformFee)).toBe(true);
@@ -76,8 +91,8 @@ describe("calculateCommission", () => {
     });
   });
 
-  describe("Pro/Premium/Enterprise (0% commissie, vast maandbedrag i.p.v. per boeking)", () => {
-    it.each(["pro", "premium", "enterprise"] as const)("rekent geen platformkosten meer per boeking (%s)", (tier) => {
+  describe("Pro/Premium (0% commissie, vast abonnementsbedrag i.p.v. per boeking)", () => {
+    it.each(["pro", "premium"] as const)("rekent geen platformkosten meer per boeking (%s)", (tier) => {
       const result = calculateCommission(10000, tier);
       expect(result.platformFee).toBe(0);
       expect(result.total).toBe(result.supplierAmount);
@@ -88,6 +103,7 @@ describe("calculateCommission", () => {
 
   it("geeft 0 fee bij 0 bedrag, voor elke laag", () => {
     expect(calculateCommission(0, "trial").platformFee).toBe(0);
+    expect(calculateCommission(0, "instap").platformFee).toBe(0);
     expect(calculateCommission(0, "starter").platformFee).toBe(0);
     expect(calculateCommission(0, "groei").platformFee).toBe(0);
     expect(calculateCommission(0, "pro").platformFee).toBe(0);
@@ -95,15 +111,34 @@ describe("calculateCommission", () => {
 });
 
 describe("SUBSCRIPTION_TIERS", () => {
-  it("heeft een oplopende prijs voor Starter t/m Premium (Enterprise is op maat, dus null)", () => {
-    expect(SUBSCRIPTION_TIERS.starter.priceCents).toBeLessThan(SUBSCRIPTION_TIERS.groei.priceCents!);
-    expect(SUBSCRIPTION_TIERS.groei.priceCents).toBeLessThan(SUBSCRIPTION_TIERS.pro.priceCents!);
-    expect(SUBSCRIPTION_TIERS.pro.priceCents).toBeLessThan(SUBSCRIPTION_TIERS.premium.priceCents!);
-    expect(SUBSCRIPTION_TIERS.enterprise.priceCents).toBeNull();
+  it("heeft een oplopende maandprijs voor Starter t/m Premium (Instap is gratis, Enterprise bestaat niet meer)", () => {
+    expect(SUBSCRIPTION_TIERS.starter.billing!.monthly.priceCents).toBeLessThan(SUBSCRIPTION_TIERS.groei.billing!.monthly.priceCents);
+    expect(SUBSCRIPTION_TIERS.groei.billing!.monthly.priceCents).toBeLessThan(SUBSCRIPTION_TIERS.pro.billing!.monthly.priceCents);
+    expect(SUBSCRIPTION_TIERS.pro.billing!.monthly.priceCents).toBeLessThan(SUBSCRIPTION_TIERS.premium.billing!.monthly.priceCents);
+    expect((SUBSCRIPTION_TIERS as Record<string, unknown>).enterprise).toBeUndefined();
   });
 
-  it("begint niet lager dan €49/maand voor het goedkoopste betaalde niveau", () => {
-    expect(SUBSCRIPTION_TIERS.starter.priceCents).toBe(4_900);
+  it("de jaarprijs is per niveau altijd goedkoper per maand dan de maandelijks-opzegbare prijs (de 'korting voor vastzetten')", () => {
+    for (const tier of ["starter", "groei", "pro", "premium"] as const) {
+      const billing = SUBSCRIPTION_TIERS[tier].billing!;
+      expect(billing.annual.priceCents / 12).toBeLessThan(billing.monthly.priceCents);
+    }
+  });
+
+  it("begint niet lager dan €59/maand voor het goedkoopste betaalde, maandelijks opzegbare niveau", () => {
+    expect(SUBSCRIPTION_TIERS.starter.billing!.monthly.priceCents).toBe(5_900);
+  });
+
+  it("Instap heeft geen abonnementsprijs, maar wel een commissie van 9%", () => {
+    expect(SUBSCRIPTION_TIERS.instap.billing).toBeNull();
+    expect(SUBSCRIPTION_TIERS.instap.commissionTiers).toEqual([{ uptoCents: null, rate: 0.09 }]);
+  });
+
+  it("Instap heeft bewust minder perks dan Starter (prikkel om te upgraden)", () => {
+    expect(SUBSCRIPTION_TIERS.instap.matchingBoost).toBe(0);
+    expect(SUBSCRIPTION_TIERS.instap.badge).toBe("none");
+    expect(SUBSCRIPTION_TIERS.instap.packagesEnabled).toBe(false);
+    expect(SUBSCRIPTION_TIERS.instap.assistantTier).toBe(0);
   });
 });
 

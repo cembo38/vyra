@@ -18,7 +18,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 type Status = "checking" | "unsupported" | "enabled" | "disabled" | "denied";
 
 /**
- * "E-mail/push bij proactieve Enterprise-signalen" (spec-item #131) —
+ * "E-mail/push bij proactieve signalen" (spec-item #131) —
  * schakelt browser-pushmeldingen voor déze browser/dit apparaat in/uit.
  * Puur best-effort: als de browser dit niet ondersteunt, of de gebruiker
  * heeft meldingen ooit geweigerd, toont dit gewoon een neutrale status

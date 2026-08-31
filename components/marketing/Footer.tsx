@@ -39,10 +39,11 @@ export function Footer() {
         </div>
         <div className="mt-12 flex flex-col gap-2 border-t border-line-soft pt-6 text-xs text-ink-faint sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} Vyra. Alle rechten voorbehouden.</p>
-          {/* Sinds het abonnementenmodel voor leveranciers (spec-item #53-vervolg,
-              SaaS-pivot): organisatoren betalen nooit platformkosten, leveranciers
-              kiezen zelf een abonnement — zie SUBSCRIPTION_TIERS in lib/config.ts. */}
-          <p>Leveranciers kiezen zelf hun abonnement bij Vyra, vanaf {formatCurrency(SUBSCRIPTION_TIERS.starter.priceCents!)}/maand — organisatoren betalen nooit platformkosten.</p>
+          {/* Sinds het nieuwe tarievenmodel (aug. 2026): leveranciers starten
+              gratis op Instap (commissie per boeking) of kiezen direct een
+              abonnement — zie SUBSCRIPTION_TIERS in lib/config.ts. Organisatoren
+              betalen nooit een aparte platformkostenregel. */}
+          <p>Leveranciers starten gratis bij Vyra, of kiezen een abonnement vanaf {formatCurrency(SUBSCRIPTION_TIERS.starter.billing!.monthly.priceCents)}/maand — organisatoren betalen nooit platformkosten.</p>
         </div>
       </div>
     </footer>

@@ -28,7 +28,7 @@ const SUGGESTIONS = [
  * `usage` ("resterende VyrAI-limiet zichtbaar maken", livegang-audit) —
  * tot nu toe ontdekte een leverancier zijn dagelijkse limiet pas ACHTERAF,
  * via de afwijzende tekst na een mislukte poging. `limit: null` = geen
- * dagelijkse limiet (Enterprise/proefperiode) — dan tonen we niets, want
+ * dagelijkse limiet (alleen de proefperiode heeft dit) — dan tonen we niets, want
  * er is niets te bewaken.
  */
 export function SupplierAssistantWidget({ enabled, usage }: { enabled: boolean; usage: { used: number; limit: number | null } | null }) {
@@ -90,7 +90,7 @@ export function SupplierAssistantWidget({ enabled, usage }: { enabled: boolean; 
 
       {limitReached && (
         <p className="mt-3 rounded-xl bg-warning-50 px-3 py-2 text-xs text-ink-soft">
-          Je hebt je {usage!.limit} gratis VyrAI-aanroepen voor vandaag gebruikt (geldt voor chat, conceptantwoorden, offertehulp en meer samen). Morgen kun je weer verder, of upgrade naar Enterprise voor een onbeperkte limiet.
+          Je hebt je {usage!.limit} gratis VyrAI-aanroepen voor vandaag gebruikt (geldt voor chat, conceptantwoorden, offertehulp en meer samen). Morgen kun je weer verder, of upgrade naar een hoger abonnement voor een hogere dagelijkse limiet.
         </p>
       )}
 

@@ -18,12 +18,14 @@ import { cn } from "@/lib/utils";
  * per niveau is ingesteld (zie de toelichting onderaan).
  *
  * FIX (livegang-audit augustus 2026): een leverancier kon hier voorheen
- * zelf rechtstreeks naar Enterprise upgraden, zonder ooit te betalen —
- * `setSubscriptionTierAction` blokkeert dat nu server-side. Downgraden
- * blijft altijd één klik. Upgraden gaat sinds de livegang-audit via een
+ * zelf rechtstreeks naar het hoogste niveau upgraden, zonder ooit te
+ * betalen — `setSubscriptionTierAction` blokkeert dat nu server-side.
+ * Downgraden (en het gratis Instap-niveau kiezen) blijft altijd één klik.
+ * Upgraden naar een betaald niveau gaat sinds de livegang-audit via een
  * aanvraag-flow: de leverancier vraagt een niveau aan, Cem beoordeelt en
  * keurt handmatig goed/af (zie AdminTierUpgradeRequestActions op
- * /admin/leveranciers) — een tussenstap totdat er een echte betaalflow is.
+ * /admin/leveranciers) — een tussenstap totdat er een echte Stripe-
+ * betaalflow is (die vervangt deze aanvraag-flow, zie lib/payments/stripe.ts).
  */
 export function SubscriptionTierPicker({
   currentTier,
@@ -83,7 +85,7 @@ export function SubscriptionTierPicker({
         <div className="mb-4 flex items-center gap-2.5 rounded-xl border border-ochre/40 bg-ochre-50 px-4 py-3 text-sm text-ink">
           <Sparkles className="size-4 shrink-0 text-ochre" />
           <span>
-            Je zit nog in je proefperiode: <strong>volledige toegang</strong> tot alle Enterprise-functies, 0% commissie. Nog{" "}
+            Je zit nog in je proefperiode: <strong>volledige toegang</strong> tot alles wat Vyra te bieden heeft, 0% commissie. Nog{" "}
             <strong>{trialBookingsRemaining}</strong> gratis boeking{trialBookingsRemaining !== 1 ? "en" : ""} te gaan — wil je alvast
             een betaald niveau aanvragen, gebruik dan de knop hieronder bij dat niveau.
           </span>

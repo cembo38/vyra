@@ -351,7 +351,12 @@ function rowToSupplierAccount(r: Row): SupplierAccount {
     socialTiktok: r.social_tiktok ?? null,
     logoUrl: r.logo_url ?? null,
     galleryUrls: r.gallery_urls ?? [],
-    subscriptionTier: (r.subscription_tier ?? "starter") as SubscriptionTier,
+    subscriptionTier: (r.subscription_tier ?? "instap") as SubscriptionTier,
+    billingInterval: (r.billing_interval ?? null) as "monthly" | "annual" | null,
+    subscriptionPriceCents: r.subscription_price_cents ?? null,
+    subscriptionStatus: (r.subscription_status ?? "active") as SupplierAccount["subscriptionStatus"],
+    stripeCustomerId: r.stripe_customer_id ?? null,
+    stripeSubscriptionId: r.stripe_subscription_id ?? null,
     storeOpen: r.store_open ?? true,
     packages: (r.packages ?? []) as SupplierPackage[],
     tagline: r.tagline ?? null,
@@ -1767,7 +1772,7 @@ function computeEffectiveTier(supplier: SupplierAccount, priorAcceptedBookings: 
  */
 export async function resolveEffectiveSupplierTier(supplierId: string, excludeOfferId?: string): Promise<EffectiveSupplierTier> {
   const supplier = await getSupplierAccount(supplierId);
-  if (!supplier) return "starter";
+  if (!supplier) return "instap"; // defensief vangnet; "instap" is sinds aug. 2026 de default voor nieuwe leveranciers
   const priorBookings = await countAcceptedOffersForSupplier(supplierId, excludeOfferId);
   return computeEffectiveTier(supplier, priorBookings);
 }
@@ -1834,7 +1839,7 @@ export async function logSupplierAssistantUsage(supplierId: string, feature: Sup
  * afwijzende tekst die checkSupplierAssistantAccess() teruggeeft ná een
  * mislukte poging. Dit geeft dezelfde cijfers vooraf, zodat de UI
  * (SupplierAssistantWidget) het gewoon kan tonen — `limit: null` betekent
- * onbeperkt (Enterprise/proefperiode), niet "geen toegang"; dat laatste
+ * onbeperkt (alleen de proefperiode), niet "geen toegang"; dat laatste
  * wordt al apart afgedwongen via `assistantTier`.
  */
 export async function getSupplierAssistantUsageStatus(supplierId: string): Promise<{ used: number; limit: number | null }> {
@@ -2298,8 +2303,8 @@ async function findRealMatchingSuppliers(
   const unavailableIds = opts.eventDate ? await getUnavailableSupplierIds(pool.map((s) => s.id), opts.eventDate) : new Set<string>();
 
   // Abonnementsniveau-perk (spec-item #53-vervolg, SaaS-pivot): een
-  // additieve matching-boost per niveau (Groei/Pro/Premium/Enterprise, en de
-  // proefperiode zelf) plus, voor Premium/Enterprise, een HARDE
+  // additieve matching-boost per niveau (Groei/Pro/Premium, en de
+  // proefperiode zelf) plus, voor Premium, een HARDE
   // sorteer-override — "gegarandeerd bovenaan" moet dat ook letterlijk zijn,
   // niet slechts een kans, anders klopt de tekst in de voorwaarden niet met
   // wat er werkelijk gebeurt.
