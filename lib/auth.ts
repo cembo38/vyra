@@ -35,9 +35,25 @@ export async function getCurrentUser(): Promise<UserAccount | null> {
   return account;
 }
 
-function authFailure(): never {
-  throw new Error("Supabase is niet geconfigureerd. Zet NEXT_PUBLIC_SUPABASE_URL en NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local.");
-}
+/**
+ * Sentinel-foutwaarde voor "Supabase is niet geconfigureerd (of de
+ * omgevingsvariabelen kloppen niet)" — geëxporteerd zodat
+ * lib/actions/auth-actions.ts 'm exact kan herkennen in authErrorCode() en
+ * er een duidelijke Nederlandse melding aan kan koppelen.
+ *
+ * BEWUST geen throw (zoals hiervoor): dit gebeurt op de meest kritieke plek
+ * in de hele app — inloggen/registreren zelf — en zou anders een
+ * onafgehandelde crash in de server action veroorzaken. Voor de gebruiker
+ * zag dat eruit als "de inlogknop doet he­lemaal niets": geen foutmelding,
+ * geen redirect, gewoon stilte (livegang-incident aug. 2026, waarschijnlijk
+ * veroorzaakt doordat de Supabase-omgevingsvariabelen in Vercel per ongeluk
+ * zijn gewijzigd/verwijderd terwijl de Stripe-sleutels ernaast werden
+ * toegevoegd). Alle vier de aanroepers hieronder hebben al een bestaand
+ * `{ error: string | null }`-contract — deze sentinel hergebruikt dat
+ * gewoon, in plaats van er als enige plek in dit bestand een uitzondering
+ * op te maken.
+ */
+export const AUTH_NOT_CONFIGURED_ERROR = "AUTH_NOT_CONFIGURED";
 
 /**
  * Maakt een account aan met e-mail + wachtwoord. De database-trigger
@@ -60,7 +76,7 @@ export async function signUpWithPassword(params: {
   referredBy?: string | null;
 }): Promise<{ error: string | null; confirmedSession: boolean; userId: string | null }> {
   const supabase = await createSupabaseServerClient();
-  if (!supabase) authFailure();
+  if (!supabase) return { error: AUTH_NOT_CONFIGURED_ERROR, confirmedSession: false, userId: null };
 
   const { data, error } = await supabase.auth.signUp({
     email: params.email,
@@ -81,7 +97,7 @@ export async function signUpWithPassword(params: {
 
 export async function signInWithPassword(email: string, password: string): Promise<{ error: string | null }> {
   const supabase = await createSupabaseServerClient();
-  if (!supabase) authFailure();
+  if (!supabase) return { error: AUTH_NOT_CONFIGURED_ERROR };
 
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) return { error: error.message };
@@ -103,7 +119,7 @@ export async function signOut() {
  */
 export async function requestPasswordReset(email: string, redirectTo: string): Promise<{ error: string | null }> {
   const supabase = await createSupabaseServerClient();
-  if (!supabase) authFailure();
+  if (!supabase) return { error: AUTH_NOT_CONFIGURED_ERROR };
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
   if (error) return { error: error.message };
@@ -118,7 +134,7 @@ export async function requestPasswordReset(email: string, redirectTo: string): P
  */
 export async function updatePassword(newPassword: string): Promise<{ error: string | null }> {
   const supabase = await createSupabaseServerClient();
-  if (!supabase) authFailure();
+  if (!supabase) return { error: AUTH_NOT_CONFIGURED_ERROR };
 
   const { error } = await supabase.auth.updateUser({ password: newPassword });
   if (error) return { error: error.message };

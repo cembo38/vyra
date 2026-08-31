@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { signUpWithPassword, signInWithPassword, signOut, getCurrentUser, requestPasswordReset, updatePassword } from "@/lib/auth";
+import { signUpWithPassword, signInWithPassword, signOut, getCurrentUser, requestPasswordReset, updatePassword, AUTH_NOT_CONFIGURED_ERROR } from "@/lib/auth";
 import { grantReferralRewardIfEligible, updateUser, getSupplierAccountByOwner } from "@/lib/data/store";
 
 async function siteOrigin() {
@@ -20,6 +20,12 @@ async function siteOrigin() {
  * cijfercode).
  */
 function authErrorCode(message: string): string {
+  // Exacte sentinel-match, geen regex: dit is geen echte Supabase-
+  // foutmelding maar onze eigen markering voor "Supabase is niet
+  // (goed) geconfigureerd" (zie AUTH_NOT_CONFIGURED_ERROR in lib/auth.ts) —
+  // moet vóór de generieke checks hieronder staan, anders komt dit bij het
+  // vage "send_failed" terecht i.p.v. een duidelijke eigen melding.
+  if (message === AUTH_NOT_CONFIGURED_ERROR) return "config_error";
   if (/already registered|already exists/i.test(message)) return "already_registered";
   if (/invalid login credentials/i.test(message)) return "invalid_credentials";
   if (/email not confirmed/i.test(message)) return "not_confirmed";
