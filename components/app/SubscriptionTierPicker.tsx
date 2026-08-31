@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Clock, CreditCard, Crown, Loader2, Sparkles } from "lucide-react";
 import { changeSubscriptionTierAction, openBillingPortalAction } from "@/lib/actions/supplier-actions";
-import { SUBSCRIPTION_TIERS, SUBSCRIPTION_TIER_ORDER, SubscriptionTier } from "@/lib/config";
+import { SUBSCRIPTION_TIERS, SUBSCRIPTION_TIER_ORDER, SubscriptionTier, formatCurrency } from "@/lib/config";
 import type { SupplierTierUpgradeRequest } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -85,6 +85,37 @@ export function SubscriptionTierPicker({
     });
   }
 
+  /** Instap staat los van de vergelijkingsgrid — zie de toelichting bij de JSX hieronder. */
+  const paidTierOrder = SUBSCRIPTION_TIER_ORDER.filter((key) => key !== "instap");
+  const instapDef = SUBSCRIPTION_TIERS.instap;
+  const instapIsCurrent = selected === "instap";
+  const instapIsBusy = pending && pendingTier === "instap";
+
+  /**
+   * Prijs die we tonen op een kaart: ALTIJD als maandbedrag, ook bij
+   * jaarlijkse facturering (Cems expliciete verzoek — het volledige
+   * jaarbedrag in het groot tonen ("€588/jaar") werkte ontmoedigend). Bij
+   * "annual" is dit dus het gedeelde maandbedrag (jaarbedrag / 12), niet het
+   * losse maandtarief `billing.monthly` (dat is bewust hoger, de "prijs voor
+   * flexibiliteit" — zie SUBSCRIPTION_TIERS-toelichting in lib/config.ts).
+   * Het daadwerkelijke jaarbedrag blijft wél zichtbaar, maar alleen klein en
+   * secundair (`billingCaption` hieronder) — nooit verborgen, want dat is
+   * precies het bedrag dat wordt afgeschreven.
+   */
+  function priceDisplayFor(tier: SubscriptionTier): { amountLabel: string; caption: string } | null {
+    const def = SUBSCRIPTION_TIERS[tier];
+    if (!def.billing) return null;
+    const interval = intervalFor(tier);
+    if (interval === "monthly") {
+      return { amountLabel: `${def.billing.monthly.priceLabel}`, caption: "Maandelijks opzegbaar." };
+    }
+    const monthlyEquivalentCents = Math.round(def.billing.annual.priceCents / 12);
+    return {
+      amountLabel: `${formatCurrency(monthlyEquivalentCents)}/maand`,
+      caption: `Jaarlijks in één keer afgeschreven (${formatCurrency(def.billing.annual.priceCents)}/jaar), daarna automatisch met telkens een jaar verlengd.`,
+    };
+  }
+
   function manageBilling() {
     if (portalPending) return;
     setError(null);
@@ -109,6 +140,42 @@ export function SubscriptionTierPicker({
       )}
 
       {/*
+        Instap staat expres LOS van de vergelijkingsgrid, als smalle
+        horizontale balk erboven (Cems verzoek: "niet zo prominent een
+        verticale balk, mag kleiner en horizontaal boven de 4
+        abonnementsvormen") — Instap is bewust het minst opvallende niveau
+        (geen abonnementsgeld, karige perks, puur een "probeer eerst uit"-
+        instap), dus verdient ook visueel minder gewicht dan de vier echte
+        abonnementen die er evenveel naast elkaar staan.
+      */}
+      <div
+        className={cn(
+          "mb-3 flex flex-col gap-2 rounded-xl border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4",
+          instapIsCurrent ? "border-clay bg-clay/5" : "border-line-soft"
+        )}
+      >
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+            <p className="font-display text-sm text-ink">{instapDef.label}</p>
+            <p className="text-xs font-medium text-ink-soft">{instapDef.priceLabel}</p>
+          </div>
+          <p className="mt-0.5 break-words text-xs text-ink-faint">{instapDef.tagline}</p>
+        </div>
+        <button
+          type="button"
+          disabled={pending || instapIsCurrent}
+          onClick={() => choose("instap")}
+          className={cn(
+            "lift-hover inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-xs font-medium disabled:opacity-60",
+            instapIsCurrent ? "border border-clay/40 bg-clay-50 text-ink" : "border border-line-soft bg-paper text-ink hover:border-ink/30"
+          )}
+        >
+          {instapIsBusy ? <Loader2 className="size-3.5 animate-spin" /> : instapIsCurrent ? <Check className="size-3.5" /> : null}
+          {instapIsCurrent ? "Huidig niveau" : "Dit niveau kiezen"}
+        </button>
+      </div>
+
+      {/*
         BEWUST geen viewport-breakpoints (sm:/lg:/xl:) meer voor het aantal
         kolommen — dit was de daadwerkelijke oorzaak van de layoutbug die Cem
         meldde: die breakpoints kijken naar de schermbreedte, niet naar hoe
@@ -121,19 +188,20 @@ export function SubscriptionTierPicker({
         `repeat(auto-fit,minmax(200px,1fr))` laat de browser i.p.v. daarvan
         kijken naar de ECHTE beschikbare breedte van dit grid en past het
         aantal kolommen daarop aan (1 kolom als er nauwelijks ruimte is, tot
-        5 op een écht brede pagina) — dat werkt overal correct, ongeacht in
+        4 op een écht brede pagina) — dat werkt overal correct, ongeacht in
         welke kolombreedte dit component ooit wordt geplaatst.
       */}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3">
-        {SUBSCRIPTION_TIER_ORDER.map((key) => {
+        {paidTierOrder.map((key) => {
           const def = SUBSCRIPTION_TIERS[key];
           const cardIndex = SUBSCRIPTION_TIER_ORDER.indexOf(key);
           const currentIndex = SUBSCRIPTION_TIER_ORDER.indexOf(selected);
           const interval = intervalFor(key);
-          const isCurrent = key === selected && (key === "instap" || interval === currentBillingInterval);
+          const isCurrent = key === selected && interval === currentBillingInterval;
           const isBusy = pending && pendingTier === key;
           const isUpgradeInFallback = !paymentsEnabled && cardIndex > currentIndex;
           const isRequested = requestedTier === key;
+          const price = priceDisplayFor(key);
           return (
             <div
               key={key}
@@ -148,11 +216,9 @@ export function SubscriptionTierPicker({
                 {def.badge === "aanbevolen" && <Sparkles className="size-3.5 shrink-0 text-ochre" />}
                 {def.badge === "elite" && <Crown className="size-3.5 shrink-0 text-clay" />}
               </div>
-              {def.billing ? (
+              {price && (
                 <>
-                  <p className="mt-0.5 break-words text-sm font-medium text-ink-soft">
-                    {interval === "annual" ? def.billing.annual.priceLabel : def.billing.monthly.priceLabel}
-                  </p>
+                  <p className="mt-0.5 break-words text-sm font-medium text-ink-soft">{price.amountLabel}</p>
                   <div className="mt-1.5 inline-flex w-fit rounded-lg border border-line-soft p-0.5 text-[11px]">
                     <button
                       type="button"
@@ -169,9 +235,16 @@ export function SubscriptionTierPicker({
                       Jaarlijks
                     </button>
                   </div>
+                  {/*
+                    Klein en secundair — Cem wil het jaarbedrag niet meer
+                    groot/eerst tonen (werkte ontmoedigend), maar het moet wel
+                    ergens blijven staan: dit ÍS het bedrag dat wordt
+                    afgeschreven, en Artikel 5 van de voorwaarden verwijst
+                    hiernaar (jaarabonnement, niet tussentijds opzegbaar,
+                    automatische verlenging).
+                  */}
+                  <p className="mt-1 break-words text-[11px] leading-snug text-ink-faint">{price.caption}</p>
                 </>
-              ) : (
-                <p className="mt-0.5 break-words text-sm font-medium text-ink-soft">{def.priceLabel}</p>
               )}
               <p className="mt-1.5 break-words text-xs text-ink-faint">{def.tagline}</p>
               {/*

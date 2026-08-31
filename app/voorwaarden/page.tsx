@@ -81,10 +81,21 @@ export default function TermsPage() {
               </ul>
               <p className="mt-2.5">
                 Een leverancier kan op elk moment zelf van niveau wisselen via zijn profiel. Instap is en blijft gratis en direct
-                zelf te kiezen. Bij een betaald niveau kiest de leverancier tussen een maandelijks opzegbaar tarief of een
-                jaartarief (in één keer per jaar afgeschreven, tegen een lagere maandprijs); het bijbehorende bedrag wordt
-                automatisch via Stripe geïncasseerd. Downgraden naar Instap vanuit een betaald niveau behoudt de reeds betaalde
-                periode: de wijziging gaat pas in zodra die periode afloopt, zonder terugbetaling van het resterende bedrag.
+                zelf te kiezen. Bij een betaald niveau kiest de leverancier tussen een maandelijks opzegbaar tarief (hoger
+                maandbedrag) of een jaartarief (lager maandbedrag, in één keer per jaar vooruit afgeschreven); het bijbehorende
+                bedrag wordt automatisch via Stripe geïncasseerd. Downgraden naar Instap vanuit een betaald niveau behoudt de
+                reeds betaalde periode: de wijziging gaat pas in zodra die periode afloopt, zonder terugbetaling van het
+                resterende bedrag.
+              </p>
+              <p className="mt-2.5">
+                Een jaartarief is een verplichting voor de volledige looptijd van één jaar: dit is niet tussentijds op
+                maandbasis opzegbaar en het voor dat jaar betaalde bedrag wordt niet gerestitueerd. Zegt de leverancier niet
+                uiterlijk één maand vóór het einde van die jaarperiode op, dan wordt het abonnement automatisch stilzwijgend
+                verlengd met opnieuw een jaar, tegen het dan geldende jaartarief voor het gekozen niveau. Opzeggen (van een
+                maandelijks tarief per direct, of van een jaartarief tegen het einde van de lopende periode) kan altijd zelf via
+                &quot;Beheer abonnement bij Stripe&quot; op het leveranciersprofiel. Een opzegging of statuswijziging bij Stripe wordt
+                automatisch in het platform verwerkt: zodra Stripe een abonnement daadwerkelijk beëindigt, valt de leverancier
+                zonder verdere handeling terug op Instap.
               </p>
               <p className="mt-2.5">
                 Zolang betalen via het platform nog niet beschikbaar is, verwerkt Vyra zelf geen betalingen tussen organisator en
