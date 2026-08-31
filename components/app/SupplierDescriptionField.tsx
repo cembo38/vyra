@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Sparkles, Loader2 } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { Field, Textarea } from "@/components/ui/Form";
 import { rewriteSupplierProfileTextAction } from "@/lib/actions/supplier-assistant-actions";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 
 /**
  * De "Beschrijving"-Field op /supplier/profile, uitgelicht als eigen Client
@@ -56,7 +57,7 @@ export function SupplierDescriptionField({
           disabled={pending}
           className="chip-hover mb-1.5 inline-flex items-center gap-1.5 rounded-full border border-line bg-sage-50 px-3 py-1 text-xs font-medium text-sage-dark disabled:opacity-40 disabled:pointer-events-none"
         >
-          {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="motion-icon-twinkle size-3.5" />}
+          {pending ? <VyraMarkSpinner className="text-sm" /> : <Sparkles className="motion-icon-twinkle size-3.5" />}
           VyrAI: verbeter mijn tekst
         </button>
       )}

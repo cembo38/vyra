@@ -8,6 +8,7 @@ import { PrivacyDataSection } from "@/components/app/PrivacyDataSection";
 import { PushNotificationToggle } from "@/components/app/PushNotificationToggle";
 import { SubscriptionTierPicker } from "@/components/app/SubscriptionTierPicker";
 import { SupplierDescriptionField } from "@/components/app/SupplierDescriptionField";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import { getCurrentUser } from "@/lib/auth";
 import {
   getPendingAccountDeletionRequest,
@@ -110,9 +111,9 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
 
         {!supplier.verified && !supplier.verificationRequestedAt && (
           <form action={requestSupplierVerificationAction} className="mt-3 flex flex-wrap items-center gap-2.5">
-            <button type="submit" className="lift-hover rounded-xl bg-ink px-4 py-2.5 text-sm font-medium text-white hover:bg-ink/90">
+            <SubmitButton pendingLabel="Bezig met aanvragen…" className="lift-hover rounded-xl bg-ink px-4 py-2.5 text-sm font-medium text-white hover:bg-ink/90">
               Verificatie aanvragen
-            </button>
+            </SubmitButton>
             <span className="text-xs text-ink-faint">Eerst een geldig KVK-nummer (8 cijfers) invullen bij Basisgegevens.</span>
           </form>
         )}
@@ -290,14 +291,14 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
                     <div key={url} className="relative aspect-square overflow-hidden rounded-xl border border-line">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={url} alt="" className="h-full w-full object-cover" />
-                      <button
+                      <SubmitButton
                         formAction={removeSupplierGalleryImageAction.bind(null, url)}
-                        type="submit"
+                        iconOnly
                         aria-label="Foto verwijderen"
                         className="absolute right-1 top-1 rounded-full bg-ink/70 p-1.5 text-white"
                       >
                         <X className="size-3" />
-                      </button>
+                      </SubmitButton>
                     </div>
                   ))}
                 </div>
@@ -358,9 +359,9 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
             </CollapsibleSection>
           </div>
 
-          <button type="submit" className="lift-hover w-full rounded-xl bg-clay py-2.5 text-sm font-medium text-white hover:bg-clay-dark">
+          <SubmitButton pendingLabel="Bezig met opslaan…" className="lift-hover w-full rounded-xl bg-clay py-2.5 text-sm font-medium text-white hover:bg-clay-dark">
             Wijzigingen opslaan
-          </button>
+          </SubmitButton>
         </form>
         </Card>
       </div>
@@ -410,9 +411,9 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
                       </fieldset>
                     );
                   })}
-                  <button type="submit" className="lift-hover w-full rounded-xl bg-ink py-2.5 text-sm font-medium text-white hover:bg-ink/90">
+                  <SubmitButton pendingLabel="Bezig met opslaan…" className="lift-hover w-full rounded-xl bg-ink py-2.5 text-sm font-medium text-white hover:bg-ink/90">
                     Pakketten opslaan
-                  </button>
+                  </SubmitButton>
                 </form>
               </>
             )}

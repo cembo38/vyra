@@ -9,6 +9,7 @@ import { updateGuestRsvpAction, deleteGuestAction } from "@/lib/actions/guest-ac
 import { RsvpStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Trash2, Users } from "lucide-react";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 export const metadata = { title: "Gasten — Vyra" };
 
@@ -84,27 +85,27 @@ export default async function GuestsPage(props: PageProps<"/events/[id]/guests">
                     {STATUS_OPTIONS.map((o) => (
                       <form key={o.status} action={updateGuestRsvpAction.bind(null, id, guest.id)}>
                         <input type="hidden" name="rsvpStatus" value={o.status} />
-                        <button
-                          type="submit"
+                        <SubmitButton
+                          pendingLabel="Bezig…"
                           className={cn(
                             "chip-hover rounded-full px-2.5 py-1 text-xs font-medium",
                             guest.rsvpStatus === o.status ? STATUS_TONE[o.status] : "text-ink-faint"
                           )}
                         >
                           {o.label}
-                        </button>
+                        </SubmitButton>
                       </form>
                     ))}
                   </div>
                   <CopyRsvpLinkButton guestId={guest.id} />
                   <form action={deleteGuestAction.bind(null, id, guest.id)}>
-                    <button
-                      type="submit"
+                    <SubmitButton
+                      iconOnly
                       aria-label="Gast verwijderen"
                       className="icon-pop flex size-10 items-center justify-center rounded-full text-ink-faint hover:bg-danger-50 hover:text-danger"
                     >
                       <Trash2 className="size-3.5" />
-                    </button>
+                    </SubmitButton>
                   </form>
                 </div>
               </div>

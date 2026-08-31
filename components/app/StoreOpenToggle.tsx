@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
 import { toggleStoreOpenAction } from "@/lib/actions/supplier-actions";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 import { cn } from "@/lib/utils";
 
 /**
@@ -52,7 +52,7 @@ export function StoreOpenToggle({ open }: { open: boolean }) {
       >
         <span className={cn("inline-block size-3.5 rounded-full bg-white shadow transition-transform", isOpen ? "translate-x-4.5" : "translate-x-1")} />
       </span>
-      {pending ? <Loader2 className="size-3.5 animate-spin" /> : null}
+      {pending ? <VyraMarkSpinner className="text-sm" /> : null}
       {isOpen ? "Winkel open" : "Winkel gesloten"}
     </button>
   );

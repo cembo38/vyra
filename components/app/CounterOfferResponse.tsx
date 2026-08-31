@@ -1,9 +1,10 @@
 "use client";
 
 import { useTransition } from "react";
-import { HandCoins, Loader2 } from "lucide-react";
+import { HandCoins } from "lucide-react";
 import { formatCurrency } from "@/lib/config";
 import { respondToCounterOfferAction } from "@/lib/actions/marketplace-actions";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 
 /**
  * Getoond op de aanvraagdetailpagina van een leverancier (in plaats van de
@@ -47,7 +48,7 @@ export function CounterOfferResponse({
           onClick={() => respond(true)}
           className="chip-hover inline-flex items-center gap-1.5 rounded-full bg-clay px-4 py-2 text-sm font-medium text-white hover:bg-clay-dark disabled:opacity-50"
         >
-          {pending ? <Loader2 className="size-4 animate-spin" /> : "Accepteren"}
+          {pending ? <VyraMarkSpinner className="text-base" /> : "Accepteren"}
         </button>
         <button
           disabled={pending}

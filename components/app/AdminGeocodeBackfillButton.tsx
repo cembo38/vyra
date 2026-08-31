@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Loader2, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 import { backfillSupplierCoordinatesAction } from "@/lib/actions/admin-actions";
 
 /**
@@ -49,7 +50,7 @@ export function AdminGeocodeBackfillButton({ initialRemaining }: { initialRemain
           onClick={run}
           className="chip-hover ml-auto inline-flex items-center gap-1.5 rounded-full border border-line bg-white min-h-9 px-3 text-xs font-medium text-ink-soft hover:border-clay/50 hover:text-clay disabled:opacity-40 disabled:pointer-events-none"
         >
-          {pending ? <Loader2 className="size-3.5 animate-spin" /> : <MapPin className="size-3.5" />}
+          {pending ? <VyraMarkSpinner className="text-sm" /> : <MapPin className="size-3.5" />}
           Volgende batch verwerken
         </button>
       )}

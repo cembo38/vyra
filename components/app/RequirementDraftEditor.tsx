@@ -6,6 +6,7 @@ import { Check, Loader2, Send, Sparkles } from "lucide-react";
 import { updateRequirementDraftAction } from "@/lib/actions/event-actions";
 import { sendRequestAction } from "@/lib/actions/marketplace-actions";
 import { SupplierCategory } from "@/lib/types";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 
 /**
  * Het conceptbericht dat straks (ongewijzigd of aangepast) naar
@@ -126,7 +127,7 @@ export function RequirementDraftEditor({
             onClick={send}
             className="chip-hover mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-full bg-clay px-3.5 text-xs font-medium text-white hover:bg-clay-dark disabled:opacity-50 disabled:pointer-events-none"
           >
-            {sending ? <Loader2 className="size-3.5 animate-spin" /> : <Send className="size-3.5" />}
+            {sending ? <VyraMarkSpinner className="text-sm" /> : <Send className="size-3.5" />}
             Stuur aanvraag naar leveranciers
           </button>
         </>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
 /**
@@ -75,7 +75,7 @@ export function SocialLoginButtons() {
             disabled={pending !== null}
             className="lift-hover flex w-full items-center justify-center gap-2.5 rounded-xl border border-line bg-white py-2.5 text-sm font-medium text-ink hover:bg-paper-dim disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {pending === p.id ? <Loader2 className="size-4 animate-spin" /> : p.icon}
+            {pending === p.id ? <VyraMarkSpinner className="text-base" /> : p.icon}
             Ga verder met {p.label}
           </button>
         ))}

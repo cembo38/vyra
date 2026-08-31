@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Loader2, ShieldOff } from "lucide-react";
+import { ShieldOff } from "lucide-react";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 import { revokeSupplierVerificationAction } from "@/lib/actions/admin-actions";
 
 /**
@@ -37,7 +38,7 @@ export function AdminRevokeVerificationButton({ supplierId }: { supplierId: stri
             }}
             className="chip-hover inline-flex items-center gap-1.5 rounded-full bg-danger min-h-9 px-3 text-xs font-medium text-white disabled:opacity-40 disabled:pointer-events-none"
           >
-            {pending ? <Loader2 className="size-3.5 animate-spin" /> : <ShieldOff className="size-3.5" />}
+            {pending ? <VyraMarkSpinner className="text-sm" /> : <ShieldOff className="size-3.5" />}
             Ja, intrekken
           </button>
           <button type="button" onClick={() => setConfirming(false)} className="text-xs text-ink-faint hover:text-ink">

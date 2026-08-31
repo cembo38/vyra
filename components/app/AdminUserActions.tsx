@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Ban, Loader2, RotateCcw } from "lucide-react";
+import { Ban, RotateCcw } from "lucide-react";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 import { banUserAction, unbanUserAction } from "@/lib/actions/admin-actions";
 
 /**
@@ -37,7 +38,7 @@ export function AdminUserActions({ userId, bannedAt }: { userId: string; bannedA
           }}
           className="chip-hover inline-flex items-center gap-1.5 rounded-full border border-line bg-white min-h-9 px-3 text-xs font-medium text-ink-soft hover:border-sage/50 hover:text-ink disabled:opacity-40 disabled:pointer-events-none"
         >
-          {pending ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
+          {pending ? <VyraMarkSpinner className="text-sm" /> : <RotateCcw className="size-3.5" />}
           Deblokkeren
         </button>
         {error && <p className="text-xs text-danger">{error}</p>}
@@ -71,7 +72,7 @@ export function AdminUserActions({ userId, bannedAt }: { userId: string; bannedA
             }}
             className="chip-hover inline-flex items-center gap-1.5 rounded-full bg-danger min-h-9 px-3 text-xs font-medium text-white disabled:opacity-40 disabled:pointer-events-none"
           >
-            {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Ban className="size-3.5" />}
+            {pending ? <VyraMarkSpinner className="text-sm" /> : <Ban className="size-3.5" />}
             Ja, blokkeren
           </button>
           <button type="button" onClick={() => setConfirming(false)} className="text-xs text-ink-faint hover:text-ink">

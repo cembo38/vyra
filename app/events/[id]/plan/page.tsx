@@ -10,6 +10,7 @@ import { confirmRequirementsAction } from "@/lib/actions/event-actions";
 import { formatCurrency } from "@/lib/config";
 import { RequirementPriority } from "@/lib/types";
 import { Sparkles } from "lucide-react";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 const SECTIONS: { key: RequirementPriority; title: string; description: string }[] = [
   { key: "essential", title: "Essentieel", description: "Vrijwel noodzakelijk om dit evenement te laten slagen." },
@@ -135,9 +136,12 @@ export default async function PlanPage(props: PageProps<"/events/[id]/plan">) {
       <div className="flex flex-col items-center gap-3 border-t border-line-soft pt-8 text-center">
         <p className="text-sm text-ink-soft">Je kunt hierboven per categorie direct een aanvraag versturen. Liever alles in één overzicht bekijken en afhandelen?</p>
         <form action={confirmRequirementsAction.bind(null, id)}>
-          <button type="submit" className="lift-hover inline-flex items-center gap-2 rounded-xl bg-clay px-7 py-3.5 text-sm font-medium text-white shadow-sm hover:bg-clay-dark">
+          <SubmitButton
+            pendingLabel="Bezig met doorsturen…"
+            className="lift-hover inline-flex items-center gap-2 rounded-xl bg-clay px-7 py-3.5 text-sm font-medium text-white shadow-sm hover:bg-clay-dark"
+          >
             Naar de aanvragenpagina ({selectedCount} geselecteerd)
-          </button>
+          </SubmitButton>
         </form>
       </div>
     </div>

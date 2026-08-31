@@ -2,8 +2,9 @@
 
 import { useState, useTransition, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, Pencil, Trash2, X } from "lucide-react";
+import { Check, Pencil, Trash2, X } from "lucide-react";
 import { deleteFavoriteCollectionAction, renameFavoriteCollectionAction } from "@/lib/actions/misc-actions";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 
 /**
  * Kop boven een collectie-groep op "Mijn leveranciers" (spec-item #129) —
@@ -67,7 +68,7 @@ export function FavoriteCollectionHeader({ collectionId, name, count }: { collec
           className="rounded-lg border border-line bg-white px-2 py-1 font-display text-lg text-ink focus:border-clay focus:outline-none"
         />
         <button type="button" onClick={save} disabled={pending} aria-label="Opslaan" className="icon-pop flex size-8 items-center justify-center rounded-full text-success hover:bg-success-50 disabled:opacity-50">
-          {pending ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+          {pending ? <VyraMarkSpinner className="text-base" /> : <Check className="size-4" />}
         </button>
         <button type="button" onClick={() => setEditing(false)} disabled={pending} aria-label="Annuleren" className="icon-pop flex size-8 items-center justify-center rounded-full text-ink-faint hover:bg-paper-dim disabled:opacity-50">
           <X className="size-4" />
@@ -85,7 +86,7 @@ export function FavoriteCollectionHeader({ collectionId, name, count }: { collec
         <Pencil className="size-3.5" />
       </button>
       <button type="button" onClick={remove} disabled={pending} aria-label="Collectie verwijderen" className="icon-pop flex size-8 items-center justify-center rounded-full text-ink-faint hover:bg-danger-50 hover:text-danger disabled:opacity-50">
-        {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+        {pending ? <VyraMarkSpinner className="text-sm" /> : <Trash2 className="size-3.5" />}
       </button>
     </div>
   );

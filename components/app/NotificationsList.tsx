@@ -3,11 +3,12 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CheckCheck, Loader2 } from "lucide-react";
+import { CheckCheck } from "lucide-react";
 import { AppNotification } from "@/lib/types";
 import { markAllNotificationsReadAction, markNotificationReadAction } from "@/lib/actions/misc-actions";
 import { RealtimeRefresh } from "@/components/app/RealtimeRefresh";
 import { NotificationContextBadge } from "@/components/ui/Badge";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 import { cn } from "@/lib/utils";
 
 function timeAgo(iso: string) {
@@ -63,7 +64,7 @@ export function NotificationsList({ userId, notifications }: { userId: string; n
             onClick={markAll}
             className="chip-hover inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-medium text-ink-soft hover:border-sage/50 hover:text-ink disabled:opacity-40 disabled:pointer-events-none"
           >
-            {markingAllId ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCheck className="size-3.5" />}
+            {markingAllId ? <VyraMarkSpinner className="text-sm" /> : <CheckCheck className="size-3.5" />}
             Alles markeren als gelezen
           </button>
         )}

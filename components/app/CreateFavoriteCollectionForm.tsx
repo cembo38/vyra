@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { FolderPlus, Loader2 } from "lucide-react";
+import { FolderPlus } from "lucide-react";
 import { createFavoriteCollectionAction } from "@/lib/actions/misc-actions";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 
 /**
  * "+ Nieuwe collectie" — spec-item #129. Bewust altijd zichtbaar (geen
@@ -50,7 +51,7 @@ export function CreateFavoriteCollectionForm() {
           onClick={create}
           className="chip-hover inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-xl border border-line bg-white px-3.5 text-sm font-medium text-ink-soft hover:border-sage/50 hover:text-ink disabled:opacity-40 disabled:pointer-events-none"
         >
-          {pending ? <Loader2 className="size-3.5 animate-spin" /> : <FolderPlus className="size-3.5" />}
+          {pending ? <VyraMarkSpinner className="text-sm" /> : <FolderPlus className="size-3.5" />}
           Aanmaken
         </button>
       </div>

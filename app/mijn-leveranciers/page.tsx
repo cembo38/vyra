@@ -14,6 +14,7 @@ import { deleteSavedSearchAction } from "@/lib/actions/misc-actions";
 import { formatCurrency } from "@/lib/config";
 import { SUPPLIER_CATEGORY_LABELS, SavedSearch, SupplierAccount, SupplierFavorite } from "@/lib/types";
 import { BookmarkX, FolderHeart, Heart, MapPin, MessageSquareText, Search, ShieldCheck, Star } from "lucide-react";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 /** "Cateraars in Utrecht" / "Alle leveranciers" — leesbare samenvatting van een bewaarde zoekopdracht. */
 function describeSearch(s: SavedSearch): string {
@@ -176,9 +177,9 @@ export default async function MyFavoriteSuppliersPage() {
                     <span className="truncate">{describeSearch(s)}</span>
                   </Link>
                   <form action={deleteSavedSearchAction.bind(null, s.id)}>
-                    <button type="submit" aria-label="Bewaarde zoekopdracht verwijderen" className="chip-hover flex items-center gap-1 text-xs font-medium text-ink-faint hover:text-danger">
+                    <SubmitButton pendingLabel="Bezig met verwijderen…" className="chip-hover flex items-center gap-1 text-xs font-medium text-ink-faint hover:text-danger">
                       <BookmarkX className="size-3.5" /> Verwijderen
-                    </button>
+                    </SubmitButton>
                   </form>
                 </div>
               ))}

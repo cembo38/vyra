@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Repeat } from "lucide-react";
+import { Repeat } from "lucide-react";
 import { toggleSupplierRecurringBlockAction } from "@/lib/actions/supplier-actions";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 
 const WEEKDAY_LABELS = ["Ma", "Di", "Wo", "Do", "Vr", "Za", "Zo"];
 
@@ -69,7 +70,7 @@ export function SupplierRecurringBlocksManager({ initialWeekdays }: { initialWee
                 blocked ? "border-ink-faint/40 bg-paper-dim text-ink-soft" : "border-line bg-white text-ink hover:border-sage/50"
               }`}
             >
-              {isPending && <Loader2 className="size-3.5 animate-spin" />}
+              {isPending && <VyraMarkSpinner className="text-sm" />}
               {label}
             </button>
           );

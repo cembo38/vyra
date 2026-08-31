@@ -3,9 +3,10 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Clock, Flashlight, Loader2, Zap } from "lucide-react";
+import { Clock, Flashlight, Zap } from "lucide-react";
 import { activateSpotlightAction, requestSpotlightBoostAction } from "@/lib/actions/supplier-actions";
 import { SPOTLIGHT_DURATION_DAYS } from "@/lib/config";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 import { SUPPLIER_CATEGORY_LABELS, SupplierCategory, Spotlight, SpotlightBoostRequest } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -123,7 +124,7 @@ export function SpotlightPanel({
                   onClick={() => activate(c)}
                   className="chip-hover flex items-center gap-1 text-ink hover:text-clay disabled:opacity-40"
                 >
-                  {isBusy ? <Loader2 className="size-3.5 animate-spin" /> : <Flashlight className="size-3.5" />} Activeren
+                  {isBusy ? <VyraMarkSpinner className="text-sm" /> : <Flashlight className="size-3.5" />} Activeren
                 </button>
               )}
             </div>
@@ -144,7 +145,7 @@ export function SpotlightPanel({
             onClick={requestBoost}
             className="chip-hover flex items-center gap-1.5 text-xs font-medium text-clay hover:underline disabled:opacity-60"
           >
-            {boostPending ? <Loader2 className="size-3.5 animate-spin" /> : <Zap className="size-3.5" />} Losse boost aanvragen
+            {boostPending ? <VyraMarkSpinner className="text-sm" /> : <Zap className="size-3.5" />} Losse boost aanvragen
           </button>
         )}
       </div>

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { Logo } from "@/components/marketing/Logo";
 import { Field, Input, Textarea } from "@/components/ui/Form";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import { getCurrentUser } from "@/lib/auth";
 import { logoutAction } from "@/lib/actions/auth-actions";
 import { getSupplierAccountByOwner } from "@/lib/data/store";
@@ -127,9 +128,9 @@ export default async function SupplierOnboardingPage(props: PageProps<"/supplier
               </div>
             </div>
 
-            <button type="submit" className="lift-hover w-full rounded-xl bg-clay py-2.5 text-sm font-medium text-white hover:bg-clay-dark">
+            <SubmitButton pendingLabel="Bezig met opslaan…" className="lift-hover w-full rounded-xl bg-clay py-2.5 text-sm font-medium text-white hover:bg-clay-dark">
               Profiel opslaan en naar dashboard
-            </button>
+            </SubmitButton>
           </form>
         </div>
 
@@ -139,7 +140,7 @@ export default async function SupplierOnboardingPage(props: PageProps<"/supplier
         <form action={logoutAction} className="mt-4 text-center">
           <p className="text-xs text-ink-faint">
             Ingelogd als {user.email} ·{" "}
-            <button type="submit" className="font-medium text-clay hover:underline">Uitloggen</button>
+            <SubmitButton pendingLabel="Bezig met uitloggen…" className="font-medium text-clay hover:underline">Uitloggen</SubmitButton>
           </p>
         </form>
       </div>

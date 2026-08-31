@@ -3,6 +3,7 @@ import { Logo } from "@/components/marketing/Logo";
 import { Field, Input, Select } from "@/components/ui/Form";
 import { getCurrentUser } from "@/lib/auth";
 import { completeOnboardingAction, logoutAction } from "@/lib/actions/auth-actions";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 export const metadata = { title: "Welkom — Vyra" };
 
@@ -52,9 +53,9 @@ export default async function OnboardingPage() {
                 </Select>
               </Field>
             </div>
-            <button type="submit" className="lift-hover w-full rounded-xl bg-ink py-2.5 text-sm font-medium text-paper hover:bg-ink/90">
+            <SubmitButton pendingLabel="Bezig met opslaan…" className="lift-hover w-full rounded-xl bg-ink py-2.5 text-sm font-medium text-paper hover:bg-ink/90">
               Ga naar mijn evenementen
-            </button>
+            </SubmitButton>
           </form>
         </div>
 
@@ -64,7 +65,7 @@ export default async function OnboardingPage() {
         <form action={logoutAction} className="mt-4 text-center">
           <p className="text-xs text-ink-faint">
             Ingelogd als {user.email} ·{" "}
-            <button type="submit" className="font-medium text-clay hover:underline">Uitloggen</button>
+            <SubmitButton pendingLabel="Bezig met uitloggen…" className="font-medium text-clay hover:underline">Uitloggen</SubmitButton>
           </p>
         </form>
       </div>

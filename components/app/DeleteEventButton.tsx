@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { AlertTriangle, Loader2, Trash2, X } from "lucide-react";
+import { AlertTriangle, Trash2, X } from "lucide-react";
 import { deleteEventAction } from "@/lib/actions/event-actions";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 
 /**
  * Verwijderen is onomkeerbaar (alle gekoppelde data gaat mee weg), dus
@@ -56,7 +57,7 @@ export function DeleteEventButton({ eventId, eventName }: { eventId: string; eve
         onClick={() => startTransition(async () => { await deleteEventAction(eventId); })}
         className="chip-hover mt-3 inline-flex items-center gap-1.5 rounded-full bg-danger px-4 py-2 text-xs font-medium text-white disabled:opacity-40 disabled:pointer-events-none"
       >
-        {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+        {pending ? <VyraMarkSpinner className="text-sm" /> : <Trash2 className="size-3.5" />}
         Definitief verwijderen
       </button>
     </div>

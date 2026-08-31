@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { BadgeCheck, CheckCircle2, Eye, Loader2, RefreshCw, Sparkles, X } from "lucide-react";
+import { BadgeCheck, CheckCircle2, Eye, RefreshCw, Sparkles, X } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 import {
   approveBriefingSupplierAction,
   dismissBriefingItemAction,
@@ -71,7 +72,7 @@ export function AdminBriefingCard({ briefing }: { briefing: AdminBriefing | null
             title="Genereer nu een vers rapport (loopt normaal automatisch elke ochtend)"
             className="chip-hover inline-flex min-h-9 items-center gap-1.5 rounded-full border border-line bg-white px-3 text-xs font-medium text-ink-soft hover:border-sage/50 hover:text-ink disabled:opacity-40 disabled:pointer-events-none"
           >
-            {pending ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+            {pending ? <VyraMarkSpinner className="text-sm" /> : <RefreshCw className="size-3.5" />}
             Genereer nu
           </button>
         </div>
@@ -154,7 +155,7 @@ function BriefingItemRow({ item }: { item: AdminBriefingItem }) {
                 onClick={() => run(approveBriefingSupplierAction, { supplierId: item.relatedId! })}
                 className="chip-hover inline-flex items-center gap-1 rounded-full bg-success px-2.5 py-1 text-xs font-medium text-white disabled:opacity-40 disabled:pointer-events-none"
               >
-                {pending ? <Loader2 className="size-3 animate-spin" /> : <BadgeCheck className="size-3" />}
+                {pending ? <VyraMarkSpinner className="text-xs" /> : <BadgeCheck className="size-3" />}
                 Goedkeuren
               </button>
               <button
@@ -163,7 +164,7 @@ function BriefingItemRow({ item }: { item: AdminBriefingItem }) {
                 onClick={() => run(rejectBriefingSupplierAction, { supplierId: item.relatedId! })}
                 className="chip-hover inline-flex items-center gap-1 rounded-full border border-line bg-white px-2.5 py-1 text-xs font-medium text-ink-soft hover:border-danger/50 hover:text-danger disabled:opacity-40 disabled:pointer-events-none"
               >
-                {pending ? <Loader2 className="size-3 animate-spin" /> : <X className="size-3" />}
+                {pending ? <VyraMarkSpinner className="text-xs" /> : <X className="size-3" />}
                 Afwijzen
               </button>
             </>
@@ -180,7 +181,7 @@ function BriefingItemRow({ item }: { item: AdminBriefingItem }) {
                 onClick={() => run(dismissBriefingItemAction)}
                 className="chip-hover inline-flex items-center gap-1 rounded-full border border-line bg-white px-2.5 py-1 text-xs font-medium text-ink-faint hover:text-ink disabled:opacity-40 disabled:pointer-events-none"
               >
-                {pending ? <Loader2 className="size-3 animate-spin" /> : <CheckCircle2 className="size-3" />}
+                {pending ? <VyraMarkSpinner className="text-xs" /> : <CheckCircle2 className="size-3" />}
                 Gezien
               </button>
             </>

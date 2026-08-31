@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { CheckCircle2, Loader2, X } from "lucide-react";
+import { CheckCircle2, X } from "lucide-react";
 import { Textarea } from "@/components/ui/Form";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 import { approveSpotlightBoostRequestAction, declineSpotlightBoostRequestAction, type ActionResult } from "@/lib/actions/admin-actions";
 
 /** Zelfde inline-actie-patroon als AdminTierUpgradeRequestActions — goedkeuren geeft de leverancier meteen +1 bonus_spotlight_credits. */
@@ -37,7 +38,7 @@ export function AdminSpotlightBoostRequestActions({ requestId }: { requestId: st
           onClick={() => run(approveSpotlightBoostRequestAction, false)}
           className="chip-hover inline-flex items-center gap-1.5 rounded-full bg-success min-h-9 px-3 text-xs font-medium text-white disabled:opacity-40 disabled:pointer-events-none"
         >
-          {pending ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
+          {pending ? <VyraMarkSpinner className="text-sm" /> : <CheckCircle2 className="size-3.5" />}
           Goedkeuren
         </button>
         <button
@@ -46,7 +47,7 @@ export function AdminSpotlightBoostRequestActions({ requestId }: { requestId: st
           onClick={() => run(declineSpotlightBoostRequestAction, true)}
           className="chip-hover inline-flex items-center gap-1.5 rounded-full border border-line bg-white min-h-9 px-3 text-xs font-medium text-ink-soft hover:border-danger/50 hover:text-danger disabled:opacity-40 disabled:pointer-events-none"
         >
-          {pending ? <Loader2 className="size-3.5 animate-spin" /> : <X className="size-3.5" />}
+          {pending ? <VyraMarkSpinner className="text-sm" /> : <X className="size-3.5" />}
           Afwijzen
         </button>
       </div>

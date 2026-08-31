@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { Plus, Users, X } from "lucide-react";
 import { addGuestAction, addGuestsBulkAction } from "@/lib/actions/guest-actions";
 import { Field, Input, Textarea } from "@/components/ui/Form";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 
 export function AddGuestForm({ eventId }: { eventId: string }) {
   const [mode, setMode] = useState<"closed" | "single" | "bulk">("closed");
@@ -52,7 +53,14 @@ export function AddGuestForm({ eventId }: { eventId: string }) {
             disabled={pending}
             className="chip-hover mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-xs font-medium text-paper disabled:opacity-40 disabled:pointer-events-none"
           >
-            {pending ? "Toevoegen…" : "Gasten toevoegen"}
+            {pending ? (
+              <>
+                <VyraMarkSpinner className="text-sm" />
+                Toevoegen…
+              </>
+            ) : (
+              "Gasten toevoegen"
+            )}
           </button>
         </form>
       </div>
@@ -93,7 +101,14 @@ export function AddGuestForm({ eventId }: { eventId: string }) {
           disabled={pending}
           className="lift-hover inline-flex items-center justify-center gap-1.5 rounded-xl bg-clay py-2.5 text-sm font-medium text-white hover:bg-clay-dark disabled:opacity-40 disabled:pointer-events-none sm:col-span-2"
         >
-          {pending ? "Toevoegen…" : "Toevoegen"}
+          {pending ? (
+            <>
+              <VyraMarkSpinner className="text-sm" />
+              Toevoegen…
+            </>
+          ) : (
+            "Toevoegen"
+          )}
         </button>
       </form>
     </div>

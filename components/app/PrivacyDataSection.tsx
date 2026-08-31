@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { AlertTriangle, Clock, Download, Loader2, Shield, Trash2 } from "lucide-react";
+import { AlertTriangle, Clock, Download, Shield, Trash2 } from "lucide-react";
 import { requestAccountDeletionAction } from "@/lib/actions/account-actions";
 import { Textarea } from "@/components/ui/Form";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 import { AccountDeletionRequest } from "@/lib/types";
 import { formatDateNL } from "@/lib/utils";
 
@@ -77,7 +78,7 @@ export function PrivacyDataSection({ pendingDeletionRequest }: { pendingDeletion
                 onClick={submit}
                 className="lift-hover flex items-center gap-1.5 rounded-xl bg-danger px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
               >
-                {pending && <Loader2 className="size-3.5 animate-spin" />} Verzoek versturen
+                {pending && <VyraMarkSpinner className="text-sm" />} Verzoek versturen
               </button>
               <button type="button" onClick={() => setConfirmOpen(false)} className="text-sm text-ink-faint hover:text-ink">
                 Annuleren

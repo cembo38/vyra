@@ -2,11 +2,12 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Sparkles, Loader2, ArrowRight } from "lucide-react";
+import { Sparkles, ArrowRight } from "lucide-react";
 import { generateSupplierOfferPreviewAction } from "@/lib/actions/supplier-actions";
 import { formatCurrency } from "@/lib/config";
 import { StructuredSupplierOffer } from "@/lib/ai/supplierOffer";
 import { Badge } from "@/components/ui/Badge";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 
 /**
  * Bewust een losstaande DEMO, niet gekoppeld aan een echte aanvraag: dit
@@ -47,7 +48,7 @@ export function SupplierOfferBuilder() {
         }
         className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-xs font-medium text-paper disabled:opacity-40"
       >
-        {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+        {pending ? <VyraMarkSpinner className="text-sm" /> : <Sparkles className="size-3.5" />}
         Genereer offerte
       </button>
 

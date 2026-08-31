@@ -2,10 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Clock, CreditCard, Crown, Loader2, Sparkles } from "lucide-react";
+import { Check, Clock, CreditCard, Crown, Sparkles } from "lucide-react";
 import { changeSubscriptionTierAction, openBillingPortalAction } from "@/lib/actions/supplier-actions";
 import { SUBSCRIPTION_TIERS, SUBSCRIPTION_TIER_ORDER, SubscriptionTier, formatCurrency } from "@/lib/config";
 import type { SupplierTierUpgradeRequest } from "@/lib/types";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 import { cn } from "@/lib/utils";
 
 /**
@@ -170,7 +171,7 @@ export function SubscriptionTierPicker({
             instapIsCurrent ? "border border-clay/40 bg-clay-50 text-ink" : "border border-line-soft bg-paper text-ink hover:border-ink/30"
           )}
         >
-          {instapIsBusy ? <Loader2 className="size-3.5 animate-spin" /> : instapIsCurrent ? <Check className="size-3.5" /> : null}
+          {instapIsBusy ? <VyraMarkSpinner className="text-sm" /> : instapIsCurrent ? <Check className="size-3.5" /> : null}
           {instapIsCurrent ? "Huidig niveau" : "Dit niveau kiezen"}
         </button>
       </div>
@@ -281,7 +282,7 @@ export function SubscriptionTierPicker({
                 )}
               >
                 {isBusy ? (
-                  <Loader2 className="size-3.5 animate-spin" />
+                  <VyraMarkSpinner className="text-sm" />
                 ) : isCurrent ? (
                   <Check className="size-3.5" />
                 ) : isRequested ? (
@@ -319,7 +320,7 @@ export function SubscriptionTierPicker({
           onClick={manageBilling}
           className="lift-hover mt-4 inline-flex items-center gap-1.5 rounded-xl border border-line-soft bg-paper px-3 py-2 text-xs font-medium text-ink hover:border-ink/30 disabled:opacity-60"
         >
-          {portalPending ? <Loader2 className="size-3.5 animate-spin" /> : <CreditCard className="size-3.5" />}
+          {portalPending ? <VyraMarkSpinner className="text-sm" /> : <CreditCard className="size-3.5" />}
           Beheer abonnement bij Stripe
         </button>
       )}

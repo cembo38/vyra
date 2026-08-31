@@ -11,6 +11,7 @@ import { countReferrals, getPendingAccountDeletionRequest, getSupplierAccountByO
 import { updateProfileAction, updateRoleAction, logoutAction } from "@/lib/actions/auth-actions";
 import { SITE_URL } from "@/lib/config";
 import { USER_ROLE_LABELS } from "@/lib/types";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 export const metadata = { title: "Profiel — Vyra" };
 
@@ -79,9 +80,9 @@ export default async function ProfilePage(props: PageProps<"/profile">) {
                 </Select>
               </Field>
             </div>
-            <button type="submit" className="lift-hover rounded-xl bg-ink px-5 py-2.5 text-sm font-medium text-paper hover:bg-ink/90">
+            <SubmitButton pendingLabel="Bezig met opslaan…" className="lift-hover rounded-xl bg-ink px-5 py-2.5 text-sm font-medium text-paper hover:bg-ink/90">
               Wijzigingen opslaan
-            </button>
+            </SubmitButton>
           </form>
         </Card>
 
@@ -91,9 +92,9 @@ export default async function ProfilePage(props: PageProps<"/profile">) {
           <p className="mt-1 text-xs text-ink-faint">Een account aanmaken en evenementen plannen is altijd gratis — ook bij het boeken van een leverancier betaal je precies de prijs die de leverancier je biedt, zonder platformkosten of opslag.</p>
           <div className="mt-4 flex gap-3">
             <form action={logoutAction}>
-              <button type="submit" className="lift-hover rounded-xl border border-line px-4 py-2 text-sm font-medium text-ink-soft hover:bg-paper-dim">
+              <SubmitButton pendingLabel="Bezig met uitloggen…" className="lift-hover rounded-xl border border-line px-4 py-2 text-sm font-medium text-ink-soft hover:bg-paper-dim">
                 Uitloggen
-              </button>
+              </SubmitButton>
             </form>
           </div>
         </Card>
@@ -129,9 +130,9 @@ export default async function ProfilePage(props: PageProps<"/profile">) {
                 <span className="block text-xs text-ink-faint">Ik bied diensten of producten aan via Vyra.</span>
               </span>
             </label>
-            <button type="submit" className="lift-hover rounded-xl bg-ink px-5 py-2.5 text-sm font-medium text-paper hover:bg-ink/90">
+            <SubmitButton pendingLabel="Bezig met opslaan…" className="lift-hover rounded-xl bg-ink px-5 py-2.5 text-sm font-medium text-paper hover:bg-ink/90">
               Opslaan
-            </button>
+            </SubmitButton>
           </form>
         </Card>
 

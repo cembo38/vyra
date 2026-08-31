@@ -20,6 +20,7 @@ import { formatCurrency } from "@/lib/config";
 import { formatDateNL } from "@/lib/utils";
 import { toggleTaskAction } from "@/lib/actions/misc-actions";
 import { AlertTriangle, CheckCircle2, Circle, MapPin, Sparkles, Users, Wallet } from "lucide-react";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 function categoryHref(eventId: string, status: string, categoryKey: string) {
   if (status === "suggested" || status === "selected") return `/events/${eventId}/plan`;
@@ -141,15 +142,15 @@ export default async function EventDashboardPage(props: PageProps<"/events/[id]"
             <div className="space-y-1.5">
               {tasks.map((t) => (
                 <form key={t.id} action={toggleTaskAction.bind(null, id, t.id, !t.done)}>
-                  <button
-                    type="submit"
+                  <SubmitButton
+                    pendingLabel="Bezig met bijwerken…"
                     className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors hover:bg-paper-dim"
                   >
                     {t.done ? <CheckCircle2 className="size-5 shrink-0 text-success" /> : <Circle className="size-5 shrink-0 text-ink-faint" />}
                     <span className={t.done ? "flex-1 text-sm text-ink-faint line-through" : "flex-1 text-sm text-ink"}>{t.title}</span>
                     {!t.done && t.urgency === "urgent" && <span className="text-xs font-medium text-clay">Urgent</span>}
                     {t.source === "ai_recommendation" && <AiTag className="hidden sm:inline-flex" />}
-                  </button>
+                  </SubmitButton>
                 </form>
               ))}
             </div>

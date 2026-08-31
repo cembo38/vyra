@@ -25,6 +25,7 @@ import { SUPPLIER_CATEGORY_LABELS, SupplierPackageTier } from "@/lib/types";
 import { isTrustedSupplier, MIN_OFFERS_FOR_ACCEPTANCE_RATE, TRUST_BADGE_EXPLANATION } from "@/lib/trust";
 import { formatDateNL, getVideoEmbedUrl } from "@/lib/utils";
 import { Calendar, CheckCircle2, Clock, Crown, ExternalLink, Link2, Lock, MapPin, MoonStar, Package, Percent, ShieldCheck, Sparkles, Star } from "lucide-react";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 const PACKAGE_TIER_LABELS: Record<SupplierPackageTier, string> = {
   basis: "Basis",
@@ -340,9 +341,9 @@ export default async function PublicSupplierProfilePage(props: PageProps<"/lever
             <Field label="Budget-indicatie (€)" hint="Optioneel">
               <Input name="budget" type="number" min={0} step={1} />
             </Field>
-            <button type="submit" className="lift-hover w-full rounded-xl bg-clay py-2.5 text-sm font-medium text-white hover:bg-clay-dark">
+            <SubmitButton pendingLabel="Bezig met versturen…" className="lift-hover w-full rounded-xl bg-clay py-2.5 text-sm font-medium text-white hover:bg-clay-dark">
               Maatwerkaanvraag versturen
-            </button>
+            </SubmitButton>
           </form>
         )}
       </Card>

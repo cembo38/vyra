@@ -2,8 +2,9 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarOff, Loader2, X } from "lucide-react";
+import { CalendarOff, X } from "lucide-react";
 import { blockSupplierDateRangeAction, toggleSupplierBlockedDateAction } from "@/lib/actions/supplier-actions";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 
 function formatDateNLShort(dateKey: string) {
   return new Date(dateKey + "T00:00:00").toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" });
@@ -105,7 +106,7 @@ export function SupplierBlockedDatesManager({ initialBlockedDates }: { initialBl
           onClick={addRange}
           className="chip-hover inline-flex items-center gap-1.5 rounded-xl border border-line bg-white px-4 py-3 text-sm font-medium text-ink-soft hover:border-sage/50 hover:text-ink disabled:opacity-40 disabled:pointer-events-none"
         >
-          {pending ? <Loader2 className="size-3.5 animate-spin" /> : <CalendarOff className="size-3.5" />}
+          {pending ? <VyraMarkSpinner className="text-sm" /> : <CalendarOff className="size-3.5" />}
           Blokkeren
         </button>
       </div>

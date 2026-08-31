@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, CheckCircle2, ChevronDown, Loader2, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Field, Select, Textarea } from "@/components/ui/Form";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 import { fileDisputeAction } from "@/lib/actions/dispute-actions";
 import { DISPUTE_CATEGORY_LABELS, type Dispute, type DisputeCategory } from "@/lib/types";
 
@@ -149,7 +150,7 @@ export function DisputeReporter({
                   onClick={submit}
                   className="chip-hover inline-flex items-center gap-1.5 rounded-xl bg-clay px-4 py-2.5 text-sm font-medium text-white disabled:opacity-40 disabled:pointer-events-none"
                 >
-                  {pending ? <Loader2 className="size-3.5 animate-spin" /> : null}
+                  {pending ? <VyraMarkSpinner className="text-sm" /> : null}
                   Geschil versturen
                 </button>
                 <button type="button" disabled={pending} onClick={() => { setFormOpen(false); setError(null); }} className="min-h-11 rounded-full px-2 text-sm text-ink-faint hover:text-ink-soft">

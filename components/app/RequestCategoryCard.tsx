@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Sparkles, Loader2, Send } from "lucide-react";
+import { Sparkles, Send } from "lucide-react";
 import { sendRequestAction } from "@/lib/actions/marketplace-actions";
 import { SupplierAvatar } from "@/components/ui/Avatar";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 import { formatCurrency } from "@/lib/config";
 import { SupplierCategory } from "@/lib/types";
 
@@ -119,7 +120,7 @@ export function RequestCategoryCard({
             }
             className="chip-hover inline-flex items-center gap-1.5 rounded-full bg-clay px-4 py-2 text-xs font-medium text-white hover:bg-clay-dark disabled:opacity-50 disabled:pointer-events-none"
           >
-            {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+            {pending ? <VyraMarkSpinner className="text-sm" /> : <Sparkles className="size-3.5" />}
             Stuur aanvraag
           </button>
         </div>

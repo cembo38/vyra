@@ -4,6 +4,7 @@ import { Field, Input, Select } from "@/components/ui/Form";
 import { saveSearchAction } from "@/lib/actions/misc-actions";
 import { SupplierCategory } from "@/lib/types";
 import { SupplierCategoryFilterItem, SupplierCategoryFilterList } from "@/components/app/SupplierCategoryFilterList";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 /**
  * Het filterpaneel op /leveranciers — sinds het "zijbalk"-voorstel (aug.
@@ -133,9 +134,9 @@ export function SupplierFilterPanel({
           <input type="hidden" name="category" value={categories[0] ?? ""} />
           <input type="hidden" name="location" value={location} />
           <input type="hidden" name="q" value={q} />
-          <button type="submit" className="chip-hover flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-line py-2.5 text-xs font-semibold text-sage-dark">
+          <SubmitButton pendingLabel="Bezig met bewaren…" className="chip-hover flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-line py-2.5 text-xs font-semibold text-sage-dark">
             <BookmarkPlus className="size-3.5" /> Bewaar deze zoekopdracht
-          </button>
+          </SubmitButton>
         </form>
       )}
     </div>

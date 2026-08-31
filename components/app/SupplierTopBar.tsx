@@ -5,6 +5,7 @@ import { NotificationsBell } from "@/components/app/NotificationsBell";
 import { NavShell, type NavShellItem } from "@/components/app/NavShell";
 import { AppNotification, UserAccount, SupplierAccount } from "@/lib/types";
 import { logoutAction } from "@/lib/actions/auth-actions";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import { LogOut, LayoutDashboard, Inbox, MessageSquare, ShoppingBag, CalendarDays, User, Bell, Megaphone, LineChart, HelpCircle } from "lucide-react";
 
 // "Mijn evenementen" stond eerder als los kruispunt-item tussen deze
@@ -66,9 +67,9 @@ export function SupplierTopBar({ user, notifications }: { user: UserAccount; sup
             <UserAvatar firstName={user.firstName || "?"} lastName={user.lastName} color={user.avatarColor} />
           </span>
           <form action={logoutAction}>
-            <button type="submit" aria-label="Uitloggen" className="icon-pop flex size-11 items-center justify-center rounded-full text-ink-faint hover:bg-paper-dim hover:text-ink">
+            <SubmitButton iconOnly aria-label="Uitloggen" className="icon-pop flex size-11 items-center justify-center rounded-full text-ink-faint hover:bg-paper-dim hover:text-ink">
               <LogOut className="size-4" />
-            </button>
+            </SubmitButton>
           </form>
         </>
       }
@@ -79,9 +80,9 @@ export function SupplierTopBar({ user, notifications }: { user: UserAccount; sup
             <UserAvatar firstName={user.firstName || "?"} lastName={user.lastName} color={user.avatarColor} />
           </span>
           <form action={logoutAction}>
-            <button type="submit" aria-label="Uitloggen" className="icon-pop flex size-11 items-center justify-center rounded-full text-ink-faint hover:bg-paper-dim hover:text-ink">
+            <SubmitButton iconOnly aria-label="Uitloggen" className="icon-pop flex size-11 items-center justify-center rounded-full text-ink-faint hover:bg-paper-dim hover:text-ink">
               <LogOut className="size-4" />
-            </button>
+            </SubmitButton>
           </form>
         </>
       }

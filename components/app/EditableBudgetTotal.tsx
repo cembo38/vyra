@@ -2,9 +2,10 @@
 
 import { useState, useTransition, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, Pencil, Wallet, X } from "lucide-react";
+import { Check, Pencil, Wallet, X } from "lucide-react";
 import { updateBudgetTotalAction } from "@/lib/actions/event-actions";
 import { formatCurrency } from "@/lib/config";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 
 /**
  * Cem (aug. 2026): "maak die 500 aanpasbaar. zodat iemand ieder gewenst
@@ -77,7 +78,7 @@ export function EditableBudgetTotal({ eventId, totalCents }: { eventId: string; 
             aria-label="Opslaan"
             className="icon-pop flex size-8 items-center justify-center rounded-full text-success hover:bg-success-50 disabled:opacity-50"
           >
-            {saving ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+            {saving ? <VyraMarkSpinner className="text-base" /> : <Check className="size-4" />}
           </button>
           <button
             type="button"

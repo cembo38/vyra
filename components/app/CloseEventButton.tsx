@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, Lock, Loader2, RotateCcw } from "lucide-react";
+import { Check, Lock, RotateCcw } from "lucide-react";
 import { closeEventAction, reopenEventAction } from "@/lib/actions/event-actions";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 
 /**
  * Sluiten/heropenen wijzigt alleen de stage van het evenement (geen
@@ -20,7 +21,7 @@ export function CloseEventButton({ eventId, cancelled }: { eventId: string; canc
         onClick={() => startTransition(async () => { await reopenEventAction(eventId); })}
         className="chip-hover inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3.5 py-1.5 text-xs font-medium text-ink-soft hover:border-sage/50 hover:text-ink disabled:opacity-40 disabled:pointer-events-none"
       >
-        {pending ? <Loader2 className="size-3.5 animate-spin" /> : <RotateCcw className="size-3.5" />}
+        {pending ? <VyraMarkSpinner className="text-sm" /> : <RotateCcw className="size-3.5" />}
         Evenement heropenen
       </button>
     );
@@ -35,7 +36,7 @@ export function CloseEventButton({ eventId, cancelled }: { eventId: string; canc
           onClick={() => startTransition(async () => { await closeEventAction(eventId); })}
           className="chip-hover inline-flex items-center gap-1.5 rounded-full bg-ink px-3.5 py-1.5 text-xs font-medium text-paper disabled:opacity-40 disabled:pointer-events-none"
         >
-          {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />}
+          {pending ? <VyraMarkSpinner className="text-sm" /> : <Check className="size-3.5" />}
           Ja, sluiten
         </button>
         <button onClick={() => setConfirming(false)} className="text-xs text-ink-faint hover:text-ink">

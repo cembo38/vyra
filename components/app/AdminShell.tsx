@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Menu, X, LayoutDashboard, Users, Building2, AlertCircle, CreditCard, Sparkles, Settings, LogOut, ShieldCheck } from "lucide-react";
 import { Drawer } from "@/components/ui/Drawer";
 import { adminLogoutAction } from "@/lib/actions/admin-auth-actions";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import { cn } from "@/lib/utils";
 
 const ADMIN_NAV_ITEMS = [
@@ -60,15 +61,15 @@ export function AdminShell({ email, children }: { email: string; children: React
 
   const logoutButton = (
     <form action={adminLogoutAction}>
-      <button
-        type="submit"
+      <SubmitButton
+        iconOnly
         title="Uitloggen"
         aria-label="Uitloggen"
         className="chip-hover flex min-h-11 w-full items-center justify-center gap-3 rounded-xl px-2 text-sm font-medium text-paper/60 transition-colors hover:bg-paper/5 hover:text-paper lg:justify-start lg:px-3"
       >
         <LogOut className="size-5 shrink-0" />
         <span className="hidden lg:inline">Uitloggen</span>
-      </button>
+      </SubmitButton>
     </form>
   );
 

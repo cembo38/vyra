@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, Copy, Loader2, RefreshCw, Rss } from "lucide-react";
+import { Check, Copy, RefreshCw, Rss } from "lucide-react";
 import { regenerateIcalTokenAction } from "@/lib/actions/supplier-actions";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 
 /**
  * "Kalenderabonnement" (spec-item #128) — laat een leverancier zijn
@@ -80,7 +81,7 @@ export function SupplierIcalSubscribeSection({ initialUrl }: { initialUrl: strin
           onClick={regenerate}
           className="chip-hover inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-white px-3 py-2 text-xs font-medium text-ink-soft hover:border-sage/50 hover:text-ink disabled:opacity-40 disabled:pointer-events-none"
         >
-          {pending ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+          {pending ? <VyraMarkSpinner className="text-sm" /> : <RefreshCw className="size-3.5" />}
           {regenerated ? "Vernieuwd" : "Link vernieuwen"}
         </button>
       </div>

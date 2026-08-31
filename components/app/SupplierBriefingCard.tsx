@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Sparkles, Loader2, RefreshCw } from "lucide-react";
+import { Sparkles, RefreshCw } from "lucide-react";
 import { generateSupplierBriefingAction } from "@/lib/actions/supplier-assistant-actions";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 
 /**
  * Dagelijkse prioriteitenbriefing (Premium+, spec-item #57) — verschijnt
@@ -45,7 +46,7 @@ export function SupplierBriefingCard({ initialNarrative }: { initialNarrative: s
             disabled={pending}
             className="chip-hover mt-2 inline-flex items-center gap-1.5 rounded-full bg-ink px-3.5 py-1.5 text-xs font-medium text-paper disabled:opacity-40 disabled:pointer-events-none"
           >
-            {pending ? <Loader2 className="size-3.5 animate-spin" /> : <RefreshCw className="size-3.5" />}
+            {pending ? <VyraMarkSpinner className="text-sm" /> : <RefreshCw className="size-3.5" />}
             Genereer briefing
           </button>
         </div>

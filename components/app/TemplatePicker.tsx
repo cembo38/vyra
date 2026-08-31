@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Bookmark, Loader2, Plus, X } from "lucide-react";
 import { createSupplierTemplateAction, deleteSupplierTemplateAction, listSupplierTemplatesAction } from "@/lib/actions/template-actions";
 import { SupplierTemplate, SupplierTemplateKind } from "@/lib/types";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 import { cn } from "@/lib/utils";
 
 /**
@@ -161,7 +162,7 @@ export function TemplatePicker({
                 aria-label="Bewaar als sjabloon"
                 className="flex size-7 shrink-0 items-center justify-center rounded-full bg-ink text-paper disabled:opacity-30"
               >
-                {saving ? <Loader2 className="size-3 animate-spin" /> : <Plus className="size-3.5" />}
+                {saving ? <VyraMarkSpinner className="text-xs" /> : <Plus className="size-3.5" />}
               </button>
             </div>
             {!currentText.trim() ? (

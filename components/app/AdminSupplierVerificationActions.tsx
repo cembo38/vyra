@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { BadgeCheck, Loader2, X } from "lucide-react";
+import { BadgeCheck, X } from "lucide-react";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 import { approveSupplierVerificationAction, rejectSupplierVerificationAction, type ActionResult } from "@/lib/actions/admin-actions";
 
 /** Zelfde inline-actie-patroon als `AdminUserActions` — geen navigatie weg van het dashboard nodig. */
@@ -28,7 +29,7 @@ export function AdminSupplierVerificationActions({ supplierId }: { supplierId: s
           onClick={() => run(approveSupplierVerificationAction)}
           className="chip-hover inline-flex items-center gap-1.5 rounded-full bg-success min-h-9 px-3 text-xs font-medium text-white disabled:opacity-40 disabled:pointer-events-none"
         >
-          {pending ? <Loader2 className="size-3.5 animate-spin" /> : <BadgeCheck className="size-3.5" />}
+          {pending ? <VyraMarkSpinner className="text-sm" /> : <BadgeCheck className="size-3.5" />}
           Goedkeuren
         </button>
         <button
@@ -37,7 +38,7 @@ export function AdminSupplierVerificationActions({ supplierId }: { supplierId: s
           onClick={() => run(rejectSupplierVerificationAction)}
           className="chip-hover inline-flex items-center gap-1.5 rounded-full border border-line bg-white min-h-9 px-3 text-xs font-medium text-ink-soft hover:border-danger/50 hover:text-danger disabled:opacity-40 disabled:pointer-events-none"
         >
-          {pending ? <Loader2 className="size-3.5 animate-spin" /> : <X className="size-3.5" />}
+          {pending ? <VyraMarkSpinner className="text-sm" /> : <X className="size-3.5" />}
           Afwijzen
         </button>
       </div>

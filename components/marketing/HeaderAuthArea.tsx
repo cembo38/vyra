@@ -5,6 +5,7 @@ import { LinkButton } from "@/components/ui/Button";
 import { getCurrentUser } from "@/lib/auth";
 import { logoutAction } from "@/lib/actions/auth-actions";
 import { MarketingNavDrawer } from "@/components/marketing/MarketingNavDrawer";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 const MARKETING_LINKS = [
   { href: "/#hoe-het-werkt", label: "Hoe het werkt" },
@@ -75,13 +76,13 @@ export async function HeaderAuthArea() {
         {/* Uitloggen i.p.v. een link naar het profiel — dat blijft bereikbaar via het
             uitklapmenu hieronder ("Mijn profiel") en via de avatar in de ingelogde app zelf. */}
         <form action={logoutAction} className="hidden md:block">
-          <button
-            type="submit"
+          <SubmitButton
+            iconOnly
             aria-label="Uitloggen"
             className="icon-pop flex size-9 items-center justify-center rounded-full text-ink-faint hover:bg-paper-dim hover:text-ink"
           >
             <LogOut className="size-4" />
-          </button>
+          </SubmitButton>
         </form>
         <MarketingNavDrawer
           links={MARKETING_LINKS}

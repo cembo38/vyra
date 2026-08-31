@@ -2,9 +2,10 @@
 
 import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Camera, Loader2, MessageSquare, Star, UserX, X } from "lucide-react";
+import { Camera, MessageSquare, Star, UserX, X } from "lucide-react";
 import { submitReviewAction } from "@/lib/actions/review-actions";
 import { Field, Input, Textarea } from "@/components/ui/Form";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 import { formatDateNL, getVideoEmbedUrl } from "@/lib/utils";
 import { Review } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -263,7 +264,7 @@ export function ReviewComposer({
             onClick={submit}
             className="lift-hover flex items-center gap-1.5 rounded-xl bg-clay px-4 py-2 text-sm font-medium text-white hover:bg-clay-dark disabled:opacity-60"
           >
-            {pending && <Loader2 className="size-3.5 animate-spin" />} Beoordeling versturen
+            {pending && <VyraMarkSpinner className="text-sm" />} Beoordeling versturen
           </button>
           <button type="button" onClick={() => setOpen(false)} className="text-sm text-ink-faint hover:text-ink">
             Annuleren

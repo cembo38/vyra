@@ -2,9 +2,10 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Heart, Loader2 } from "lucide-react";
+import { Heart } from "lucide-react";
 import { toggleSupplierFavoriteAction } from "@/lib/actions/misc-actions";
 import { cn } from "@/lib/utils";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 
 /**
  * Sla een leverancier op als favoriet — het directe, positieve tegenwicht
@@ -43,7 +44,7 @@ export function FavoriteSupplierButton({ supplierId, initialFavorited }: { suppl
         favorited ? "border-clay/40 bg-clay/10 text-clay" : "border-line bg-white text-ink-faint hover:border-clay/40 hover:text-clay"
       )}
     >
-      {pending ? <Loader2 className="size-4.5 animate-spin" /> : <Heart className={cn("size-4.5", favorited && "fill-clay")} />}
+      {pending ? <VyraMarkSpinner className="text-lg" /> : <Heart className={cn("size-4.5", favorited && "fill-clay")} />}
     </button>
   );
 }

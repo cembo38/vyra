@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { CalendarPlus, Loader2 } from "lucide-react";
+import { CalendarPlus } from "lucide-react";
 import { updateEventDateAction } from "@/lib/actions/event-actions";
 import { cn } from "@/lib/utils";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 
 /**
  * Vervangt de platte "Datum nog niet bepaald"-tekst door een direct
@@ -88,7 +89,7 @@ export function EventDateQuickAdd({
         className
       )}
     >
-      {pending ? <Loader2 className="size-3.5 shrink-0 animate-spin" /> : <CalendarPlus className="size-3.5 shrink-0" />}
+      {pending ? <VyraMarkSpinner className="text-sm shrink-0" /> : <CalendarPlus className="size-3.5 shrink-0" />}
       Datum toevoegen
     </button>
   );

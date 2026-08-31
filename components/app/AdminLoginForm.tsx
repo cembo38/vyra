@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Loader2, LogIn } from "lucide-react";
+import { LogIn } from "lucide-react";
 import { PasswordInput } from "@/components/ui/PasswordInput";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 import { adminLoginAction } from "@/lib/actions/admin-auth-actions";
 
 export function AdminLoginForm() {
@@ -51,7 +52,7 @@ export function AdminLoginForm() {
         disabled={pending}
         className="chip-hover inline-flex w-full items-center justify-center gap-2 rounded-xl bg-paper px-4 py-3 text-sm font-medium text-ink disabled:opacity-50 disabled:pointer-events-none"
       >
-        {pending ? <Loader2 className="size-4 animate-spin" /> : <LogIn className="size-4" />}
+        {pending ? <VyraMarkSpinner className="text-base" /> : <LogIn className="size-4" />}
         Inloggen
       </button>
     </form>

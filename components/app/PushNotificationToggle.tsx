@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, BellOff, Loader2 } from "lucide-react";
+import { Bell, BellOff } from "lucide-react";
 import { deletePushSubscriptionAction, savePushSubscriptionAction } from "@/lib/actions/misc-actions";
 import { VAPID_PUBLIC_KEY } from "@/lib/config";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 
 /** VAPID-sleutel staat als base64url-string in de env var, maar `PushManager.subscribe` verwacht een Uint8Array — standaard conversieboilerplate voor Web Push. */
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
@@ -128,7 +129,7 @@ export function PushNotificationToggle() {
           status === "enabled" ? "border-sage/40 bg-sage-50 text-sage-dark" : "border-line bg-white text-ink-soft hover:border-sage/50 hover:text-ink"
         }`}
       >
-        {pending ? <Loader2 className="size-3.5 animate-spin" /> : status === "enabled" ? <Bell className="size-3.5" /> : <BellOff className="size-3.5" />}
+        {pending ? <VyraMarkSpinner className="text-sm" /> : status === "enabled" ? <Bell className="size-3.5" /> : <BellOff className="size-3.5" />}
         {status === "enabled" ? "Pushmeldingen aan — op dit apparaat" : "Pushmeldingen inschakelen"}
       </button>
       {error && <p className="mt-1.5 text-xs text-danger">{error}</p>}

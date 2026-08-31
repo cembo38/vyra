@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Sparkles, Loader2, Send } from "lucide-react";
+import { Sparkles, Send } from "lucide-react";
 import { generateSupplierOfferPreviewAction, submitSupplierOfferAction } from "@/lib/actions/supplier-actions";
 import { writeSupplierOfferTextAction } from "@/lib/actions/supplier-assistant-actions";
 import { TemplatePicker } from "@/components/app/TemplatePicker";
@@ -10,6 +10,7 @@ import { StructuredSupplierOffer } from "@/lib/ai/supplierOffer";
 import { Badge } from "@/components/ui/Badge";
 import { Field, Input, Textarea } from "@/components/ui/Form";
 import { SupplierCategory } from "@/lib/types";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 
 export function SupplierOfferForm({
   requestId,
@@ -60,7 +61,7 @@ export function SupplierOfferForm({
             }}
             className="chip-hover inline-flex items-center gap-1.5 rounded-full border border-line bg-sage-50 px-3 py-1.5 text-xs font-medium text-sage-dark disabled:opacity-40 disabled:pointer-events-none"
           >
-            {writing ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="motion-icon-twinkle size-3.5" />}
+            {writing ? <VyraMarkSpinner className="text-sm" /> : <Sparkles className="motion-icon-twinkle size-3.5" />}
             VyrAI: werk dit uit
           </button>
         )}
@@ -85,7 +86,7 @@ export function SupplierOfferForm({
         }
         className="chip-hover mt-3 inline-flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-xs font-medium text-paper disabled:opacity-40 disabled:pointer-events-none"
       >
-        {generating ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="size-3.5" />}
+        {generating ? <VyraMarkSpinner className="text-sm" /> : <Sparkles className="size-3.5" />}
         Genereer offerte-voorstel
       </button>
 
@@ -133,7 +134,7 @@ export function SupplierOfferForm({
           disabled={submitting || !price}
           className="lift-hover mt-4 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-clay py-2.5 text-sm font-medium text-white hover:bg-clay-dark disabled:opacity-40 disabled:pointer-events-none"
         >
-          {submitting ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+          {submitting ? <VyraMarkSpinner className="text-base" /> : <Send className="size-4" />}
           Verstuur offerte naar organisator
         </button>
       </form>

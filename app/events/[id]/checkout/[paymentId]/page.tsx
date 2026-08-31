@@ -8,6 +8,7 @@ import { confirmPaymentAction } from "@/lib/actions/marketplace-actions";
 import { DisputeReporter } from "@/components/app/DisputeReporter";
 import { SUPPLIER_CATEGORY_LABELS } from "@/lib/types";
 import { CheckCircle2, Clock, MessageCircle } from "lucide-react";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 export default async function CheckoutPage(props: PageProps<"/events/[id]/checkout/[paymentId]">) {
   const { id, paymentId } = await props.params;
@@ -99,9 +100,12 @@ export default async function CheckoutPage(props: PageProps<"/events/[id]/checko
           </div>
         ) : (
           <form action={confirmPaymentAction.bind(null, payment.id)} className="mt-6">
-            <button type="submit" className="lift-hover flex w-full items-center justify-center gap-2 rounded-xl bg-clay px-6 py-3.5 text-sm font-medium text-white shadow-sm hover:bg-clay-dark">
+            <SubmitButton
+              pendingLabel="Bezig met bevestigen…"
+              className="lift-hover flex w-full items-center justify-center gap-2 rounded-xl bg-clay px-6 py-3.5 text-sm font-medium text-white shadow-sm hover:bg-clay-dark"
+            >
               <CheckCircle2 className="size-4" /> Bevestig {installmentLabel ? `${installmentLabel.toLowerCase()} van ` : ""}{formatCurrency(payment.totalCents)}
-            </button>
+            </SubmitButton>
             <p className="mt-3 text-center text-xs text-ink-faint">
               Dit bevestigt de boeking in Vyra. De betaling zelf regel je rechtstreeks met de leverancier.
             </p>

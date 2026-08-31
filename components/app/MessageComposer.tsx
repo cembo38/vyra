@@ -1,11 +1,12 @@
 "use client";
 
 import { useRef, useState, useTransition } from "react";
-import { ArrowUp, File as FileIcon, Loader2, Paperclip, Sparkles, X } from "lucide-react";
+import { ArrowUp, File as FileIcon, Paperclip, Sparkles, X } from "lucide-react";
 import { sendMessageAction, sendSupplierMessageAction } from "@/lib/actions/message-actions";
 import { draftSupplierReplyAction } from "@/lib/actions/supplier-assistant-actions";
 import { TemplatePicker } from "@/components/app/TemplatePicker";
 import { VoiceInputButton } from "@/components/app/VoiceInputButton";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 import { SupplierCategory } from "@/lib/types";
 
 // Zelfde grenzen als lib/data/store.ts (MESSAGE_ATTACHMENT_MAX_BYTES) en
@@ -115,7 +116,7 @@ export function MessageComposer({
           disabled={draftPending}
           className="chip-hover mb-2 flex items-center gap-1.5 rounded-full border border-line bg-sage-50 px-3 py-1.5 text-xs font-medium text-sage-dark disabled:opacity-60"
         >
-          {draftPending ? <Loader2 className="size-3.5 animate-spin" /> : <Sparkles className="motion-icon-twinkle size-3.5" />}
+          {draftPending ? <VyraMarkSpinner className="text-sm" /> : <Sparkles className="motion-icon-twinkle size-3.5" />}
           VyrAI-concept
         </button>
       )}
@@ -166,7 +167,7 @@ export function MessageComposer({
         />
         <VoiceInputButton className="size-10" onTranscript={(t) => setText((prev) => (prev.trim() ? `${prev.trim()} ${t}` : t))} />
         <button type="submit" disabled={pending || (!text.trim() && files.length === 0)} aria-label="Versturen" className="icon-pop flex size-10 shrink-0 items-center justify-center rounded-full bg-ink text-paper disabled:opacity-30 disabled:pointer-events-none">
-          {pending ? <Loader2 className="size-4 animate-spin" /> : <ArrowUp className="size-4" />}
+          {pending ? <VyraMarkSpinner className="text-base" /> : <ArrowUp className="size-4" />}
         </button>
       </div>
       {error && <p className="mt-1.5 px-2 text-xs text-danger">{error}</p>}

@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Plus, Sparkles, Loader2, X } from "lucide-react";
+import { Plus, Sparkles, X } from "lucide-react";
 import { addNoteAction } from "@/lib/actions/event-actions";
 import { VoiceInputButton } from "@/components/app/VoiceInputButton";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 
 export function AddInfoWidget({ eventId }: { eventId: string }) {
   const [open, setOpen] = useState(false);
@@ -56,7 +57,7 @@ export function AddInfoWidget({ eventId }: { eventId: string }) {
             }
             className="chip-hover mt-2.5 inline-flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-xs font-medium text-paper disabled:opacity-40 disabled:pointer-events-none"
           >
-            {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Plus className="size-3.5" />}
+            {pending ? <VyraMarkSpinner className="text-sm" /> : <Plus className="size-3.5" />}
             Toevoegen
           </button>
         </>

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { Loader2, Mic } from "lucide-react";
+import { Mic } from "lucide-react";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 import { cn } from "@/lib/utils";
 
 /**
@@ -379,7 +380,7 @@ export function VoiceInputButton({ onTranscript, className }: { onTranscript: (t
           aria-hidden
           className="absolute bottom-full left-1/2 z-20 mb-2 flex -translate-x-1/2 animate-rise items-center gap-1.5 whitespace-nowrap rounded-full bg-ink px-2.5 py-1 text-[11px] font-medium text-paper shadow-[var(--shadow-pop)]"
         >
-          <Loader2 className="size-2.5 animate-spin" />
+          <VyraMarkSpinner className="text-xs" />
           Verwerkt…
         </span>
       )}
@@ -390,7 +391,7 @@ export function VoiceInputButton({ onTranscript, className }: { onTranscript: (t
           <span className="h-2.5 w-[3px] animate-mic-wave rounded-full bg-white" />
         </span>
       ) : processing ? (
-        <Loader2 className="size-4 animate-spin" />
+        <VyraMarkSpinner className="text-base" />
       ) : (
         <Mic className="size-4" />
       )}

@@ -3,9 +3,10 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence, PanInfo } from "framer-motion";
-import { Heart, X, ArrowRight, Undo2, Star, ShieldCheck, ListChecks, Rows3, Columns3, CheckCircle2, Loader2, ExternalLink, PiggyBank, Sparkles, Crown } from "lucide-react";
+import { Heart, X, ArrowRight, Undo2, Star, ShieldCheck, ListChecks, Rows3, Columns3, CheckCircle2, ExternalLink, PiggyBank, Sparkles, Crown } from "lucide-react";
 import { SupplierAvatar } from "@/components/ui/Avatar";
 import { Badge, OfferStatusBadge } from "@/components/ui/Badge";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 import { formatCurrency, DEFAULT_DEPOSIT_PERCENT } from "@/lib/config";
 import { swipeOfferAction, acceptOfferAction } from "@/lib/actions/marketplace-actions";
 import { cn } from "@/lib/utils";
@@ -332,7 +333,7 @@ function CompareTable({ offers, categoryHasAccepted }: { offers: OfferWithSuppli
                       title="Accepteren — volledig betalen"
                       className="icon-pop flex size-9 items-center justify-center rounded-full bg-clay text-white"
                     >
-                      {pending ? <Loader2 className="size-3.5 animate-spin" /> : <CheckCircle2 className="size-3.5" />}
+                      {pending ? <VyraMarkSpinner className="text-sm" /> : <CheckCircle2 className="size-3.5" />}
                     </button>
                     <button
                       disabled={pending}
@@ -444,7 +445,7 @@ function CompareCardList({ offers, categoryHasAccepted }: { offers: OfferWithSup
                 title="Accepteren — volledig betalen"
                 className="icon-pop flex size-10 items-center justify-center rounded-full bg-clay text-white"
               >
-                {pending ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
+                {pending ? <VyraMarkSpinner className="text-base" /> : <CheckCircle2 className="size-4" />}
               </button>
             </div>
           )}
@@ -559,7 +560,7 @@ function OfferListCard({ offer, compact, categoryHasAccepted }: { offer: OfferWi
                 onClick={() => startTransition(() => acceptOfferAction(offer.id, "full"))}
                 className="chip-hover inline-flex items-center gap-1.5 rounded-full bg-clay px-3.5 py-1.5 text-xs font-medium text-white hover:bg-clay-dark"
               >
-                {pending ? <Loader2 className="size-3.5 animate-spin" /> : "Accepteren →"}
+                {pending ? <VyraMarkSpinner className="text-sm" /> : "Accepteren →"}
               </button>
             </>
           )}

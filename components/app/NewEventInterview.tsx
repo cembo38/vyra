@@ -5,6 +5,7 @@ import { Sparkles, ArrowUp, Loader2, AlertTriangle } from "lucide-react";
 import { startInterviewAction, continueInterviewAction, generatePlanPreviewAction, generatePlanAction } from "@/lib/actions/event-actions";
 import { VoiceInputButton } from "@/components/app/VoiceInputButton";
 import { AiTag, PriorityBadge } from "@/components/ui/Badge";
+import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 import { MAX_INTERVIEW_QUESTIONS } from "@/lib/config";
 import { RequirementCategory } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -242,7 +243,7 @@ export function NewEventInterview() {
               disabled={pending}
               className="lift-hover inline-flex w-full items-center justify-center gap-2 rounded-xl bg-clay px-6 py-3.5 text-sm font-medium text-white shadow-sm hover:bg-clay-dark disabled:opacity-60 disabled:pointer-events-none"
             >
-              {pending ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+              {pending ? <VyraMarkSpinner className="text-base" /> : <Sparkles className="size-4" />}
               {pending ? "Je plan wordt opgesteld…" : "Opnieuw proberen"}
             </button>
           ) : (
@@ -251,7 +252,7 @@ export function NewEventInterview() {
               disabled={pending}
               className="lift-hover inline-flex w-full items-center justify-center gap-2 rounded-xl bg-clay px-6 py-3.5 text-sm font-medium text-white shadow-sm hover:bg-clay-dark disabled:opacity-60 disabled:pointer-events-none"
             >
-              {pending ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
+              {pending ? <VyraMarkSpinner className="text-base" /> : <Sparkles className="size-4" />}
               Zie volledige plan
             </button>
           )

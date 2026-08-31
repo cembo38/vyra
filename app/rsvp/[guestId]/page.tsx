@@ -3,6 +3,7 @@ import { getGuestPublic } from "@/lib/data/store";
 import { submitPublicRsvpAction } from "@/lib/actions/guest-actions";
 import { Field, Input, Textarea } from "@/components/ui/Form";
 import { Logo } from "@/components/marketing/Logo";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import { formatDateNL } from "@/lib/utils";
 import { CalendarDays, MapPin } from "lucide-react";
 
@@ -67,30 +68,30 @@ export default async function RsvpPage(props: PageProps<"/rsvp/[guestId]">) {
 
           <form action={submitPublicRsvpAction.bind(null, guest.id)} className="mt-5 space-y-4">
             <div className="grid grid-cols-3 gap-2">
-              <button
-                type="submit"
+              <SubmitButton
                 name="status"
                 value="yes"
+                pendingLabel="Bezig…"
                 className="chip-hover rounded-xl border border-line bg-white py-2.5 text-sm font-medium text-ink-soft hover:border-success hover:bg-success-50 hover:text-success"
               >
                 Ik kom
-              </button>
-              <button
-                type="submit"
+              </SubmitButton>
+              <SubmitButton
                 name="status"
                 value="maybe"
+                pendingLabel="Bezig…"
                 className="chip-hover rounded-xl border border-line bg-white py-2.5 text-sm font-medium text-ink-soft hover:border-ochre hover:bg-ochre-50 hover:text-ochre"
               >
                 Misschien
-              </button>
-              <button
-                type="submit"
+              </SubmitButton>
+              <SubmitButton
                 name="status"
                 value="no"
+                pendingLabel="Bezig…"
                 className="chip-hover rounded-xl border border-line bg-white py-2.5 text-sm font-medium text-ink-soft hover:border-danger hover:bg-danger-50 hover:text-danger"
               >
                 Kan niet
-              </button>
+              </SubmitButton>
             </div>
 
             <Field label="Aantal introducees" hint="Optioneel — alleen relevant als je komt">

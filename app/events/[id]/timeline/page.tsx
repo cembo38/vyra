@@ -5,6 +5,7 @@ import { AiTag } from "@/components/ui/Badge";
 import { toggleTimelineAction } from "@/lib/actions/misc-actions";
 import { formatDateNL } from "@/lib/utils";
 import { CalendarClock, CheckCircle2, Circle } from "lucide-react";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 
 export default async function TimelinePage(props: PageProps<"/events/[id]/timeline">) {
   const { id } = await props.params;
@@ -45,10 +46,10 @@ export default async function TimelinePage(props: PageProps<"/events/[id]/timeli
             </span>
             <p className="text-xs font-medium uppercase tracking-wide text-clay">{item.leadTimeLabel}</p>
             <form action={toggleTimelineAction.bind(null, id, item.id, !item.done)} className="mt-1">
-              <button type="submit" className="flex items-center gap-2 text-left">
+              <SubmitButton pendingLabel="Bezig…" className="flex items-center gap-2 text-left">
                 {item.done ? <CheckCircle2 className="size-4 text-success" /> : <Circle className="size-4 text-ink-faint" />}
                 <span className={item.done ? "text-ink-faint line-through" : "font-medium text-ink"}>{item.title}</span>
-              </button>
+              </SubmitButton>
             </form>
             {item.dueDate && <p className="ml-6 mt-0.5 text-xs text-ink-faint">{formatDateNL(item.dueDate)}</p>}
           </div>
