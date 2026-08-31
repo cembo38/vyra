@@ -53,7 +53,7 @@ export function SubscriptionTierPicker({
   function intervalFor(tier: SubscriptionTier): "monthly" | "annual" {
     if (intervalByTier[tier]) return intervalByTier[tier]!;
     if (tier === selected && currentBillingInterval) return currentBillingInterval;
-    return "monthly";
+    return "annual";
   }
 
   function choose(tier: SubscriptionTier) {

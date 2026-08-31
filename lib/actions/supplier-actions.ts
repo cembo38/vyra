@@ -574,37 +574,53 @@ export async function changeSubscriptionTierAction(
   }
 
   // ── Pad 4: Stripe is geconfigureerd — echt afrekenen via Checkout. ──
-  let customerId = supplier.stripeCustomerId;
-  if (!customerId) {
-    const customer = await stripe.customers.create({ email: user.email, name: supplier.companyName, metadata: { supplierId: supplier.id } });
-    customerId = customer.id;
-    await setSupplierStripeCustomerId(supplier.id, customerId);
-  }
+  // Alle Stripe-aanroepen staan BEWUST in een try/catch: zonder die vangnet
+  // liet een fout van Stripe zelf (bv. een ongeldige/verlopen sleutel, een
+  // sleutel zonder de juiste rechten, of een tijdelijk netwerkprobleem) de
+  // hele server action stuklopen zonder dat de leverancier ook maar íets te
+  // zien kreeg — de knop leek dan simpelweg niets te doen. `redirect()`
+  // staat expres BUITEN de try/catch: die gooit zelf een speciale
+  // Next.js-fout om de navigatie te laten plaatsvinden, en zou anders door
+  // deze catch worden opgevangen en de doorverwijzing breken (zie de
+  // Next.js-documentatie voor redirect()).
+  let checkoutUrl: string | null = null;
+  try {
+    let customerId = supplier.stripeCustomerId;
+    if (!customerId) {
+      const customer = await stripe.customers.create({ email: user.email, name: supplier.companyName, metadata: { supplierId: supplier.id } });
+      customerId = customer.id;
+      await setSupplierStripeCustomerId(supplier.id, customerId);
+    }
 
-  const session = await stripe.checkout.sessions.create({
-    mode: "subscription",
-    customer: customerId,
-    line_items: [
-      {
-        price_data: {
-          currency: "eur",
-          product_data: { name: `Vyra ${definition.label}` },
-          unit_amount: billingOption.priceCents,
-          recurring: { interval: interval === "annual" ? "year" : "month" },
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      customer: customerId,
+      line_items: [
+        {
+          price_data: {
+            currency: "eur",
+            product_data: { name: `Vyra ${definition.label}` },
+            unit_amount: billingOption.priceCents,
+            recurring: { interval: interval === "annual" ? "year" : "month" },
+          },
+          quantity: 1,
         },
-        quantity: 1,
-      },
-    ],
-    // Zowel op de sessie zelf (checkout.session.completed leest dit
-    // rechtstreeks) als op de subscription (customer.subscription.updated/
-    // deleted dragen alleen het subscription-object mee, niet de sessie).
-    metadata: { supplierId: supplier.id, tier, billingInterval: interval, previousStripeSubscriptionId: supplier.stripeSubscriptionId ?? "" },
-    subscription_data: { metadata: { supplierId: supplier.id, tier, billingInterval: interval } },
-    success_url: `${SITE_URL}/supplier/profile?subscriptionSuccess=1`,
-    cancel_url: `${SITE_URL}/supplier/profile?subscriptionCanceled=1`,
-  });
-  if (!session.url) return { ok: false, error: "Kon geen betaalsessie aanmaken bij Stripe. Probeer het nog eens." };
-  redirect(session.url);
+      ],
+      // Zowel op de sessie zelf (checkout.session.completed leest dit
+      // rechtstreeks) als op de subscription (customer.subscription.updated/
+      // deleted dragen alleen het subscription-object mee, niet de sessie).
+      metadata: { supplierId: supplier.id, tier, billingInterval: interval, previousStripeSubscriptionId: supplier.stripeSubscriptionId ?? "" },
+      subscription_data: { metadata: { supplierId: supplier.id, tier, billingInterval: interval } },
+      success_url: `${SITE_URL}/supplier/profile?subscriptionSuccess=1`,
+      cancel_url: `${SITE_URL}/supplier/profile?subscriptionCanceled=1`,
+    });
+    checkoutUrl = session.url;
+  } catch (err) {
+    console.error("[changeSubscriptionTierAction] Stripe Checkout-sessie aanmaken mislukt:", err instanceof Error ? err.message : err);
+    return { ok: false, error: "Er ging iets mis bij het aanmaken van de Stripe-betaalsessie. Probeer het nog eens, of neem contact op als dit blijft gebeuren." };
+  }
+  if (!checkoutUrl) return { ok: false, error: "Kon geen betaalsessie aanmaken bij Stripe. Probeer het nog eens." };
+  redirect(checkoutUrl);
 }
 
 /**
@@ -632,11 +648,23 @@ export async function openBillingPortalAction(): Promise<{ ok: boolean; error?: 
   const stripe = getStripeClient();
   if (!stripe) return { ok: false, error: "Stripe is momenteel niet geconfigureerd." };
 
-  const session = await stripe.billingPortal.sessions.create({
-    customer: supplier.stripeCustomerId,
-    return_url: `${SITE_URL}/supplier/profile`,
-  });
-  redirect(session.url);
+  // Zelfde reden als bij changeSubscriptionTierAction hierboven: de
+  // Stripe-aanroep staat in een try/catch zodat een fout van Stripe zelf
+  // (ongeldige sleutel, netwerkprobleem) de leverancier een nette
+  // foutmelding geeft in plaats van dat de knop niets lijkt te doen.
+  // `redirect()` staat expres BUITEN de try/catch, zie toelichting boven.
+  let portalUrl: string | null = null;
+  try {
+    const session = await stripe.billingPortal.sessions.create({
+      customer: supplier.stripeCustomerId,
+      return_url: `${SITE_URL}/supplier/profile`,
+    });
+    portalUrl = session.url;
+  } catch (err) {
+    console.error("[openBillingPortalAction] Stripe Billing Portal-sessie aanmaken mislukt:", err instanceof Error ? err.message : err);
+    return { ok: false, error: "Er ging iets mis bij het openen van je abonnementsbeheer. Probeer het nog eens, of neem contact op als dit blijft gebeuren." };
+  }
+  redirect(portalUrl);
 }
 
 /**
