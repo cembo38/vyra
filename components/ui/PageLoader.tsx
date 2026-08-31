@@ -20,3 +20,22 @@ export function PageLoader({ fullScreen, className }: { fullScreen?: boolean; cl
     </div>
   );
 }
+
+/**
+ * Kleine, inline variant van de V hierboven — voor gebruik ALS
+ * pending-indicator in een knop (zie components/ui/SubmitButton.tsx), i.p.v.
+ * een hele pagina. Livegang-incident aug. 2026: het inloggen leek "kapot"
+ * (geen enkele visuele reactie op klikken) terwijl het in werkelijkheid
+ * gewoon traag was — een submit-knop zonder enige laadindicator is dan niet
+ * te onderscheiden van een kapotte knop. Bewust geen los vierkantje/badge
+ * zoals hierboven (dat zou op de meestal al donkere knopachtergrond
+ * nauwelijks zichtbaar zijn) — gewoon de pulserende letter zelf, die z'n
+ * kleur van de omliggende knoptekst overneemt.
+ */
+export function VyraMarkSpinner({ className }: { className?: string }) {
+  return (
+    <span aria-hidden className={cn("font-display italic leading-none [animation:var(--animate-mark-pulse)]", className)}>
+      V
+    </span>
+  );
+}

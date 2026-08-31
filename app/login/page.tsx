@@ -4,6 +4,7 @@ import { Field, Input } from "@/components/ui/Form";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { AuthErrorBanner } from "@/components/app/AuthErrorBanner";
 import { SocialLoginButtons } from "@/components/app/SocialLoginButtons";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import { loginAction } from "@/lib/actions/auth-actions";
 
 export const metadata = { title: "Inloggen — Vyra" };
@@ -39,9 +40,9 @@ export default async function LoginPage(props: PageProps<"/login">) {
               </span>
               <PasswordInput name="password" required placeholder="••••••••" autoComplete="current-password" />
             </label>
-            <button type="submit" className="lift-hover w-full rounded-xl bg-ink py-2.5 text-sm font-medium text-paper hover:bg-ink/90">
+            <SubmitButton pendingLabel="Bezig met inloggen…" className="lift-hover w-full rounded-xl bg-ink py-2.5 text-sm font-medium text-paper hover:bg-ink/90">
               Inloggen
-            </button>
+            </SubmitButton>
           </form>
 
           <SocialLoginButtons />

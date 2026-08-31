@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Logo } from "@/components/marketing/Logo";
 import { Field, Input } from "@/components/ui/Form";
 import { AuthErrorBanner } from "@/components/app/AuthErrorBanner";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import { requestPasswordResetAction } from "@/lib/actions/auth-actions";
 
 export const metadata = { title: "Wachtwoord vergeten — Vyra" };
@@ -31,9 +32,9 @@ export default async function ForgotPasswordPage(props: PageProps<"/wachtwoord-v
             <Field label="E-mailadres" required>
               <Input type="email" name="email" required placeholder="jij@voorbeeld.nl" />
             </Field>
-            <button type="submit" className="lift-hover w-full rounded-xl bg-ink py-2.5 text-sm font-medium text-paper hover:bg-ink/90">
+            <SubmitButton pendingLabel="Bezig met versturen…" className="lift-hover w-full rounded-xl bg-ink py-2.5 text-sm font-medium text-paper hover:bg-ink/90">
               Verstuur resetlink
-            </button>
+            </SubmitButton>
           </form>
 
           <p className="mt-6 text-center text-sm text-ink-faint">

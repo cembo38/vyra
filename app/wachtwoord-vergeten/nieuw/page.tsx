@@ -3,6 +3,7 @@ import { Logo } from "@/components/marketing/Logo";
 import { Field } from "@/components/ui/Form";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { AuthErrorBanner } from "@/components/app/AuthErrorBanner";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import { getCurrentUser } from "@/lib/auth";
 import { updatePasswordAction } from "@/lib/actions/auth-actions";
 
@@ -39,9 +40,9 @@ export default async function NewPasswordPage(props: PageProps<"/wachtwoord-verg
             <Field label="Herhaal wachtwoord" required>
               <PasswordInput name="passwordRepeat" required minLength={8} placeholder="••••••••" autoComplete="new-password" />
             </Field>
-            <button type="submit" className="lift-hover w-full rounded-xl bg-ink py-2.5 text-sm font-medium text-paper hover:bg-ink/90">
+            <SubmitButton pendingLabel="Bezig met opslaan…" className="lift-hover w-full rounded-xl bg-ink py-2.5 text-sm font-medium text-paper hover:bg-ink/90">
               Wachtwoord opslaan
-            </button>
+            </SubmitButton>
           </form>
         </div>
       </div>

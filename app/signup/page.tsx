@@ -4,6 +4,7 @@ import { Field, Input } from "@/components/ui/Form";
 import { PasswordInput } from "@/components/ui/PasswordInput";
 import { AuthErrorBanner } from "@/components/app/AuthErrorBanner";
 import { SocialLoginButtons } from "@/components/app/SocialLoginButtons";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import { signupAction } from "@/lib/actions/auth-actions";
 
 export const metadata = { title: "Account aanmaken — Vyra" };
@@ -110,9 +111,9 @@ export default async function SignupPage(props: PageProps<"/signup">) {
               </span>
             </label>
 
-            <button type="submit" className="lift-hover w-full rounded-xl bg-clay py-2.5 text-sm font-medium text-white hover:bg-clay-dark">
+            <SubmitButton pendingLabel="Account aanmaken…" className="lift-hover w-full rounded-xl bg-clay py-2.5 text-sm font-medium text-white hover:bg-clay-dark">
               Account aanmaken
-            </button>
+            </SubmitButton>
           </form>
 
           <SocialLoginButtons />
