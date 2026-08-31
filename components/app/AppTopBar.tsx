@@ -5,7 +5,7 @@ import { NotificationsBell } from "@/components/app/NotificationsBell";
 import { NavShell, type NavShellItem } from "@/components/app/NavShell";
 import { getCurrentUser } from "@/lib/auth";
 import { getNotifications, getSupplierAccountByOwner } from "@/lib/data/store";
-import { Plus, Search, Store, CalendarHeart, Bell, Heart } from "lucide-react";
+import { Plus, Search, Store, CalendarHeart, Bell, Heart, HelpCircle } from "lucide-react";
 
 export async function AppTopBar() {
   const user = await getCurrentUser();
@@ -28,6 +28,10 @@ export async function AppTopBar() {
     // is een volwaardige pagina prettiger om oudere notificaties in terug te
     // vinden dan het korte paneel.
     { href: "/notifications", label: "Notificaties", icon: <Bell className="size-5 shrink-0" /> },
+    // Cem (aug. 2026): "een volledig zoekbare FAQ / kennisbank... met een
+    // ?-icoontje". Zie de toelichting bij hetzelfde item in
+    // SupplierTopBar.tsx voor waarom dit onderaan de lijst staat.
+    { href: "/help", label: "Help & FAQ", icon: <HelpCircle className="size-5 shrink-0" /> },
   ];
 
   return (

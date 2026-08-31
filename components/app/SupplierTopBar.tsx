@@ -5,7 +5,7 @@ import { NotificationsBell } from "@/components/app/NotificationsBell";
 import { NavShell, type NavShellItem } from "@/components/app/NavShell";
 import { AppNotification, UserAccount, SupplierAccount } from "@/lib/types";
 import { logoutAction } from "@/lib/actions/auth-actions";
-import { LogOut, LayoutDashboard, Inbox, MessageSquare, ShoppingBag, CalendarDays, User, Bell, Megaphone, LineChart } from "lucide-react";
+import { LogOut, LayoutDashboard, Inbox, MessageSquare, ShoppingBag, CalendarDays, User, Bell, Megaphone, LineChart, HelpCircle } from "lucide-react";
 
 // "Mijn evenementen" stond eerder als los kruispunt-item tussen deze
 // leveranciersportaal-punten — voelde als twee werelden door elkaar in
@@ -34,6 +34,11 @@ const ITEMS: NavShellItem[] = [
   // footer — makkelijk over het hoofd te zien. Nu ook als volwaardig
   // navigatie-item, net als de rest.
   { href: "/supplier/profile", label: "Bedrijfsprofiel", icon: <User className="size-5 shrink-0" /> },
+  // Cem (aug. 2026): "een volledig zoekbare FAQ / kennisbank... met een
+  // ?-icoontje". Bewust onderaan de lijst, na Bedrijfsprofiel — help is iets
+  // waar je gericht naartoe navigeert, geen dagelijkse werkplek zoals de
+  // items hierboven.
+  { href: "/supplier/help", label: "Help & FAQ", icon: <HelpCircle className="size-5 shrink-0" /> },
 ];
 
 // `supplier` wordt hier niet meer gebruikt (zie hieronder), maar blijft in
