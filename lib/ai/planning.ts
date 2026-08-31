@@ -83,11 +83,18 @@ export async function generateRequirementPlan(event: EventCore) {
     priority: c.priority,
     aiRationale: c.rationale,
     selected: c.priority !== "optional",
+    // "optional" krijgt ALTIJD €0, ongeacht wat het model teruggaf — de
+    // prompt (REQUIREMENT_GENERATOR_PROMPT) instrueert dit al, maar een
+    // taalmodel-instructie is nooit een garantie (zelfde "nooit alleen op
+    // prompt-gehoorzaamheid vertrouwen voor een harde regel"-aanpak als
+    // MAX_PLAUSIBLE_CATEGORY_BUDGET_CENTS hieronder). Cem, aug. 2026: "nice
+    // to haves moet je geen budget geven totdat een gebruiker zelf
+    // aangeeft dit in het plan mee te nemen".
     // sanitizeEstimatedBudgetCents (aug. 2026): het taalmodel geeft hier
     // geformeel gewoon een "number" terug, maar dat garandeert niets over de
     // grootte — zie de toelichting bij MAX_PLAUSIBLE_CATEGORY_BUDGET_CENTS
     // in lib/ai/catalog.ts voor de live hallucinatie die dit veroorzaakte.
-    estimatedBudgetCents: sanitizeEstimatedBudgetCents(c.estimatedBudgetCents, c.categoryKey),
+    estimatedBudgetCents: c.priority === "optional" ? 0 : sanitizeEstimatedBudgetCents(c.estimatedBudgetCents, c.categoryKey),
     draftMessage: null,
     status: "suggested",
   }));

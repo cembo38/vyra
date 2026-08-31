@@ -43,7 +43,7 @@ export default async function PlanPage(props: PageProps<"/events/[id]/plan">) {
   // schatten was) heeft niets om te verdelen.
   const allocatorItems = requirements
     .filter((r) => r.selected && r.estimatedBudgetCents != null)
-    .map((r) => ({ categoryId: r.id, label: r.label, cents: r.estimatedBudgetCents! }));
+    .map((r) => ({ categoryId: r.id, label: r.label, cents: r.estimatedBudgetCents!, priority: r.priority }));
 
   return (
     <div className="space-y-8">

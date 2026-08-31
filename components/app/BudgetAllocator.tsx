@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { Check, Loader2, Lock, RotateCcw, Unlock } from "lucide-react";
+import { PriorityBadge } from "@/components/ui/Badge";
 import { updateRequirementBudgetsAction } from "@/lib/actions/event-actions";
 import { formatCurrency } from "@/lib/config";
 import { cn } from "@/lib/utils";
@@ -253,21 +254,32 @@ export function BudgetAllocator({
       <div className="mt-4 space-y-3">
         {items.map((it, i) => {
           const locked = lockedIds.has(it.categoryId);
-          // BUGFIX (gemeld door Cem, aug. 2026: "shuifjes doen niks"): de
+          // BUGFIX 1 (gemeld door Cem, aug. 2026: "shuifjes doen niks"): de
           // eerdere versie zette de bovengrens van de schuif op "huidig
           // bedrag + wat de pot nog heeft" — zodra de pot leeg of negatief
           // was (bv. dit evenement zit al boven budget), werd dat exact
-          // gelijk aan het huidige bedrag. Elke schuif stond dan altijd op
-          // 100%, ongeacht het werkelijke bedrag, en kon met geen mogelijkheid
-          // meer bewegen (ook niet zichtbaar naar links, want min/max/value
-          // vielen bijna samen). De daadwerkelijke grens (nooit meer opeisen
-          // dan de pot toestaat) wordt toch al hard afgedwongen in
-          // `slideItem` zelf zodra je loslaat — deze `max` is puur hoe ver je
-          // de schuif visueel kunt verslepen, dus die mag gewoon altijd ruim
-          // zijn. Sleep je voorbij wat er echt beschikbaar is, dan springt
-          // het bedrag bij loslaten terug naar wat wél kon — normaal
-          // schuifgedrag, geen bug.
-          const max = Math.max(it.cents * 3, 100_000);
+          // gelijk aan het huidige bedrag, en kon de schuif niet meer bewegen.
+          // BUGFIX 2 (gemeld door Cem, aug. 2026: "op de laptop werken de
+          // schuifjes nog niet helemaal"): de eerste fix (`Math.max(it.cents
+          // * 3, 100_000)`) loste dat op, maar introduceerde een NIEUW,
+          // subtieler probleem — `max` was daarmee afgeleid van `it.cents`,
+          // precies de waarde die de schuif zelf op elke sleeptik verandert.
+          // Zodra een bedrag boven ~€333 kwam, gaf dat `value/max` vast op
+          // exact 1/3: elke re-render (veroorzaakt door de sleepbeweging
+          // zelf) zette de duim terug naar 33% van de baan, hoe ver je ook
+          // sleepte. Op mobiel viel dit nauwelijks op (kortere, discrete
+          // aanraakgebaren); bij een langzame muissleep op de laptop was het
+          // direct zichtbaar ("doet het niet").
+          //
+          // Deze versie leidt `max` af van de STABIELE beginwaarden
+          // (`sanitizedInitialItems`, uit de props, die tijdens het slepen
+          // niet veranderen) i.p.v. de live state — geen feedbacklus meer
+          // mogelijk. Mét een vast totaalbudget is `max` gewoon dat hele
+          // budget: intuïtief tot 100% te verslepen ("geef deze categorie
+          // alles"), de daadwerkelijke grens (nooit meer opeisen dan de pot
+          // heeft) wordt nog steeds hard afgedwongen in `slideItem` zelf
+          // zodra je loslaat — dit is puur hoe ver je visueel kúnt slepen.
+          const max = hasFixedTotal ? totalBudgetCents! : Math.max((sanitizedInitialItems[i]?.cents ?? 0) * 3, 100_000);
           return (
             <div key={it.categoryId}>
               {/* min-w-0 + truncate op beide kanten: extra vangnet naast de
@@ -278,6 +290,10 @@ export function BudgetAllocator({
                 <span className={`flex min-w-0 items-center gap-1.5 ${t.itemLabel}`}>
                   <span className="size-2 shrink-0 rounded-full" style={{ backgroundColor: SEGMENT_COLORS[i % SEGMENT_COLORS.length] }} />
                   <span className="truncate">{it.label}</span>
+                  {/* Alleen getoond als de aanroeper `priority` meegeeft (budget-/planpagina) —
+                      maakt een €0-schuif bij "optioneel" meteen leesbaar als bewuste keuze
+                      (nog niet aan het plan toegevoegd), geen bug. */}
+                  {it.priority && <PriorityBadge priority={it.priority} />}
                 </span>
                 <span className="flex shrink-0 items-center gap-1.5">
                   <span className={`truncate font-medium ${t.amount}`}>{formatCurrency(it.cents)}</span>

@@ -45,7 +45,7 @@ export default async function BudgetPage(props: PageProps<"/events/[id]/budget">
   // "Verwacht"-bedrag is.
   const allocatorItems = requirements
     .filter((r) => r.estimatedBudgetCents != null && !LOCKED_STATUSES.has(r.status))
-    .map((r) => ({ categoryId: r.id, label: r.label, cents: r.estimatedBudgetCents! }));
+    .map((r) => ({ categoryId: r.id, label: r.label, cents: r.estimatedBudgetCents!, priority: r.priority }));
 
   const committedPct = budget.totalCents ? Math.min(100, (budget.committedCents / budget.totalCents) * 100) : 0;
   const pendingPct = budget.totalCents ? Math.min(100 - committedPct, (budget.pendingCents / budget.totalCents) * 100) : 0;

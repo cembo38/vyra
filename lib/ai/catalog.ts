@@ -234,7 +234,25 @@ export function buildDefaultRequirements(event: EventCore): RequirementCategory[
   // echte AI nu ook krijgt (zie REQUIREMENT_GENERATOR_PROMPT).
   const template = event.locationType === "home" ? rawTemplate.filter((t) => t.categoryKey !== "venue") : rawTemplate;
   const totalBudget = event.budget?.totalCents ?? null;
-  const totalWeight = template.reduce((sum, t) => sum + t.weight, 0);
+  // HERONTWERP (gemeld door Cem, aug. 2026): "ik wil dat je het budget
+  // enkel verdeeld over de essentiële en belangrijke zaken... de nice to
+  // haves moet je geen budget geven totdat een gebruiker zelf aangeeft dit
+  // in het plan mee te nemen" — bv. €1.000 → 200-200-500-100, exact
+  // verdeeld over essential+recommended, niets "gereserveerd" voor een
+  // optionele categorie die nog niet eens in het plan zit. Vóór deze fix
+  // telde `totalWeight` het gewicht van ALLE categorieën mee, inclusief
+  // "optional" (die toch al standaard niet geselecteerd is, zie
+  // `selected` hieronder) — essential/recommended kregen daardoor nooit
+  // het volledige budget. Nu telt de noemer alleen het gewicht van
+  // essential+recommended, en optional krijgt altijd expliciet €0 (geen
+  // verdund gewicht-aandeel, geen `TYPICAL_CATEGORY_COST_CENTS`-fallback)
+  // — pas zodra de organisator 'm zelf op de planpagina aanzet én de
+  // schuif optrekt (RequirementToggle + het envelope-model in
+  // lib/budget-allocator.ts) krijgt zo'n categorie een echt bedrag, en dat
+  // trekt dan bewust van een andere categorie af, want de pot is bij
+  // oplevering al volledig verdeeld.
+  const allocatableTemplate = template.filter((t) => t.priority !== "optional");
+  const totalWeight = allocatableTemplate.reduce((sum, t) => sum + t.weight, 0);
 
   return template.map((t) => ({
     id: uid("reqc"),
@@ -244,14 +262,16 @@ export function buildDefaultRequirements(event: EventCore): RequirementCategory[
     priority: t.priority,
     aiRationale: t.rationale,
     selected: t.priority !== "optional",
-    // Met een bekend totaalbudget: verdeel dat naar verhouding over de
-    // categorieën. Zonder totaalbudget: val terug op de typische
-    // marktprijs voor die categorie i.p.v. simpelweg `null` — zo heeft het
-    // budgetoverzicht altijd een realistische schatting, ook vóórdat de
-    // organisator zelf een totaalbudget heeft opgegeven.
-    estimatedBudgetCents: totalBudget
-      ? Math.round((t.weight / totalWeight) * totalBudget)
-      : TYPICAL_CATEGORY_COST_CENTS[t.categoryKey] ?? null,
+    estimatedBudgetCents:
+      t.priority === "optional"
+        ? 0
+        : totalBudget
+          ? Math.round((t.weight / totalWeight) * totalBudget)
+          : // Zonder totaalbudget: val terug op de typische marktprijs voor
+            // die categorie i.p.v. simpelweg `null` — zo heeft het
+            // budgetoverzicht altijd een realistische schatting, ook
+            // vóórdat de organisator zelf een totaalbudget heeft opgegeven.
+            TYPICAL_CATEGORY_COST_CENTS[t.categoryKey] ?? null,
     draftMessage: null,
     status: "suggested",
   }));
@@ -281,14 +301,24 @@ export function priorityRank(p: RequirementPriority) {
  * "server-only" importeert — geldberekeningen als deze horen daarom bij de
  * losstaande logica die vitest wél kan testen (zie vitest.config.ts).
  */
-export function capEstimatesToBudget<T extends { selected: boolean; estimatedBudgetCents: number | null }>(
+export function capEstimatesToBudget<T extends { selected: boolean; priority: RequirementPriority; estimatedBudgetCents: number | null }>(
   categories: T[],
   totalBudgetCents: number | null | undefined
 ): T[] {
   if (!totalBudgetCents || totalBudgetCents <= 0) return categories;
-  const selectedSum = categories.filter((c) => c.selected).reduce((sum, c) => sum + (c.estimatedBudgetCents ?? 0), 0);
+  // "optional" categorieën horen altijd op €0 te staan (zie
+  // buildDefaultRequirements hierboven) en tellen dus sowieso niet mee in
+  // de som — expliciet uitgesloten hier ook, i.p.v. daar alleen op te
+  // vertrouwen, zodat deze functie zelf ook correct blijft als er ooit een
+  // ander pad is dat die garantie niet geeft (zelfde "nooit alleen op één
+  // plek afdwingen"-aanpak als MAX_PLAUSIBLE_CATEGORY_BUDGET_CENTS hierboven).
+  const selectedSum = categories
+    .filter((c) => c.selected && c.priority !== "optional")
+    .reduce((sum, c) => sum + (c.estimatedBudgetCents ?? 0), 0);
   if (selectedSum <= totalBudgetCents) return categories;
 
   const factor = totalBudgetCents / selectedSum;
-  return categories.map((c) => (c.estimatedBudgetCents != null ? { ...c, estimatedBudgetCents: Math.round(c.estimatedBudgetCents * factor) } : c));
+  return categories.map((c) =>
+    c.priority !== "optional" && c.estimatedBudgetCents != null ? { ...c, estimatedBudgetCents: Math.round(c.estimatedBudgetCents * factor) } : c
+  );
 }

@@ -28,6 +28,16 @@ export interface AllocatorItem {
   categoryId: string;
   label: string;
   cents: number;
+  /**
+   * Optioneel — alleen gebruikt om een `PriorityBadge` te tonen naast het
+   * label (zie BudgetAllocator.tsx). Puur weergave, telt niet mee in de
+   * rekenlogica hieronder: sinds aug. 2026 verdelen alleen essentiële/
+   * aanbevolen categorieën het budget (zie buildDefaultRequirements() in
+   * lib/ai/catalog.ts) — een "optional" categorie staat hier vaak op 0
+   * totdat de gebruiker 'm zelf aan het plan toevoegt, en dit badge maakt
+   * dat op de schuivenlijst zelf al leesbaar als bewuste keuze, geen bug.
+   */
+  priority?: "essential" | "recommended" | "optional";
 }
 
 /**

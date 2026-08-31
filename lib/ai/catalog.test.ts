@@ -54,19 +54,57 @@ describe("buildDefaultRequirements", () => {
   it("verdeelt een bekend totaalbudget nog steeds volledig over de resterende categorieën na het weglaten van 'venue'", () => {
     const withVenue = buildDefaultRequirements(baseEvent({ type: "wedding", budget: { totalCents: 100_000, source: "user" } }));
     const withoutVenue = buildDefaultRequirements(baseEvent({ type: "wedding", locationType: "home", budget: { totalCents: 100_000, source: "user" } }));
-    const sum = (list: typeof withVenue) => list.reduce((s, r) => s + (r.estimatedBudgetCents ?? 0), 0);
+    const sum = (list: typeof withVenue) => list.filter((r) => r.priority !== "optional").reduce((s, r) => s + (r.estimatedBudgetCents ?? 0), 0);
     // Afronding per categorie kan een paar centen schelen, dus geen exacte gelijkheid.
     expect(Math.abs(sum(withoutVenue) - 100_000)).toBeLessThan(withoutVenue.length);
     expect(sum(withVenue)).toBeGreaterThan(0);
+  });
+
+  /**
+   * HERONTWERP (gemeld door Cem, aug. 2026): "ik wil dat je het budget
+   * enkel verdeeld over de essentiële en belangrijke zaken... de nice to
+   * haves moet je geen budget geven totdat een gebruiker zelf aangeeft dit
+   * in het plan mee te nemen" — bv. €1.000 → 200-200-500-100. Dit dekt
+   * precies dat scenario met het "birthday"-sjabloon (catering 4, meubilair
+   * 2, dj 2, taart 1 = essential+recommended-gewicht 9; decoratie 1,
+   * photobooth 1 zijn "optional").
+   */
+  it("verdeelt het volledige budget alleen over essential/recommended; optional krijgt altijd €0", () => {
+    const requirements = buildDefaultRequirements(baseEvent({ type: "birthday", budget: { totalCents: 100_000, source: "user" } }));
+    const byKey = Object.fromEntries(requirements.map((r) => [r.categoryKey, r]));
+
+    expect(byKey.catering.priority).toBe("essential");
+    expect(byKey.catering.estimatedBudgetCents).toBe(44_444); // 4/9 van €1.000
+    expect(byKey.furniture_rental.estimatedBudgetCents).toBe(22_222); // 2/9
+    expect(byKey.dj_music.priority).toBe("recommended");
+    expect(byKey.dj_music.estimatedBudgetCents).toBe(22_222); // 2/9
+    expect(byKey.cake.estimatedBudgetCents).toBe(11_111); // 1/9
+
+    expect(byKey.decoration.priority).toBe("optional");
+    expect(byKey.decoration.estimatedBudgetCents).toBe(0);
+    expect(byKey.photobooth.priority).toBe("optional");
+    expect(byKey.photobooth.estimatedBudgetCents).toBe(0);
+
+    // Essential+recommended benutten het budget vrijwel volledig (afronding: op zijn hoogst een paar centen eronder).
+    const allocatableSum = requirements.filter((r) => r.priority !== "optional").reduce((s, r) => s + (r.estimatedBudgetCents ?? 0), 0);
+    expect(allocatableSum).toBeLessThanOrEqual(100_000);
+    expect(allocatableSum).toBeGreaterThan(99_990);
+  });
+
+  it("optional categorieën krijgen ook €0 zonder bekend totaalbudget (nooit de typische-marktprijs-fallback)", () => {
+    const requirements = buildDefaultRequirements(baseEvent({ type: "birthday", budget: null }));
+    const optional = requirements.filter((r) => r.priority === "optional");
+    expect(optional.length).toBeGreaterThan(0);
+    for (const r of optional) expect(r.estimatedBudgetCents).toBe(0);
   });
 });
 
 describe("capEstimatesToBudget", () => {
   const categories = [
-    { key: "venue", selected: true, estimatedBudgetCents: 200_000 },
-    { key: "catering", selected: true, estimatedBudgetCents: 150_000 },
-    { key: "photography", selected: true, estimatedBudgetCents: 90_000 },
-    { key: "cake", selected: false, estimatedBudgetCents: 40_000 }, // niet geselecteerd, telt niet mee in de som
+    { key: "venue", priority: "essential" as const, selected: true, estimatedBudgetCents: 200_000 },
+    { key: "catering", priority: "essential" as const, selected: true, estimatedBudgetCents: 150_000 },
+    { key: "photography", priority: "recommended" as const, selected: true, estimatedBudgetCents: 90_000 },
+    { key: "cake", priority: "recommended" as const, selected: false, estimatedBudgetCents: 40_000 }, // niet geselecteerd, telt niet mee in de som
   ];
 
   it("schaalt alle schattingen naar verhouding omlaag als de AI het budget fors overschrijdt (het gemelde €500-vs-€4.400-geval)", () => {
@@ -92,8 +130,18 @@ describe("capEstimatesToBudget", () => {
   });
 
   it("laat 'null'-schattingen met rust (kan niet naar verhouding geschaald worden)", () => {
-    const withNull = [...categories, { key: "unknown", selected: true, estimatedBudgetCents: null }];
+    const withNull = [...categories, { key: "unknown", priority: "essential" as const, selected: true, estimatedBudgetCents: null }];
     const result = capEstimatesToBudget(withNull, 50_000);
     expect(result.find((c) => c.key === "unknown")!.estimatedBudgetCents).toBeNull();
+  });
+
+  it("optional categorieën tellen nooit mee in de som en worden nooit geschaald, zelfs niet als ze (foutief) toch een bedrag hebben", () => {
+    const withOptional = [...categories, { key: "photobooth", priority: "optional" as const, selected: true, estimatedBudgetCents: 999_999 }];
+    const result = capEstimatesToBudget(withOptional, 50_000);
+    expect(result.find((c) => c.key === "photobooth")!.estimatedBudgetCents).toBe(999_999); // ongewijzigd, niet meegeschaald
+    const selectedNonOptionalSum = result
+      .filter((c) => c.selected && c.priority !== "optional")
+      .reduce((s, c) => s + (c.estimatedBudgetCents ?? 0), 0);
+    expect(selectedNonOptionalSum).toBeLessThanOrEqual(50_000);
   });
 });
