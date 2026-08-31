@@ -23,7 +23,7 @@ import {
   requestSupplierVerificationAction,
 } from "@/lib/actions/supplier-actions";
 import { SUPPLIER_CATEGORY_LABELS, SupplierPackageTier } from "@/lib/types";
-import { PUSH_ENABLED } from "@/lib/config";
+import { PAYMENTS_ENABLED, PUSH_ENABLED } from "@/lib/config";
 import { BadgeCheck, Bell, CheckCircle2, Clock, ExternalLink, ImagePlus, Lock, Package, X } from "lucide-react";
 
 const PACKAGE_TIER_LABELS: Record<SupplierPackageTier, string> = {
@@ -64,6 +64,8 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
   const verifyRequested = params.verifyRequested === "1";
   const packagesSaved = params.packagesSaved === "1";
   const videoError = params.videoError === "1";
+  const subscriptionSuccess = params.subscriptionSuccess === "1";
+  const subscriptionCanceled = params.subscriptionCanceled === "1";
 
   const user = await getCurrentUser();
   if (!user) redirect("/login");
@@ -150,6 +152,17 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
           <div className="mt-4 rounded-xl border border-warning-50 bg-warning-50 px-3 py-2 text-sm text-warning">
             Je overige wijzigingen zijn opgeslagen, maar de videolink werd niet herkend als een YouTube- of Vimeo-link. Probeer het
             opnieuw met bijvoorbeeld <span className="font-mono">https://youtu.be/...</span> of <span className="font-mono">https://vimeo.com/...</span>.
+          </div>
+        )}
+        {subscriptionSuccess && (
+          <div className="mt-4 flex items-center gap-2 rounded-xl border border-success-50 bg-success-50 px-4 py-3 text-sm text-success">
+            <CheckCircle2 className="size-4" /> Je abonnement is bevestigd door Stripe. Het kan een paar seconden duren voordat je nieuwe
+            niveau hieronder zichtbaar is — ververs de pagina als dat nog niet het geval is.
+          </div>
+        )}
+        {subscriptionCanceled && (
+          <div className="mt-4 rounded-xl border border-warning-50 bg-warning-50 px-3 py-2 text-sm text-warning">
+            Je bent teruggekeerd zonder de betaling af te ronden — er is niets in rekening gebracht en je abonnement is ongewijzigd.
           </div>
         )}
 
@@ -421,9 +434,12 @@ export default async function SupplierProfilePage(props: PageProps<"/supplier/pr
         >
           <SubscriptionTierPicker
             currentTier={supplier.subscriptionTier}
+            currentBillingInterval={supplier.billingInterval}
             inTrial={commissionStatus.inTrial}
             trialBookingsRemaining={commissionStatus.trialBookingsRemaining}
             pendingUpgradeRequest={pendingUpgradeRequest}
+            paymentsEnabled={PAYMENTS_ENABLED}
+            hasStripeCustomer={Boolean(supplier.stripeCustomerId)}
           />
         </CollapsibleSection>
       </Card>

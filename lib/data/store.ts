@@ -1976,17 +1976,40 @@ export async function getSupplierCommissionStatus(supplierId: string): Promise<{
 }
 
 /**
- * Leverancier kiest zelf een abonnementsniveau (spec-item #53-vervolg,
- * SaaS-pivot) — nog een zelfbedienings-keuze zonder automatische incasso,
- * zelfde "mock"-aanpak als de rest van de betaalflow in deze app (zie
- * `provider: "mock"` bij `createPaymentForOffer`): het niveau bepaalt al
- * meteen de perks/limieten/commissie, maar het daadwerkelijk innen van het
- * maandbedrag loopt (nog) niet via de app, zie het leveranciersprofiel voor
- * de Stripe Payment Link die de leverancier daarvoor zelf gebruikt.
+ * Zet het abonnementsniveau rechtstreeks in de database — GEEN geldstroom,
+ * dus alleen te gebruiken voor het gratis Instap-niveau, of als onderdeel
+ * van de admin-goedkeuringsflow (`resolveTierUpgradeRequest`)/de handmatige
+ * fallback wanneer Stripe nog niet geconfigureerd is (zie
+ * `changeSubscriptionTierAction` in lib/actions/supplier-actions.ts). Voor
+ * een betaald niveau met Stripe wél geconfigureerd loopt het bijwerken van
+ * dit veld altijd via de webhook (`applySupplierSubscriptionFromWebhook`
+ * hieronder), nooit via deze functie — anders zou de database een niveau
+ * kunnen tonen waar nooit voor betaald is.
  */
 export async function setSupplierSubscriptionTier(supplierId: string, tier: SubscriptionTier): Promise<void> {
   const supabase = await sb();
   await supabase.from("suppliers").update({ subscription_tier: tier }).eq("id", supplierId);
+}
+
+/**
+ * Legt een nieuw (of hergebruikt) Stripe-klant-id vast op het moment dat een
+ * leverancier voor het eerst een betaald niveau kiest (zie
+ * changeSubscriptionTierAction in lib/actions/supplier-actions.ts) — zodat
+ * een volgende checkout/wijziging dezelfde Stripe-klant hergebruikt i.p.v.
+ * er telkens een nieuwe aan te maken. Sessie-gebonden: de leverancier doet
+ * dit altijd voor zichzelf, nooit een admin namens iemand anders.
+ */
+export async function setSupplierStripeCustomerId(supplierId: string, stripeCustomerId: string): Promise<void> {
+  const supabase = await sb();
+  await supabase.from("suppliers").update({ stripe_customer_id: stripeCustomerId }).eq("id", supplierId);
+}
+
+/** Voor de Stripe-webhook: leverancier opzoeken aan de hand van zijn Stripe-klant-id — geen sessie beschikbaar in een inkomend webhook-request, dus service-role. */
+export async function getSupplierAccountByStripeCustomerId(stripeCustomerId: string): Promise<SupplierAccount | null> {
+  const admin = createSupabaseAdminClient();
+  if (!admin) return null;
+  const { data } = await admin.from("suppliers").select("*").eq("stripe_customer_id", stripeCustomerId).maybeSingle();
+  return data ? rowToSupplierAccount(data) : null;
 }
 
 /**
@@ -3408,6 +3431,92 @@ export async function upsertSupplierStripeAccountFromWebhook(
     .maybeSingle();
   if (error || !data) return null;
   return rowToSupplierStripeAccount(data);
+}
+
+/**
+ * Vanuit de Stripe-webhook (checkout.session.completed in subscription-mode,
+ * of customer.subscription.updated — bv. na een niveau-/interval-wissel of
+ * een geslaagde herpoging ná invoice.payment_failed): zet het
+ * abonnementsniveau, de facturatie-termijn en het daadwerkelijk betaalde
+ * bedrag vast op basis van wat STRIPE zegt. Bewust NOOIT rechtstreeks vanuit
+ * de server action zelf geschreven (die roept alleen de Stripe-API aan, zie
+ * changeSubscriptionTierAction) — de webhook is de enige plek die de
+ * database daadwerkelijk bijwerkt, zodat er nooit verschil kan ontstaan
+ * tussen "wat de leverancier net aanklikte" en "wat Stripe daadwerkelijk
+ * heeft doorgevoerd" (bv. bij een mislukte betaling of een race condition).
+ * Zoekt de leverancier op via `supplierId` (uit de subscription-metadata,
+ * gezet bij het aanmaken — zie changeSubscriptionTierAction) als die
+ * meegegeven is, anders via het Stripe-klant-id.
+ */
+export async function applySupplierSubscriptionFromWebhook(params: {
+  supplierId?: string;
+  stripeCustomerId: string;
+  stripeSubscriptionId: string;
+  tier: SubscriptionTier;
+  billingInterval: "monthly" | "annual";
+  priceCents: number;
+  status: SupplierAccount["subscriptionStatus"];
+}): Promise<void> {
+  const admin = createSupabaseAdminClient();
+  if (!admin) return;
+
+  let supplierId = params.supplierId;
+  if (!supplierId) {
+    const { data } = await admin.from("suppliers").select("id").eq("stripe_customer_id", params.stripeCustomerId).maybeSingle();
+    supplierId = data?.id;
+  }
+  if (!supplierId) return;
+
+  await admin
+    .from("suppliers")
+    .update({
+      subscription_tier: params.tier,
+      billing_interval: params.billingInterval,
+      subscription_price_cents: params.priceCents,
+      subscription_status: params.status,
+      stripe_customer_id: params.stripeCustomerId,
+      stripe_subscription_id: params.stripeSubscriptionId,
+    })
+    .eq("id", supplierId);
+}
+
+/**
+ * customer.subscription.deleted — het abonnement is écht beëindigd (na een
+ * eerdere `cancel_at_period_end` bij een downgrade naar Instap, of doordat
+ * betalingen definitief zijn mislukt na Stripe's eigen dunning-herpogingen).
+ * Valt terug op het gratis Instap-niveau — precies zoals een leverancier die
+ * zelf downgradet zonder actief abonnement.
+ */
+export async function resetSupplierToFreeTierFromWebhook(stripeSubscriptionId: string): Promise<void> {
+  const admin = createSupabaseAdminClient();
+  if (!admin) return;
+  await admin
+    .from("suppliers")
+    .update({
+      subscription_tier: "instap",
+      billing_interval: null,
+      subscription_price_cents: null,
+      subscription_status: "canceled",
+      stripe_subscription_id: null,
+    })
+    .eq("stripe_subscription_id", stripeSubscriptionId);
+}
+
+/**
+ * Alleen de status bijwerken, zonder het niveau aan te raken — voor
+ * `invoice.payment_failed` (betaling voor de lopende periode mislukt; Stripe
+ * probeert het via zijn eigen dunning-instellingen zelf nog een aantal keer
+ * opnieuw, wij veranderen het niveau dus BEWUST nog niet) en voor
+ * `customer.subscription.updated` als die geen (of geen bij ons bekende)
+ * metadata bevat — bv. een statuswijziging die niet van onze eigen checkout
+ * afkomstig is. Stripe stuurt zelf `customer.subscription.deleted` zodra een
+ * abonnement definitief wordt beëindigd na uitgeputte herpogingen (zie
+ * resetSupplierToFreeTierFromWebhook hierboven).
+ */
+export async function setSupplierSubscriptionStatusFromWebhook(stripeSubscriptionId: string, status: SupplierAccount["subscriptionStatus"]): Promise<void> {
+  const admin = createSupabaseAdminClient();
+  if (!admin) return;
+  await admin.from("suppliers").update({ subscription_status: status }).eq("stripe_subscription_id", stripeSubscriptionId);
 }
 
 /** Voor de webhook: een betaling opzoeken aan de hand van de Stripe Checkout-sessie die ervoor is aangemaakt (geen sessie/cookie beschikbaar in een inkomend webhook-request, dus service-role). */

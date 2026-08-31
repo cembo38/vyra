@@ -80,9 +80,11 @@ export default function TermsPage() {
                 })}
               </ul>
               <p className="mt-2.5">
-                Een leverancier kan op elk moment zelf van niveau wisselen via zijn profiel. Het gekozen niveau bepaalt direct de
-                geldende perks, limieten en het commissietarief; het daadwerkelijk innen van het maandbedrag verloopt op dit
-                moment nog niet via automatische incasso — Vyra informeert de leverancier zodra dat wel het geval is.
+                Een leverancier kan op elk moment zelf van niveau wisselen via zijn profiel. Instap is en blijft gratis en direct
+                zelf te kiezen. Bij een betaald niveau kiest de leverancier tussen een maandelijks opzegbaar tarief of een
+                jaartarief (in één keer per jaar afgeschreven, tegen een lagere maandprijs); het bijbehorende bedrag wordt
+                automatisch via Stripe geïncasseerd. Downgraden naar Instap vanuit een betaald niveau behoudt de reeds betaalde
+                periode: de wijziging gaat pas in zodra die periode afloopt, zonder terugbetaling van het resterende bedrag.
               </p>
               <p className="mt-2.5">
                 Zolang betalen via het platform nog niet beschikbaar is, verwerkt Vyra zelf geen betalingen tussen organisator en
