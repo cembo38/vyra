@@ -26,8 +26,15 @@ import { computeAvgResponseHours, type ResponseTimeMessage } from "@/lib/data/re
  * verwacht — dezelfde env var als de bestaande cronjobs.
  */
 export async function GET(request: NextRequest) {
+  // Livegang-audit (aug. 2026): dit faalde voorheen OPEN als CRON_SECRET
+  // niet gezet was (`cronSecret &&` liet de hele check dan gewoon vallen) —
+  // zonder deze env var in Vercel stond deze route dus voor IEDEREEN op
+  // internet open, geen inloggegevens nodig. Nu dicht bij twijfel: ontbreekt
+  // CRON_SECRET, dan wordt elk verzoek geweigerd i.p.v. toegelaten. Vergeet
+  // je CRON_SECRET in Vercel te zetten, dan draait deze cronjob dus gewoon
+  // niet (401) totdat je dat doet — vervelend te merken, maar nooit onveilig.
   const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret && request.headers.get("authorization") !== `Bearer ${cronSecret}`) {
+  if (!cronSecret || request.headers.get("authorization") !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

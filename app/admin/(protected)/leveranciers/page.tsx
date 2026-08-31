@@ -105,9 +105,10 @@ export default async function AdminSuppliersPage() {
             )}
           </div>
           <p className="mb-4 text-xs text-ink-faint">
-            Leveranciers kunnen zelf een upgrade naar een hoger abonnementsniveau aanvragen — er is nog geen automatische betaalflow,
-            dus elke aanvraag wordt hier handmatig beoordeeld. Neem bij goedkeuring buiten Vyra om contact op om de betaling te
-            regelen.
+            Zolang Stripe is aangesloten (zie {"`PAYMENTS_ENABLED`"}) kiest een leverancier een betaald niveau rechtstreeks via een
+            beveiligde Stripe-checkout — dat gaat volledig automatisch, hier komt dan niets binnen. Deze lijst is de handmatige
+            noodroute voor als Stripe (nog) niet is aangesloten: elke aanvraag hier moet je zelf beoordelen, en neem bij goedkeuring
+            buiten Vyra om contact op om de betaling te regelen.
           </p>
           {!serviceRoleConfigured ? (
             <p className="text-sm text-ink-faint">Vereist de service-role sleutel (zie melding bovenaan) om aanvragen te kunnen goed- of afkeuren.</p>

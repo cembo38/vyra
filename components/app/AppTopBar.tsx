@@ -3,9 +3,11 @@ import { Logo } from "@/components/marketing/Logo";
 import { UserAvatar } from "@/components/ui/Avatar";
 import { NotificationsBell } from "@/components/app/NotificationsBell";
 import { NavShell, type NavShellItem } from "@/components/app/NavShell";
+import { SubmitButton } from "@/components/ui/SubmitButton";
 import { getCurrentUser } from "@/lib/auth";
+import { logoutAction } from "@/lib/actions/auth-actions";
 import { getNotifications, getSupplierAccountByOwner } from "@/lib/data/store";
-import { Plus, Search, Store, CalendarHeart, Bell, Heart, HelpCircle } from "lucide-react";
+import { Plus, Search, Store, CalendarHeart, Bell, Heart, HelpCircle, LogOut } from "lucide-react";
 
 export async function AppTopBar() {
   const user = await getCurrentUser();
@@ -61,6 +63,16 @@ export async function AppTopBar() {
           <Link href="/profile" aria-label="Profiel" className="icon-pop inline-block rounded-full">
             <UserAvatar firstName={user.firstName || "?"} lastName={user.lastName} color={user.avatarColor} />
           </Link>
+          {/* Livegang-audit (aug. 2026): op SupplierTopBar/AdminShell staat
+              hier al een losse uitlog-knop naast de avatar — hier ontbrak
+              die, dus moest een organisator eerst naar /profile navigeren om
+              uit te loggen. Zelfde patroon als daar: eigen formulier +
+              icoon-only SubmitButton. */}
+          <form action={logoutAction}>
+            <SubmitButton iconOnly aria-label="Uitloggen" className="icon-pop flex size-11 items-center justify-center rounded-full text-ink-faint hover:bg-paper-dim hover:text-ink">
+              <LogOut className="size-4" />
+            </SubmitButton>
+          </form>
         </>
       }
       utilityLeft={
@@ -73,6 +85,11 @@ export async function AppTopBar() {
           <Link href="/profile" aria-label="Profiel" className="icon-pop inline-block rounded-full">
             <UserAvatar firstName={user.firstName || "?"} lastName={user.lastName} color={user.avatarColor} />
           </Link>
+          <form action={logoutAction}>
+            <SubmitButton iconOnly aria-label="Uitloggen" className="icon-pop flex size-11 items-center justify-center rounded-full text-ink-faint hover:bg-paper-dim hover:text-ink">
+              <LogOut className="size-4" />
+            </SubmitButton>
+          </form>
         </>
       }
     />

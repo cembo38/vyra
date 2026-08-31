@@ -145,7 +145,17 @@ export async function requestPasswordResetAction(formData: FormData) {
   if (!email) redirect("/wachtwoord-vergeten?error=email_missing");
 
   const origin = await siteOrigin();
-  await requestPasswordReset(email, `${origin}/auth/callback?next=/wachtwoord-vergeten/nieuw`);
+  const { error } = await requestPasswordReset(email, `${origin}/auth/callback?next=/wachtwoord-vergeten/nieuw`);
+  // Livegang-audit (aug. 2026): deze `error` werd hier eerder genegeerd, dus
+  // als Supabase verkeerd geconfigureerd is (AUTH_NOT_CONFIGURED_ERROR, zie
+  // lib/auth.ts) landde de gebruiker toch op de "we hebben je een link
+  // gestuurd"-pagina — precies het "lijkt kapot, want geen enkele melding"-
+  // patroon dat de V-laadindicator elders al oploste, maar dan zonder dat er
+  // ooit een mail verstuurd werd. Alleen déze ene foutcode wordt hier
+  // doorgestuurd (niet zomaar elke fout) — voor de rest blijft dit bewust
+  // altijd naar dezelfde bevestigingspagina gaan, ongeacht of het e-mailadres
+  // echt bestaat, zie de toelichting hierboven.
+  if (error === AUTH_NOT_CONFIGURED_ERROR) redirect("/wachtwoord-vergeten?error=config_error");
   redirect(`/wachtwoord-vergeten/verzonden?email=${encodeURIComponent(email)}`);
 }
 

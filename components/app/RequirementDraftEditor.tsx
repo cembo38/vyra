@@ -48,6 +48,7 @@ export function RequirementDraftEditor({
   const [justSaved, setJustSaved] = useState(false);
   const [sending, startSendTransition] = useTransition();
   const [sentCount, setSentCount] = useState<number | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
 
   function save() {
     if (text === savedText) return;
@@ -60,22 +61,33 @@ export function RequirementDraftEditor({
   }
 
   function send() {
+    setSendError(null);
     startSendTransition(async () => {
-      // Sla eerst nog niet-opgeslagen wijzigingen op, zodat het bericht
-      // overal consistent blijft — ook als iemand meteen op "Stuur
-      // aanvraag" klikt zonder eerst uit het tekstveld te tabben.
-      if (text !== savedText) {
-        await updateRequirementDraftAction(eventId, categoryId, text);
-        setSavedText(text);
+      try {
+        // Sla eerst nog niet-opgeslagen wijzigingen op, zodat het bericht
+        // overal consistent blijft — ook als iemand meteen op "Stuur
+        // aanvraag" klikt zonder eerst uit het tekstveld te tabben.
+        if (text !== savedText) {
+          await updateRequirementDraftAction(eventId, categoryId, text);
+          setSavedText(text);
+        }
+        const res = await sendRequestAction({
+          eventId,
+          categoryKey,
+          desiredService: text.trim() || label,
+          specialRequests: "",
+          budgetCents: defaultBudgetCents,
+        });
+        setSentCount(res?.offerCount ?? 0);
+      } catch {
+        // Livegang-audit (aug. 2026): sendRequestAction/createAndSendRequest
+        // kan een echte DB-fout `throw`en (zie lib/data/store.ts) — zonder
+        // deze try/catch verdween die onbehandeld in de transition en landde
+        // de gebruiker op de generieke Next.js-foutpagina i.p.v. hier, waar
+        // MessageComposer.tsx ernaast al wél een nette inline melding +
+        // retry-mogelijkheid toont voor precies zo'n mislukking.
+        setSendError("Versturen is niet gelukt. Probeer het nog eens.");
       }
-      const res = await sendRequestAction({
-        eventId,
-        categoryKey,
-        desiredService: text.trim() || label,
-        specialRequests: "",
-        budgetCents: defaultBudgetCents,
-      });
-      setSentCount(res?.offerCount ?? 0);
     });
   }
 
@@ -130,6 +142,7 @@ export function RequirementDraftEditor({
             {sending ? <VyraMarkSpinner className="text-sm" /> : <Send className="size-3.5" />}
             Stuur aanvraag naar leveranciers
           </button>
+          {sendError && <p className="mt-1.5 text-[11px] text-danger">{sendError}</p>}
         </>
       )}
     </div>

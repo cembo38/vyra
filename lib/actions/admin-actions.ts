@@ -79,6 +79,18 @@ export async function banUserAction(formData: FormData): Promise<ActionResult> {
     const supabase = createSupabaseAdminClient();
     if (!supabase) throw new Error("Service-role sleutel niet geconfigureerd — kan geen gebruikers blokkeren (zie melding bovenaan het admin-dashboard).");
 
+    // Livegang-audit (aug. 2026): de check hierboven voorkomt alleen dat een
+    // admin ZICHZELF blokkeert — als er ooit een tweede echte admin bijkomt
+    // (zie ADMIN_EMAILS in lib/config.ts) kon admin A per ongeluk admin B via
+    // deze lijst blokkeren, waarna B's eigen `getCurrentUser()` hem meteen
+    // uitlogt (banned_at wordt daar los van de ADMIN_EMAILS-check al
+    // gecontroleerd) — een admin die zichzelf niet meer kan uitloggen zonder
+    // dat er nog een derde admin is om het weer terug te draaien.
+    const { data: targetProfile } = await supabase.from("profiles").select("email").eq("id", userId).maybeSingle();
+    if (targetProfile?.email && ADMIN_EMAILS.includes(String(targetProfile.email).toLowerCase())) {
+      throw new Error("Dit account is zelf een Vyra-admin en kan niet geblokkeerd worden.");
+    }
+
     const { error } = await supabase
       .from("profiles")
       .update({ banned_at: new Date().toISOString(), ban_reason: reason || null })

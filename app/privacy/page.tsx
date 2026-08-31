@@ -37,7 +37,8 @@ export default function PrivacyPage() {
               <p><strong className="text-ink">Evenementgegevens:</strong> alles wat je invoert over je evenement — type, datum, locatie, aantal gasten, budget, stijl en wensen.</p>
               <p><strong className="text-ink">Gesprekken met de AI:</strong> de tekst die je typt tijdens het AI-interview en in de AI-assistent-chat.</p>
               <p><strong className="text-ink">Aanvraag- en offertegegevens:</strong> welke leveranciers je aanvraagt, ontvangen offertes, en je keuzes (swipes, shortlist, acceptaties).</p>
-              <p><strong className="text-ink">Betaalgegevens:</strong> bedrag en bevestigingsstatus van een boeking. Zolang betalen via het platform nog niet beschikbaar is, verwerkt Vyra zelf geen betalingen en ontvangen of bewaren wij dus ook geen betaalgegevens zoals kaartnummers — de organisator en de leverancier rekenen rechtstreeks met elkaar af. Zodra betalen via het platform beschikbaar komt, verloopt dat via een externe, gecertificeerde betaaldienst die zelf nooit kaartgegevens aan Vyra doorgeeft.</p>
+              <p><strong className="text-ink">Betaalgegevens (boekingen tussen organisator en leverancier):</strong> bedrag en bevestigingsstatus van een boeking. Zolang betalen via het platform nog niet beschikbaar is, verwerkt Vyra zelf geen betalingen en ontvangen of bewaren wij dus ook geen betaalgegevens zoals kaartnummers voor déze stroom — de organisator en de leverancier rekenen rechtstreeks met elkaar af. Zodra betalen via het platform beschikbaar komt, verloopt dat via een externe, gecertificeerde betaaldienst die zelf nooit kaartgegevens aan Vyra doorgeeft.</p>
+              <p><strong className="text-ink">Betaalgegevens (leveranciersabonnement):</strong> een leverancier die een betaald abonnement kiest, betaalt dat via Stripe — een aparte, wél al actieve geldstroom, los van de boekingen hierboven. Vyra ziet en bewaart hierbij zelf geen kaart-/iDEAL-gegevens; die verwerkt Stripe rechtstreeks.</p>
               <p><strong className="text-ink">Technische gegevens:</strong> IP-adres en sessiegegevens via inlogcookies, om je ingelogd te houden en het platform te beveiligen.</p>
             </Section>
 
@@ -52,7 +53,7 @@ export default function PrivacyPage() {
             <Section title="5. Met wie delen we gegevens">
               <p><strong className="text-ink">Supabase</strong> — database en accountbeheer, gehost in de EU (Frankfurt).</p>
               <p><strong className="text-ink">Anthropic (Claude)</strong> — verwerkt de tekst van je AI-interview en vragen aan de AI-assistent om antwoorden/aanbevelingen te genereren; gevestigd in de VS. Bij zakelijk gebruik via de API gebruikt Anthropic deze gegevens niet om hun modellen mee te trainen.</p>
-              <p><strong className="text-ink">Stripe</strong> — zodra betalen via het platform beschikbaar komt (zie hierboven onder Betaalgegevens), verwerkt deze PCI-DSS-gecertificeerde partij die betalingen. Tot die tijd deelt Vyra geen betaalgegevens met Stripe.</p>
+              <p><strong className="text-ink">Stripe</strong> — verwerkt de betaling van een leveranciersabonnement (al actief) via deze PCI-DSS-gecertificeerde partij. Zodra betalen tussen organisator en leverancier via het platform beschikbaar komt (zie hierboven onder Betaalgegevens), verwerkt Stripe ook die betalingen; tot die tijd deelt Vyra voor déze stroom geen betaalgegevens met Stripe.</p>
               <p><strong className="text-ink">Vercel</strong> — hosting van de website.</p>
               <p>We verkopen je gegevens nooit aan derden voor marketingdoeleinden.</p>
             </Section>

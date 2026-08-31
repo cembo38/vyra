@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 
@@ -80,6 +81,28 @@ export function SocialLoginButtons() {
           </button>
         ))}
       </div>
+
+      {/*
+        Livegang-audit (aug. 2026): signInWithOAuth() rondt zowel een nieuwe
+        registratie als een bestaande login in één en dezelfde stap af (zie
+        de toelichting bovenaan dit bestand) — zonder deze tekst kon iemand
+        via "Ga verder met Google" een account aanmaken zonder ooit de
+        voorwaarden-/privacy-vinkjes te zien die het gewone formulier
+        hierboven wél verplicht stelt. Bewust tekst i.p.v. een eigen vinkje:
+        het klikken op de knop zelf is hier de bevestigende handeling
+        (zelfde patroon als bij vrijwel elke "Doorgaan met Google"-knop).
+      */}
+      <p className="mt-3 text-center text-xs text-ink-faint">
+        Door verder te gaan ga je akkoord met de{" "}
+        <Link href="/voorwaarden" className="font-medium text-clay hover:underline" target="_blank">
+          algemene voorwaarden
+        </Link>{" "}
+        en de{" "}
+        <Link href="/privacy" className="font-medium text-clay hover:underline" target="_blank">
+          privacyverklaring
+        </Link>
+        .
+      </p>
     </div>
   );
 }

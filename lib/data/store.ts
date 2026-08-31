@@ -940,10 +940,18 @@ export async function resolveSpotlightBoostRequest(
 ): Promise<SpotlightBoostRequest | null> {
   const admin = createSupabaseAdminClient();
   const supabase = admin ?? (await sb());
+  // Livegang-audit (aug. 2026): `.eq("status", "pending")` toegevoegd zodat
+  // dit niet-idempotent kan worden uitgevoerd — zonder deze voorwaarde gaf
+  // een dubbele klik op "Goedkeuren" (of twee open admin-tabbladen) twee
+  // keer een bonus-spotlight-credit voor dezelfde aanvraag, want de update
+  // hieronder slaagde gewoon opnieuw op een al-afgehandelde rij. Slaagt de
+  // update nu niet (want al niet meer "pending"), dan komt er ook geen
+  // tweede credit bij.
   const { data, error } = await supabase
     .from("spotlight_boost_requests")
     .update({ status, admin_response: adminResponse, resolved_at: new Date().toISOString() })
     .eq("id", requestId)
+    .eq("status", "pending")
     .select()
     .single();
   if (error || !data) return null;
@@ -3241,6 +3249,31 @@ export async function createPaymentForOffer(offerId: string, plan: "full" | "dep
   // maar deze server-side check blijft de laatste, doorslaggevende grens.
   const categorySiblings = await getOffersForEvent(o.eventId, o.categoryKey);
   if (categorySiblings.some((sibling) => sibling.id !== o.id && sibling.status === "accepted")) return null;
+
+  // Livegang-audit (aug. 2026): de check hierboven alleen is NIET genoeg.
+  // offer.status wordt pas "accepted" bij BEVESTIGEN (zie markPaymentPaid
+  // hieronder) — niet al bij dit "Accepteren"-moment zelf. Zonder onderstaand
+  // stuk kon een organisator na "Accepteren" van offerte A (nog niet
+  // afgerekend) teruggaan naar de offertes en óók offerte B "Accepteren" —
+  // beide offertes hebben dan nog gewoon status "pending", dus de check
+  // hierboven ziet niets. Bevestigt de organisator daarna allebei los, dan
+  // staan er twee leveranciers geboekt voor dezelfde categorie.
+  //
+  // Een AL BETAALDE/bevestigde betaling van een andere offerte in deze
+  // categorie blokkeert hard — dat is een echte boeking, die overschrijven
+  // we nooit stilzwijgend. Een nog NIET bevestigde (pending) betaling van
+  // een andere offerte annuleren we automatisch: de organisator koos
+  // duidelijk voor een andere leverancier in dezelfde categorie, dus die
+  // oude, nooit afgeronde keuze mag vervallen i.p.v. de nieuwe keuze te
+  // blokkeren (er is geen "annuleer mijn vorige keuze"-knop elders in de
+  // app, dus dit moet hier gebeuren, anders zit een organisator vast).
+  const categoryPayments = await getPaymentsForEvent(o.eventId);
+  const siblingPayments = categoryPayments.filter((p) => p.categoryKey === o.categoryKey && p.offerId !== o.id);
+  if (siblingPayments.some((p) => p.status === "paid")) return null;
+  const stalePendingIds = siblingPayments.filter((p) => p.status === "pending").map((p) => p.id);
+  if (stalePendingIds.length > 0) {
+    await supabase.from("payments").update({ status: "failed" }).in("id", stalePendingIds);
+  }
 
   // Welk abonnementsniveau (of nog de proefperiode) geldt NU voor deze
   // leverancier — deze offerte zelf wordt uitgesloten van de

@@ -327,7 +327,7 @@ export function SubscriptionTierPicker({
 
       <p className="mt-3 text-xs text-ink-faint">
         {paymentsEnabled
-          ? "Instap kiezen (of ernaartoe downgraden) kan altijd meteen zelf, gratis en zonder wachttijd. Een betaald niveau kiezen stuurt je naar een beveiligde Stripe-checkout; wisselen tussen twee betaalde niveaus past je lopende abonnement direct aan. Betaalmethode wijzigen, facturen inzien of opzeggen kan via \"Beheer abonnement bij Stripe\" hierboven."
+          ? "Instap kiezen (of ernaartoe downgraden) kan altijd meteen zelf, gratis en zonder wachttijd. Een ander betaald niveau kiezen — ook wisselen tussen twee betaalde niveaus — stuurt je telkens naar een beveiligde Stripe-checkout; het nog niet gebruikte deel van je huidige periode wordt dan automatisch verrekend met de eerstvolgende afschrijving. Betaalmethode wijzigen, facturen inzien of opzeggen kan via \"Beheer abonnement bij Stripe\" hierboven."
           : "Downgraden naar een lager niveau kan altijd meteen zelf, gratis en zonder wachttijd. Upgraden naar een hoger (betaald) niveau vraag je hierboven met één klik aan — we beoordelen elke aanvraag handmatig en nemen daarna contact met je op om het abonnement definitief te maken."}
       </p>
     </div>

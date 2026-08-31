@@ -39,6 +39,7 @@ export function RequestCategoryCard({
   const [message, setMessage] = useState(initialMessage ?? "");
   const [specialRequests, setSpecialRequests] = useState("");
   const [sent, setSent] = useState<number | null>(null);
+  const [sendError, setSendError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   if (sent !== null) {
@@ -112,17 +113,27 @@ export function RequestCategoryCard({
           />
           <button
             disabled={pending}
-            onClick={() =>
+            onClick={() => {
+              setSendError(null);
               startTransition(async () => {
-                const res = await sendRequestAction({ eventId, categoryKey, desiredService: message.trim() || label, specialRequests, budgetCents: defaultBudgetCents });
-                setSent(res?.offerCount ?? 0);
-              })
-            }
+                try {
+                  const res = await sendRequestAction({ eventId, categoryKey, desiredService: message.trim() || label, specialRequests, budgetCents: defaultBudgetCents });
+                  setSent(res?.offerCount ?? 0);
+                } catch {
+                  // Livegang-audit (aug. 2026): zelfde ontbrekende foutafhandeling
+                  // als in RequirementDraftEditor.tsx — sendRequestAction kan een
+                  // echte DB-fout `throw`en, en zonder deze catch verdween die
+                  // onbehandeld i.p.v. hier netjes gemeld te worden.
+                  setSendError("Versturen is niet gelukt. Probeer het nog eens.");
+                }
+              });
+            }}
             className="chip-hover inline-flex items-center gap-1.5 rounded-full bg-clay px-4 py-2 text-xs font-medium text-white hover:bg-clay-dark disabled:opacity-50 disabled:pointer-events-none"
           >
             {pending ? <VyraMarkSpinner className="text-sm" /> : <Sparkles className="size-3.5" />}
             Stuur aanvraag
           </button>
+          {sendError && <p className="text-xs text-danger">{sendError}</p>}
         </div>
       )}
     </div>

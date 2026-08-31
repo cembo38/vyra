@@ -18,6 +18,8 @@ import {
   getSupplierAccount,
   getSupplierAccountByOwner,
   getSupplierEffectiveTierDefinition,
+  getSupplierLead,
+  getSupplierOfferForRequest,
   pushNotification,
   regenerateSupplierIcalToken,
   requestSpotlightBoost,
@@ -142,8 +144,13 @@ export async function createSupplierProfileAction(formData: FormData) {
     baseLocation,
     serviceRadiusKm: Number.isFinite(serviceRadiusKm) && serviceRadiusKm > 0 ? Math.round(serviceRadiusKm) : 25,
     description,
-    minPriceCents: Math.round(minPriceEuros * 100),
-    avgPriceCents: Math.round(avgPriceEuros * 100),
+    // Livegang-audit (aug. 2026): "minPrice"/"avgPrice" zijn wel `required`
+    // in de HTML, maar dat is met devtools/een direct POST-request te
+    // omzeilen — zonder deze `Number.isFinite`-check schreef een lege/
+    // ongeldige waarde hier stilzwijgend NaN weg (net zo'n bypass-bare
+    // aanname als serviceRadiusKm hierboven al wél afving).
+    minPriceCents: Number.isFinite(minPriceEuros) && minPriceEuros >= 0 ? Math.round(minPriceEuros * 100) : 0,
+    avgPriceCents: Number.isFinite(avgPriceEuros) && avgPriceEuros >= 0 ? Math.round(avgPriceEuros * 100) : 0,
     kvkNumber,
     website: null,
     socialFacebook: null,
@@ -291,8 +298,11 @@ export async function updateSupplierProfileAction(formData: FormData) {
     baseLocation,
     serviceRadiusKm: Number.isFinite(serviceRadiusKm) && serviceRadiusKm > 0 ? Math.round(serviceRadiusKm) : 25,
     description,
-    minPriceCents: Math.round(minPriceEuros * 100),
-    avgPriceCents: Math.round(avgPriceEuros * 100),
+    // Livegang-audit (aug. 2026): zelfde `Number.isFinite`-gat als bij
+    // createSupplierProfileAction hierboven — zonder deze check kon een
+    // lege/ongeldige "minPrice"/"avgPrice" hier stilzwijgend NaN wegschrijven.
+    minPriceCents: Number.isFinite(minPriceEuros) && minPriceEuros >= 0 ? Math.round(minPriceEuros * 100) : supplier!.minPriceCents,
+    avgPriceCents: Number.isFinite(avgPriceEuros) && avgPriceEuros >= 0 ? Math.round(avgPriceEuros * 100) : supplier!.avgPriceCents,
     kvkNumber,
     website,
     socialFacebook,
@@ -905,6 +915,25 @@ export async function submitSupplierOfferAction(formData: FormData) {
   if (!request) redirect(`/supplier/requests/${requestId}?error=1`);
   const eventId = request!.eventId;
   const categoryKey = request!.categoryKey as SupplierCategory;
+
+  // Livegang-audit (aug. 2026): de pagina zelf verbergt dit formulier al
+  // tenzij getSupplierLead() een match teruggeeft (zie
+  // app/supplier/(portal)/requests/[id]/page.tsx), maar deze Server Action
+  // controleerde dat NIET zelf — een leverancier kon dus, buiten de UI om
+  // (devtools/curl), een willekeurige requestId invullen en gewoon een
+  // offerte insturen op een aanvraag waar hij nooit voor is uitgenodigd,
+  // inclusief een directe/maatwerkaanvraag bedoeld voor één specifieke
+  // concurrent. Dezelfde controle als de pagina, maar nu ook server-side
+  // afgedwongen — de laatste, doorslaggevende grens.
+  const lead = await getSupplierLead(supplier!.id, requestId);
+  if (!lead) redirect(`/supplier/requests?error=1`);
+
+  // Voorkomt een dubbele offerte op dezelfde aanvraag (bv. een dubbele klik,
+  // of twee tabbladen open) — de pagina verbergt het formulier al zodra er
+  // al een offerte bestaat, maar ook hier geldt: de UI is een hint, geen
+  // grens.
+  const existingOffer = await getSupplierOfferForRequest(supplier!.id, requestId);
+  if (existingOffer) redirect(`/supplier/requests/${requestId}?error=1`);
 
   const { data: parsed } = await parseSupplierOfferDescription(description, { userId: user!.id, eventId });
 
