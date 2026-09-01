@@ -44,22 +44,23 @@ export function SubscriptionTierPicker({
   const [selected, setSelected] = useState(currentTier);
   const [pendingTier, setPendingTier] = useState<SubscriptionTier | null>(null);
   const [requestedTier, setRequestedTier] = useState<string | null>(pendingUpgradeRequest?.requestedTier ?? null);
-  const [intervalByTier, setIntervalByTier] = useState<Partial<Record<SubscriptionTier, "monthly" | "annual">>>({});
+  /**
+   * Livegang-feedback (Cem, sep. 2026): elke kaart had eerst zijn EIGEN
+   * maand/jaar-knopje (`intervalByTier`, per tier apart) — dat betekende dat
+   * dezelfde keuze op 4 plekken los stond, en de prijs dus 4x apart kon
+   * wisselen i.p.v. in één keer. Nu ÉÉN gedeelde knop bovenaan de hele
+   * tabel die alle 4 kaarten tegelijk laat omschakelen.
+   */
+  const [billingInterval, setBillingInterval] = useState<"monthly" | "annual">(currentBillingInterval ?? "annual");
   const [pending, startTransition] = useTransition();
   const [portalPending, startPortalTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const router = useRouter();
 
-  function intervalFor(tier: SubscriptionTier): "monthly" | "annual" {
-    if (intervalByTier[tier]) return intervalByTier[tier]!;
-    if (tier === selected && currentBillingInterval) return currentBillingInterval;
-    return "annual";
-  }
-
   function choose(tier: SubscriptionTier) {
     if (pending) return;
-    const interval = tier === "instap" ? null : intervalFor(tier);
+    const interval = tier === "instap" ? null : billingInterval;
     if (tier === selected && (tier === "instap" || interval === currentBillingInterval)) return;
     setError(null);
     setNotice(null);
@@ -106,7 +107,7 @@ export function SubscriptionTierPicker({
   function priceDisplayFor(tier: SubscriptionTier): { amountLabel: string; caption: string } | null {
     const def = SUBSCRIPTION_TIERS[tier];
     if (!def.billing) return null;
-    const interval = intervalFor(tier);
+    const interval = billingInterval;
     if (interval === "monthly") {
       return { amountLabel: `${def.billing.monthly.priceLabel}`, caption: "Maandelijks opzegbaar." };
     }
@@ -192,13 +193,34 @@ export function SubscriptionTierPicker({
         4 op een écht brede pagina) — dat werkt overal correct, ongeacht in
         welke kolombreedte dit component ooit wordt geplaatst.
       */}
+      {/*
+        ÉÉN gedeelde maand/jaar-knop voor de hele tabel (Cems verzoek, sep.
+        2026) — vervangt de vier losse toggles die er eerst per kaart stonden.
+        Wisselen hier herberekent meteen alle vier de prijzen eronder.
+      */}
+      <div className="mb-3 inline-flex w-fit rounded-lg border border-line-soft p-0.5 text-xs">
+        <button
+          type="button"
+          onClick={() => setBillingInterval("monthly")}
+          className={cn("rounded-md px-3 py-1.5 font-medium", billingInterval === "monthly" ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}
+        >
+          Maandelijks
+        </button>
+        <button
+          type="button"
+          onClick={() => setBillingInterval("annual")}
+          className={cn("rounded-md px-3 py-1.5 font-medium", billingInterval === "annual" ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}
+        >
+          Jaarlijks
+        </button>
+      </div>
+
       <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3">
         {paidTierOrder.map((key) => {
           const def = SUBSCRIPTION_TIERS[key];
           const cardIndex = SUBSCRIPTION_TIER_ORDER.indexOf(key);
           const currentIndex = SUBSCRIPTION_TIER_ORDER.indexOf(selected);
-          const interval = intervalFor(key);
-          const isCurrent = key === selected && interval === currentBillingInterval;
+          const isCurrent = key === selected && billingInterval === currentBillingInterval;
           const isBusy = pending && pendingTier === key;
           const isUpgradeInFallback = !paymentsEnabled && cardIndex > currentIndex;
           const isRequested = requestedTier === key;
@@ -220,22 +242,6 @@ export function SubscriptionTierPicker({
               {price && (
                 <>
                   <p className="mt-0.5 break-words text-sm font-medium text-ink-soft">{price.amountLabel}</p>
-                  <div className="mt-1.5 inline-flex w-fit rounded-lg border border-line-soft p-0.5 text-[11px]">
-                    <button
-                      type="button"
-                      onClick={() => setIntervalByTier((s) => ({ ...s, [key]: "monthly" }))}
-                      className={cn("rounded-md px-2 py-1 font-medium", interval === "monthly" ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}
-                    >
-                      Maandelijks
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIntervalByTier((s) => ({ ...s, [key]: "annual" }))}
-                      className={cn("rounded-md px-2 py-1 font-medium", interval === "annual" ? "bg-ink text-white" : "text-ink-soft hover:text-ink")}
-                    >
-                      Jaarlijks
-                    </button>
-                  </div>
                   {/*
                     Klein en secundair — Cem wil het jaarbedrag niet meer
                     groot/eerst tonen (werkte ontmoedigend), maar het moet wel

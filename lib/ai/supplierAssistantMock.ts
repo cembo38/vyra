@@ -28,7 +28,14 @@ export interface SupplierAssistantContext {
 }
 
 export function serializeSupplierContext(ctx: SupplierAssistantContext): string {
-  const now = new Date();
+  // Livegang-audit (sep. 2026): vergelijk als DATUM-STRING (YYYY-MM-DD),
+  // niet `new Date(event.date) >= new Date()`. `event.date` is een kale
+  // datum zonder tijd, dus `new Date("2026-09-01")` wordt door JS gelezen
+  // als middernacht UTC — zodra het later op de dag zelf is (bijna de hele
+  // dag, afhankelijk van tijdzone) viel een boeking die VANDAAG is dan al
+  // buiten "aankomend". Stringvergelijking werkt correct voor ISO-datums en
+  // telt vandaag terecht nog mee als aankomend.
+  const todayISO = new Date().toISOString().slice(0, 10);
   return JSON.stringify({
     bedrijf: {
       naam: ctx.supplier.companyName,
@@ -45,7 +52,7 @@ export function serializeSupplierContext(ctx: SupplierAssistantContext): string 
         budgetIndicatie: l.request.budgetCents != null ? formatCurrency(l.request.budgetCents) : null,
       })),
     aankomendeBoekingen: ctx.orders
-      .filter((o) => o.event?.date && new Date(o.event.date) >= now)
+      .filter((o) => o.event?.date && o.event.date >= todayISO)
       .map((o) => ({
         categorie: SUPPLIER_CATEGORY_LABELS[o.offer.categoryKey],
         evenement: o.event?.name,
@@ -72,8 +79,11 @@ export function serializeSupplierContext(ctx: SupplierAssistantContext): string 
 export function mockSupplierAssistantAnswer(question: string, ctx: SupplierAssistantContext): string {
   const q = question.toLowerCase();
   const openLeads = ctx.leads.filter((l) => l.target.status === "pending");
-  const now = new Date();
-  const upcoming = ctx.orders.filter((o) => o.event?.date && new Date(o.event.date) >= now);
+  // Zelfde datum-string-vergelijking als hierboven in serializeSupplierContext
+  // — voorkomt dat een boeking die vandaag is voor een deel van de dag ten
+  // onrechte niet meer als "aankomend" telt.
+  const todayISO = new Date().toISOString().slice(0, 10);
+  const upcoming = ctx.orders.filter((o) => o.event?.date && o.event.date >= todayISO);
 
   if (/nog niet.*(gereageerd|gedaan)|open(staande)? aanvra|leads?\b|wachten.*op mij/.test(q)) {
     if (openLeads.length === 0) return "Je hebt op dit moment geen openstaande aanvragen — alles is beantwoord. Goed bezig!";
