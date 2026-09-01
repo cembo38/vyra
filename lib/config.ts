@@ -606,8 +606,26 @@ export const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ?? "";
 
 export const PUSH_ENABLED = Boolean(VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY);
 
-/** Volledige site-URL, voor absolute links in e-mails (relatieve links werken niet in een mailclient). */
-export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://vyra.now";
+/**
+ * Volledige site-URL, voor absolute links in e-mails, Stripe-terugkeer-URL's
+ * en Supabase Auth-redirects (relatieve links werken niet in een
+ * mailclient, en zowel Stripe-webhooks als Supabase's redirect-allowlist
+ * hebben één vaste, kloppende waarde nodig).
+ *
+ * BEWUST "https://www.vyra.now" (mét www), NIET de kale "https://vyra.now":
+ * die laatste stuurt zelf 308-door naar de www-versie (Vercel-domeinconfig).
+ * Een browser volgt zo'n doorverwijzing onopvallend mee, maar Stripe's
+ * webhook-aflevering volgt REDIRECTS EXPLICIET NIET (Stripe's eigen
+ * documentatie: "we consider redirect responses to webhook requests as
+ * failures") — elke Stripe-webhook naar een op de kale domeinnaam
+ * geregistreerd endpoint faalt daardoor altijd, ook al lijkt de rest van de
+ * betaalflow (checkout, terugkeer-URL) gewoon te werken. Ontdekt sep. 2026
+ * toen zowel de gastenfoto-betaling ALS (met terugwerkende kracht, te zien
+ * aan de bestaande 308-foutmeldingen in Stripe's webhooklogboek) de
+ * leveranciers-abonnementen-webhook hierdoor nooit activeerden. Zie ook de
+ * soortgelijke ontdekking bij CRON_SECRET-curl-tests eerder dit project.
+ */
+export const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.vyra.now";
 
 /**
  * E-mailadres(sen) die toegang hebben tot /admin. Alleen deze gebruiker(s)
