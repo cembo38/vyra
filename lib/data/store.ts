@@ -1283,6 +1283,7 @@ export async function getGalleryPublic(uploadToken: string): Promise<GalleryPubl
   return {
     eventName: r.event_name,
     eventDate: r.event_date,
+    organizerFirstName: r.organizer_first_name ?? null,
     tier,
     theme: r.theme ?? null,
     status: r.status,

@@ -1028,6 +1028,7 @@ export interface GalleryMessage {
 export interface GalleryPublicInfo {
   eventName: string;
   eventDate: string | null;
+  organizerFirstName: string | null;
   tier: GalleryTier;
   theme: string | null;
   status: GalleryStatus;

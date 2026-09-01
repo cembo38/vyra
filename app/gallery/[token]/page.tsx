@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 import { getGalleryMessagesPublic, getGalleryPhotosPublic, getGalleryPublic } from "@/lib/data/store";
 import { Logo } from "@/components/marketing/Logo";
-import { GalleryUploadForm } from "@/components/app/GalleryUploadForm";
-import { GalleryMessageForm } from "@/components/app/GalleryMessageForm";
+import { GalleryQuickActions } from "@/components/app/GalleryQuickActions";
 import { GalleryPhotoGrid } from "@/components/app/GalleryPhotoGrid";
 import { formatDateNL } from "@/lib/utils";
 import { CalendarDays, Camera, ImageOff, MessageSquareText } from "lucide-react";
@@ -48,7 +47,10 @@ export default async function PublicGalleryPage(props: PageProps<"/gallery/[toke
           <span className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1 text-xs font-medium uppercase tracking-wide text-clay-dark ring-1 ring-clay/20">
             <Camera className="size-3.5" /> Gastenfoto&apos;s
           </span>
-          <h1 className="mt-3 text-balance font-display text-3xl text-ink sm:text-4xl">{gallery.eventName}</h1>
+          <h1 className="mt-3 text-balance font-display text-3xl text-ink sm:text-4xl">
+            {gallery.eventName}
+            {gallery.organizerFirstName && <span className="text-ink-soft"> van {gallery.organizerFirstName}</span>}
+          </h1>
           {gallery.eventDate && (
             <div className="mt-2 flex items-center justify-center gap-2 text-sm text-ink-soft">
               <CalendarDays className="size-4 text-ink-faint" /> {formatDateNL(gallery.eventDate, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
@@ -61,7 +63,7 @@ export default async function PublicGalleryPage(props: PageProps<"/gallery/[toke
       </div>
 
       <div className="mx-auto -mt-4 max-w-3xl px-4 sm:px-6">
-        <GalleryUploadForm uploadToken={token} allowVideo={gallery.allowVideo} maxUploadMb={gallery.maxUploadMb} />
+        <GalleryQuickActions uploadToken={token} allowVideo={gallery.allowVideo} allowGuestbook={gallery.allowGuestbook} maxUploadMb={gallery.maxUploadMb} />
 
         {photos.length > 0 ? (
           <div className="mt-10">
@@ -84,9 +86,7 @@ export default async function PublicGalleryPage(props: PageProps<"/gallery/[toke
               <MessageSquareText className="size-4 text-ink-faint" />
               <h2 className="font-display text-lg text-ink">Gastenboek</h2>
             </div>
-            <div className="mb-4">
-              <GalleryMessageForm uploadToken={token} />
-            </div>
+            {messages.length === 0 && <p className="mb-4 text-sm text-ink-faint">Nog geen berichtjes — wees de eerste met het knopje hierboven.</p>}
             {messages.length > 0 && (
               <div className="grid gap-3 sm:grid-cols-2">
                 {messages.map((message, i) => (
