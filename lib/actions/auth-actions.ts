@@ -1,16 +1,26 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { signUpWithPassword, signInWithPassword, signOut, getCurrentUser, requestPasswordReset, updatePassword, AUTH_NOT_CONFIGURED_ERROR } from "@/lib/auth";
 import { grantReferralRewardIfEligible, updateUser, getSupplierAccountByOwner } from "@/lib/data/store";
+import { SITE_URL } from "@/lib/config";
 
-async function siteOrigin() {
-  const h = await headers();
-  const host = h.get("host") ?? "localhost:3000";
-  const proto = host.startsWith("localhost") ? "http" : "https";
-  return `${proto}://${host}`;
+/**
+ * Livegang-audit (sep. 2026): berekende voorheen de origin uit de
+ * `host`-header van het inkomende verzoek — dus `https://vyra.now` als
+ * iemand het formulier vanaf de kale domeinnaam invulde, maar
+ * `https://www.vyra.now` als iemand op `www.` zat (vyra.now stuurt door
+ * naar www.vyra.now, dus beide komen voor). Supabase's Auth-instellingen
+ * (Redirect URLs) staan maar één van de twee expliciet toe — kwam de
+ * verkeerde in de e-mail terecht, dan weigerde Supabase de link en leek
+ * "klik op de link in je mail" niets te doen. Elke andere plek in dit
+ * project (Stripe-terugkeer-URL's, e-mailsjablonen) gebruikt al de ene
+ * vaste `SITE_URL` uit lib/config.ts — hier nu ook, zodat er nooit meer
+ * dan één mogelijke waarde is om in Supabase toe te staan.
+ */
+function siteOrigin() {
+  return SITE_URL;
 }
 
 /**
@@ -97,7 +107,7 @@ export async function signupAction(formData: FormData) {
   if (!email || password.length < 8) redirect(retryParams("password"));
 
   const role = asOrganizer && asSupplier ? "both" : asSupplier ? "supplier" : "customer";
-  const origin = await siteOrigin();
+  const origin = siteOrigin();
   const { error, confirmedSession, userId } = await signUpWithPassword({
     email,
     password,
@@ -144,7 +154,7 @@ export async function requestPasswordResetAction(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
   if (!email) redirect("/wachtwoord-vergeten?error=email_missing");
 
-  const origin = await siteOrigin();
+  const origin = siteOrigin();
   const { error } = await requestPasswordReset(email, `${origin}/auth/callback?next=/wachtwoord-vergeten/nieuw`);
   // Livegang-audit (aug. 2026): deze `error` werd hier eerder genegeerd, dus
   // als Supabase verkeerd geconfigureerd is (AUTH_NOT_CONFIGURED_ERROR, zie

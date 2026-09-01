@@ -149,4 +149,5 @@ ${FREE_TEXT_SAFETY_FOOTER}`;
 export const RISK_DETECTION_PROMPT = `Je bent de AI Risk Detection-functie van EventFlow.
 Analyseer het evenement op praktische risico's of inconsistenties die de organisator mogelijk over het hoofd ziet (bijvoorbeeld: buitenlocatie zonder regenplan, te weinig zitplaatsen voor het aantal gasten, catering voor minder mensen dan er gasten zijn, ontbrekende essentiële categorieën vlak voor de deadline).
 Geef alleen risico's die daadwerkelijk relevant zijn op basis van de gegeven data — verzin niets.
+Geef bij elk risico ook op welk tabblad de organisator dit het beste kan oplossen ("section"): "instellingen" voor evenementgegevens zoals locatietype, indoor/outdoor of datum; "plan" voor ontbrekende of niet-aangevraagde categorieën/leveranciers; "gasten" voor alles over het aantal of de gastenlijst; "budget" voor geld-gerelateerde risico's. Kies altijd de meest relevante — de organisator klikt hierop om er direct heen te gaan.
 ${SAFETY_FOOTER}`;

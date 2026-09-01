@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { getStripeClient } from "@/lib/payments/stripe";
 import { SUBSCRIPTION_TIER_ORDER, SubscriptionTier } from "@/lib/config";
 import {
+  activateEventGalleryFromWebhook,
   applySupplierSubscriptionFromWebhook,
   getPaymentByStripeCheckoutSessionId,
   markPaymentPaidByWebhook,
@@ -102,6 +103,12 @@ export async function POST(request: NextRequest) {
             }
           }
         }
+      } else if (session.mode === "payment" && session.metadata?.purpose === "gallery_purchase" && session.metadata.galleryId) {
+        // Gastenfoto-pagina-aankoop ("Deel C", eenmalige betaling) — zie
+        // startGalleryCheckoutAction in lib/actions/gallery-actions.ts.
+        // Onderscheiden van de marktplaats-betaalflow hieronder via
+        // `metadata.purpose`, want beide gebruiken mode "payment".
+        await activateEventGalleryFromWebhook(session.metadata.galleryId);
       } else if (session.mode === "payment" && session.payment_intent) {
         // Marktplaats-betaalflow (Deel B3, nog te bouwen) — bestaande
         // voorbereiding, ongewijzigd.

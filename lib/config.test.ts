@@ -3,6 +3,8 @@ import {
   calculateCommission,
   formatCurrency,
   COMMISSION_FEE_CAP_CENTS,
+  GALLERY_TIER_ORDER,
+  GALLERY_TIERS,
   SUBSCRIPTION_TIERS,
   TRIAL_TIER_DEFINITION,
 } from "@/lib/config";
@@ -139,6 +141,53 @@ describe("SUBSCRIPTION_TIERS", () => {
     expect(SUBSCRIPTION_TIERS.instap.badge).toBe("none");
     expect(SUBSCRIPTION_TIERS.instap.packagesEnabled).toBe(false);
     expect(SUBSCRIPTION_TIERS.instap.assistantTier).toBe(0);
+  });
+});
+
+describe("GALLERY_TIERS (gastenfoto-pagina, 'Deel C')", () => {
+  it("prijs, bewaartermijn en maximale bestandsgrootte lopen op per niveau", () => {
+    expect(GALLERY_TIERS.basis.priceCents).toBeLessThan(GALLERY_TIERS.plus.priceCents);
+    expect(GALLERY_TIERS.plus.priceCents).toBeLessThan(GALLERY_TIERS.premium.priceCents);
+    expect(GALLERY_TIERS.basis.retentionDays).toBeLessThan(GALLERY_TIERS.plus.retentionDays);
+    expect(GALLERY_TIERS.plus.retentionDays).toBeLessThan(GALLERY_TIERS.premium.retentionDays);
+    expect(GALLERY_TIERS.premium.maxUploadMb).toBeGreaterThan(GALLERY_TIERS.basis.maxUploadMb);
+  });
+
+  it("bevestigde prijzen: €49 / €79 / €99", () => {
+    expect(GALLERY_TIERS.basis.priceCents).toBe(4_900);
+    expect(GALLERY_TIERS.plus.priceCents).toBe(7_900);
+    expect(GALLERY_TIERS.premium.priceCents).toBe(9_900);
+  });
+
+  it("bevestigde bewaartermijnen: 60 dagen / half jaar / een jaar", () => {
+    expect(GALLERY_TIERS.basis.retentionDays).toBe(60);
+    expect(GALLERY_TIERS.plus.retentionDays).toBe(182);
+    expect(GALLERY_TIERS.premium.retentionDays).toBe(365);
+  });
+
+  it("alleen Premium mag video's uploaden en uitnodigingssjablonen kiezen", () => {
+    expect(GALLERY_TIERS.basis.allowVideo).toBe(false);
+    expect(GALLERY_TIERS.plus.allowVideo).toBe(false);
+    expect(GALLERY_TIERS.premium.allowVideo).toBe(true);
+    expect(GALLERY_TIERS.basis.allowInvitationTemplates).toBe(false);
+    expect(GALLERY_TIERS.plus.allowInvitationTemplates).toBe(false);
+    expect(GALLERY_TIERS.premium.allowInvitationTemplates).toBe(true);
+  });
+
+  it("alleen Basis mist het gastenboek (Plus en Premium hebben het wel)", () => {
+    expect(GALLERY_TIERS.basis.allowGuestbook).toBe(false);
+    expect(GALLERY_TIERS.plus.allowGuestbook).toBe(true);
+    expect(GALLERY_TIERS.premium.allowGuestbook).toBe(true);
+  });
+
+  it("de uploadgrens per niveau blijft ruim onder de 20mb Server Action-limiet (next.config.ts)", () => {
+    for (const tier of GALLERY_TIER_ORDER) {
+      expect(GALLERY_TIERS[tier].maxUploadMb).toBeLessThan(20);
+    }
+  });
+
+  it("GALLERY_TIER_ORDER bevat exact de drie niveaus, in oplopende prijsvolgorde", () => {
+    expect(GALLERY_TIER_ORDER).toEqual(["basis", "plus", "premium"]);
   });
 });
 

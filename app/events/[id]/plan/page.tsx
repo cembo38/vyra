@@ -4,13 +4,13 @@ import { Card } from "@/components/ui/Card";
 import { PriorityBadge } from "@/components/ui/Badge";
 import { RequirementToggle } from "@/components/app/RequirementToggle";
 import { RequirementDraftEditor } from "@/components/app/RequirementDraftEditor";
-import { BudgetAllocator } from "@/components/app/BudgetAllocator";
 import { LinkButton } from "@/components/ui/Button";
 import { confirmRequirementsAction } from "@/lib/actions/event-actions";
 import { formatCurrency } from "@/lib/config";
 import { RequirementPriority } from "@/lib/types";
 import { Sparkles } from "lucide-react";
 import { SubmitButton } from "@/components/ui/SubmitButton";
+import Link from "next/link";
 
 const SECTIONS: { key: RequirementPriority; title: string; description: string }[] = [
   { key: "essential", title: "Essentieel", description: "Vrijwel noodzakelijk om dit evenement te laten slagen." },
@@ -55,31 +55,24 @@ export default async function PlanPage(props: PageProps<"/events/[id]/plan">) {
         <h1 className="font-display text-2xl">Ik raad {requirements.length} categorieën aan voor {event.name}</h1>
         <p className="mt-1.5 text-sm text-white/70">Je hebt er {selectedCount} geselecteerd. Je kunt elke aanbeveling zelf aan- of uitzetten.</p>
 
-        {allocatorItems.length > 0 ? (
-          <div className="mt-6 border-t border-white/10 pt-6">
-            {/*
-              `key` is bewust de set geselecteerde categorie-id's, niet
-              "allocator" o.i.d. — verandert die set (een categorie aan- of
-              uitzetten via RequirementToggle hiernaast, dat nu ook
-              router.refresh() aanroept), dan mount React dit component
-              helemaal opnieuw met de nieuwe lijst, zodat er meteen een
-              schuif bij verschijnt of verdwijnt i.p.v. pas na een
-              handmatige paginaherlading.
-            */}
-            <BudgetAllocator
-              key={allocatorItems.map((i) => i.categoryId).join(",")}
-              eventId={id}
-              items={allocatorItems}
-              totalBudgetCents={event.budget?.totalCents ?? null}
-            />
-          </div>
-        ) : (
-          <div className="mt-6 inline-block rounded-xl bg-white/10 px-5 py-3">
-            <p className="text-xs text-white/60">Geschat totaal</p>
+        {/*
+          Cems feedback (sep. 2026): de interactieve budget-schuiven stonden
+          hier ÉN op het Budget-tabblad — twee plekken om hetzelfde te
+          verdelen voelde rommelig, en oogde hier ook minder verzorgd tussen
+          de rest van deze kaart. Hier nu alleen een korte, statische
+          samenvatting; de schuiven zelf (BudgetAllocator) blijven puur op
+          /events/[id]/budget staan, met een duidelijke link daarheen.
+        */}
+        <div className="mt-6 flex flex-wrap items-end justify-between gap-4 border-t border-white/10 pt-6">
+          <div>
+            <p className="text-xs text-white/60">{allocatorItems.length > 0 ? "Huidige verdeling — totaal geschat" : "Geschat totaal"}</p>
             <p className="font-display text-2xl">{formatCurrency(totalEstimated)}</p>
             {event.budget && <p className="text-xs text-white/60">van {formatCurrency(event.budget.totalCents)} budget</p>}
           </div>
-        )}
+          <Link href={`/events/${id}/budget`} className="chip-hover inline-flex items-center gap-1 rounded-full bg-white/10 px-4 py-2 text-xs font-medium text-white hover:bg-white/20">
+            Verdeling aanpassen in Budget →
+          </Link>
+        </div>
       </Card>
 
       {SECTIONS.map((section) => {

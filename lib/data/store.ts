@@ -5,6 +5,8 @@ import {
   DEFAULT_DEPOSIT_PERCENT,
   EffectiveSupplierTier,
   EMAIL_ENABLED,
+  GALLERY_TIERS,
+  GalleryTier,
   ORGANIZER_STALLED_DAYS,
   SPOTLIGHT_DURATION_DAYS,
   SUPPLIER_RESPONSE_WINDOW_HOURS,
@@ -33,12 +35,17 @@ import {
   DisputeStatus,
   EventBudgetSummary,
   EventCore,
+  EventGallery,
   EventGuest,
   EventNote,
   EventReadiness,
   EventStage,
   EventTask,
   EventTimelineItem,
+  GalleryMessage,
+  GalleryModerationStatus,
+  GalleryPhoto,
+  GalleryPublicInfo,
   GuestPublicInfo,
   Message,
   MessageAttachment,
@@ -273,7 +280,7 @@ function rowToTask(r: Row): EventTask {
 }
 
 function rowToRisk(r: Row): RiskFlag {
-  return { id: r.id, eventId: r.event_id, severity: r.severity, message: r.message, createdAt: r.created_at };
+  return { id: r.id, eventId: r.event_id, severity: r.severity, message: r.message, section: r.section ?? null, createdAt: r.created_at };
 }
 
 function rowToPayment(r: Row): Payment {
@@ -1115,6 +1122,245 @@ export async function uploadSupplierFile(ownerId: string, file: File, folder: "l
   if (error) return null;
   const { data } = supabase.storage.from("supplier-media").getPublicUrl(path);
   return data.publicUrl;
+}
+
+/* ------------------------------------------------------------------ */
+/* GASTENFOTO-PAGINA ("Deel C", migratie 0052)                         */
+/* ------------------------------------------------------------------ */
+
+function rowToEventGallery(r: Row): EventGallery {
+  return {
+    id: r.id,
+    eventId: r.event_id,
+    tier: r.tier,
+    status: r.status,
+    uploadToken: r.upload_token,
+    theme: r.theme ?? null,
+    invitationTemplateKey: r.invitation_template_key ?? null,
+    expiresAt: r.expires_at ?? null,
+    createdAt: r.created_at,
+    purchasedAt: r.purchased_at ?? null,
+  };
+}
+
+/** Organisator-kant: de gastenfoto-pagina van dit evenement, of `null` als er nog niets is gekocht. */
+export async function getEventGallery(eventId: string): Promise<EventGallery | null> {
+  const supabase = await sb();
+  const { data } = await supabase.from("event_galleries").select("*").eq("event_id", eventId).maybeSingle();
+  return data ? rowToEventGallery(data) : null;
+}
+
+/**
+ * Zet (of werkt bij) een `pending_payment`-rij klaar vóórdat de organisator
+ * naar Stripe Checkout wordt gestuurd — de rij bestaat dan al, zodat de
+ * webhook 'm bij een geslaagde betaling alleen hoeft te activeren i.p.v.
+ * aan te maken (en Stripe's `metadata` alleen het korte `galleryId` hoeft
+ * mee te dragen, niet het hele gekozen niveau nogmaals). Een reeds
+ * `active` pagina wordt hier NOOIT overschreven — upgraden/verlengen na
+ * activatie is een bewust nog niet gebouwde vervolgstap (zie taak Deel C in
+ * de takenlijst), dit voorkomt dat een dubbele aankooppoging een lopende,
+ * betaalde pagina per ongeluk terugzet naar `pending_payment`.
+ */
+export async function createOrUpdatePendingGalleryPurchase(eventId: string, tier: GalleryTier): Promise<EventGallery | null> {
+  const supabase = await sb();
+  const existing = await getEventGallery(eventId);
+  if (existing && existing.status === "active") return existing;
+
+  const priceCents = GALLERY_TIERS[tier].priceCents;
+  if (existing) {
+    const { data, error } = await supabase
+      .from("event_galleries")
+      .update({ tier, price_cents: priceCents })
+      .eq("id", existing.id)
+      .select()
+      .single();
+    if (error || !data) return null;
+    return rowToEventGallery(data);
+  }
+  const { data, error } = await supabase
+    .from("event_galleries")
+    .insert({ event_id: eventId, tier, price_cents: priceCents, status: "pending_payment" })
+    .select()
+    .single();
+  if (error || !data) return null;
+  return rowToEventGallery(data);
+}
+
+/** Voor de webhook: koppelt de Stripe Checkout-sessie aan de al aangemaakte `pending_payment`-rij (zie createOrUpdatePendingGalleryPurchase), vóór de redirect naar Stripe. */
+export async function setGalleryStripeCheckoutSessionId(galleryId: string, sessionId: string): Promise<void> {
+  const supabase = await sb();
+  await supabase.from("event_galleries").update({ stripe_checkout_session_id: sessionId }).eq("id", galleryId);
+}
+
+/**
+ * checkout.session.completed (mode "payment", gastenfoto-aankoop) —
+ * service-role, want een inkomend webhook-request heeft geen ingelogde
+ * gebruiker/sessie (zelfde reden als markPaymentPaidByWebhook hieronder).
+ * Berekent `expires_at` als evenementdatum + retentionDays van het gekochte
+ * niveau; heeft het evenement (nog) geen datum, dan telt vanaf vandaag —
+ * beter een voorzichtige onderschatting dan de pagina nooit laten verlopen.
+ */
+export async function activateEventGalleryFromWebhook(galleryId: string): Promise<void> {
+  const admin = createSupabaseAdminClient();
+  if (!admin) return;
+  const { data: galleryRow } = await admin.from("event_galleries").select("*, events!inner(date)").eq("id", galleryId).maybeSingle();
+  if (!galleryRow) return;
+  const tier = galleryRow.tier as GalleryTier;
+  const retentionDays = GALLERY_TIERS[tier]?.retentionDays ?? 60;
+  const baseDate = galleryRow.events?.date ? new Date(galleryRow.events.date) : new Date();
+  const expiresAt = new Date(baseDate);
+  expiresAt.setDate(expiresAt.getDate() + retentionDays);
+
+  await admin
+    .from("event_galleries")
+    .update({ status: "active", purchased_at: new Date().toISOString(), expires_at: expiresAt.toISOString().slice(0, 10) })
+    .eq("id", galleryId);
+}
+
+/** Publieke gastenpagina (`/gallery/[token]`) — combineert de DB-rij met de bijbehorende perks uit GALLERY_TIERS (dezelfde "DB kent alleen het niveau, config bepaalt de rest"-aanpak als abonnementen). */
+export async function getGalleryPublic(uploadToken: string): Promise<GalleryPublicInfo | null> {
+  const supabase = await sb();
+  const { data, error } = await supabase.rpc("get_gallery_public", { p_upload_token: uploadToken }).maybeSingle();
+  if (error || !data) return null;
+  const r = data as Row;
+  const tier = r.tier as GalleryTier;
+  const def = GALLERY_TIERS[tier];
+  return {
+    eventName: r.event_name,
+    eventDate: r.event_date,
+    tier,
+    theme: r.theme ?? null,
+    status: r.status,
+    expiresAt: r.expires_at ?? null,
+    allowVideo: def?.allowVideo ?? false,
+    allowGuestbook: def?.allowGuestbook ?? false,
+    maxUploadMb: def?.maxUploadMb ?? 15,
+  };
+}
+
+export async function getGalleryPhotosPublic(uploadToken: string): Promise<GalleryPhoto[]> {
+  const supabase = await sb();
+  const { data, error } = await supabase.rpc("get_gallery_photos_public", { p_upload_token: uploadToken });
+  if (error || !data) return [];
+  return (data as Row[]).map((r) => ({
+    id: r.id,
+    galleryId: "",
+    guestName: r.guest_name ?? null,
+    storagePath: r.storage_path,
+    publicUrl: supabase.storage.from("gallery-media").getPublicUrl(r.storage_path).data.publicUrl,
+    isVideo: r.is_video,
+    moderationStatus: "approved" as GalleryModerationStatus,
+    createdAt: r.created_at,
+  }));
+}
+
+export async function getGalleryMessagesPublic(uploadToken: string): Promise<GalleryMessage[]> {
+  const supabase = await sb();
+  const { data, error } = await supabase.rpc("get_gallery_messages_public", { p_upload_token: uploadToken });
+  if (error || !data) return [];
+  return (data as Row[]).map((r) => ({
+    id: r.id,
+    galleryId: "",
+    guestName: r.guest_name ?? null,
+    message: r.message,
+    moderationStatus: "approved" as GalleryModerationStatus,
+    createdAt: r.created_at,
+  }));
+}
+
+export const GALLERY_PHOTO_ALLOWED_MIME = (mime: string) => mime.startsWith("image/");
+export const GALLERY_VIDEO_ALLOWED_MIME = (mime: string) => mime.startsWith("video/");
+
+/**
+ * Uploadt één gastenbestand naar de "gallery-media"-opslagruimte. De
+ * grootte-limiet hangt af van het GEKOCHTE niveau (Premium mag grotere
+ * bestanden, zie GALLERY_TIERS) — de aanroepende server action
+ * (uploadGalleryPhotoAction) heeft de gallery-info al opgehaald en geeft
+ * `maxBytes` door, zodat deze functie zelf geen extra RPC-rondje hoeft te
+ * maken. Storage-RLS (migratie 0052) controleert zelf nogmaals of het
+ * token bij een actieve, niet-verlopen pagina hoort — deze functie is dus
+ * geen enige verdedigingslinie.
+ */
+export async function uploadGalleryMedia(uploadToken: string, file: File, maxBytes: number): Promise<{ storagePath: string; sizeBytes: number } | null> {
+  if (!file || file.size === 0) return null;
+  if (file.size > maxBytes) return null;
+  if (!GALLERY_PHOTO_ALLOWED_MIME(file.type) && !GALLERY_VIDEO_ALLOWED_MIME(file.type)) return null;
+
+  const supabase = await sb();
+  const ext = file.name.includes(".") ? file.name.split(".").pop() : file.type.startsWith("video/") ? "mp4" : "jpg";
+  const path = `${uploadToken}/${Date.now()}-${Math.round(Math.random() * 1_000_000)}.${ext}`;
+  const { error } = await supabase.storage.from("gallery-media").upload(path, file, { upsert: false, contentType: file.type || undefined });
+  if (error) return null;
+  return { storagePath: path, sizeBytes: file.size };
+}
+
+export async function submitGalleryPhoto(uploadToken: string, guestName: string, storagePath: string, isVideo: boolean): Promise<boolean> {
+  const supabase = await sb();
+  const { error } = await supabase.rpc("submit_gallery_photo", {
+    p_upload_token: uploadToken,
+    p_guest_name: guestName || null,
+    p_storage_path: storagePath,
+    p_is_video: isVideo,
+  });
+  return !error;
+}
+
+export async function submitGalleryMessage(uploadToken: string, guestName: string, message: string): Promise<boolean> {
+  const supabase = await sb();
+  const { error } = await supabase.rpc("submit_gallery_message", { p_upload_token: uploadToken, p_guest_name: guestName || null, p_message: message });
+  return !error;
+}
+
+/* ------ Organisator-kant: modereren (gewone, sessie-gebonden RLS) ------ */
+
+export async function getGalleryPhotosForOrganizer(galleryId: string): Promise<GalleryPhoto[]> {
+  const supabase = await sb();
+  const { data } = await supabase.from("gallery_photos").select("*").eq("gallery_id", galleryId).order("created_at", { ascending: false });
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    galleryId: r.gallery_id,
+    guestName: r.guest_name ?? null,
+    storagePath: r.storage_path,
+    publicUrl: supabase.storage.from("gallery-media").getPublicUrl(r.storage_path).data.publicUrl,
+    isVideo: r.is_video,
+    moderationStatus: r.moderation_status,
+    createdAt: r.created_at,
+  }));
+}
+
+export async function getGalleryMessagesForOrganizer(galleryId: string): Promise<GalleryMessage[]> {
+  const supabase = await sb();
+  const { data } = await supabase.from("gallery_messages").select("*").eq("gallery_id", galleryId).order("created_at", { ascending: false });
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    galleryId: r.gallery_id,
+    guestName: r.guest_name ?? null,
+    message: r.message,
+    moderationStatus: r.moderation_status,
+    createdAt: r.created_at,
+  }));
+}
+
+export async function setGalleryPhotoModeration(photoId: string, status: GalleryModerationStatus): Promise<void> {
+  const supabase = await sb();
+  await supabase.from("gallery_photos").update({ moderation_status: status }).eq("id", photoId);
+}
+
+export async function setGalleryMessageModeration(messageId: string, status: GalleryModerationStatus): Promise<void> {
+  const supabase = await sb();
+  await supabase.from("gallery_messages").update({ moderation_status: status }).eq("id", messageId);
+}
+
+/** Verwijdert zowel het opgeslagen bestand als de rij — RLS (owner-only) dekt de rij, de storage-delete-policy (migratie 0052) dekt het bestand. */
+export async function deleteGalleryPhoto(photoId: string, storagePath: string): Promise<void> {
+  const supabase = await sb();
+  await supabase.storage.from("gallery-media").remove([storagePath]);
+  await supabase.from("gallery_photos").delete().eq("id", photoId);
+}
+
+export async function deleteGalleryMessage(messageId: string): Promise<void> {
+  const supabase = await sb();
+  await supabase.from("gallery_messages").delete().eq("id", messageId);
 }
 
 const DISPLAY_GRADIENTS: [string, string][] = [
@@ -3020,7 +3266,7 @@ export async function setRisks(eventId: string, risks: RiskFlag[]): Promise<Risk
   const supabase = await sb();
   await supabase.from("event_risks").delete().eq("event_id", eventId);
   if (risks.length === 0) return [];
-  const rows = risks.map((r) => ({ event_id: eventId, severity: r.severity, message: r.message }));
+  const rows = risks.map((r) => ({ event_id: eventId, severity: r.severity, message: r.message, section: r.section }));
   const { data } = await supabase.from("event_risks").insert(rows).select();
   return (data ?? []).map(rowToRisk);
 }

@@ -490,6 +490,96 @@ export const AI_ENABLED = Boolean(process.env.ANTHROPIC_API_KEY);
 export const PAYMENTS_ENABLED = Boolean(process.env.STRIPE_SECRET_KEY && process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY && process.env.STRIPE_WEBHOOK_SECRET);
 
 /**
+ * Gastenfoto-pagina per evenement ("Deel C", sep. 2026 op verzoek van Cem):
+ * een eigen, deelbare webpagina per evenement waar gasten via een link/QR
+ * rechtstreeks foto's (en bij Premium video's) kunnen uploaden — geen
+ * hashtag-verzamelaar (onbetrouwbaar/onmogelijk zonder officiële
+ * Instagram-API-toegang voor een klein platform als Vyra), gewoon direct
+ * uploaden. Eenmalig bedrag per evenement, geen abonnement — dit is een
+ * losstaand extraatje bovenop het gewone Vyra-gebruik, geen leveranciers-
+ * niveau. Prijzen/perks definitief afgestemd met Cem (zie changelog):
+ *  - Basis  €49 — 60 dagen zichtbaar, onbeperkt foto's, moderatie vooraf.
+ *  - Plus   €79 — half jaar zichtbaar, + gastenboek-berichten, album als
+ *           zip downloaden, eigen kleurthema.
+ *  - Premium €99 — heel jaar zichtbaar, + video's, fotoboek-PDF, kiezen uit
+ *           uitnodigingssjablonen, grotere bestanden toegestaan.
+ * Elk niveau bevat alles van het niveau eronder.
+ */
+export type GalleryTier = "basis" | "plus" | "premium";
+
+export interface GalleryTierDefinition {
+  tier: GalleryTier;
+  label: string;
+  priceCents: number;
+  /** Aantal dagen na de evenementdatum dat de gastenfoto-pagina zichtbaar blijft voor de organisator wordt opgeruimd (zie de dagelijkse opschoon-cron). */
+  retentionDays: number;
+  perks: string[];
+  allowVideo: boolean;
+  allowGuestbook: boolean;
+  allowZipDownload: boolean;
+  allowCustomTheme: boolean;
+  allowInvitationTemplates: boolean;
+  /** Maximale bestandsgrootte per upload, in MB — server-side afgedwongen in lib/data/store.ts (uploadGalleryMedia). */
+  maxUploadMb: number;
+}
+
+export const GALLERY_TIER_ORDER: GalleryTier[] = ["basis", "plus", "premium"];
+
+export const GALLERY_TIERS: Record<GalleryTier, GalleryTierDefinition> = {
+  basis: {
+    tier: "basis",
+    label: "Basis",
+    priceCents: 4900,
+    retentionDays: 60,
+    perks: ["Onbeperkt foto's uploaden", "60 dagen zichtbaar voor gasten", "Foto's worden vóór publicatie beoordeeld"],
+    allowVideo: false,
+    allowGuestbook: false,
+    allowZipDownload: false,
+    allowCustomTheme: false,
+    allowInvitationTemplates: false,
+    maxUploadMb: 15,
+  },
+  plus: {
+    tier: "plus",
+    label: "Plus",
+    priceCents: 7900,
+    retentionDays: 182,
+    perks: ["Alles van Basis", "Half jaar zichtbaar voor gasten", "Gastenboek-berichten van gasten", "Volledig album downloaden (zip)", "Eigen kleurthema"],
+    allowVideo: false,
+    allowGuestbook: true,
+    allowZipDownload: true,
+    allowCustomTheme: true,
+    allowInvitationTemplates: false,
+    maxUploadMb: 15,
+  },
+  premium: {
+    tier: "premium",
+    label: "Premium",
+    priceCents: 9900,
+    retentionDays: 365,
+    perks: ["Alles van Plus", "Een heel jaar zichtbaar voor gasten", "Ook video's uploaden", "Fotoboek als PDF", "Kies uit uitnodigingssjablonen", "Grotere bestanden toegestaan"],
+    allowVideo: true,
+    allowGuestbook: true,
+    allowZipDownload: true,
+    allowCustomTheme: true,
+    allowInvitationTemplates: true,
+    // Bewust NIET de volle "grotere bestanden"-belofte (bv. 100MB) — de
+    // Server Action-uploadgrens staat in next.config.ts op 20mb (zelfde
+    // grens die eerder de leveranciersprofiel-foto-upload liet mislukken
+    // totdat die van 1MB naar 20mb werd opgehoogd). 18MB laat ruim marge
+    // onder die grens (multipart-overhead meegerekend) i.p.v. blindelings
+    // een grotere waarde te beloven die stil kan mislukken — "groter dan
+    // Basis/Plus" (15MB) blijft wel waar. Wil je hier écht grotere
+    // video's toestaan, dan moet eerst bodySizeLimit in next.config.ts
+    // omhoog (en getest worden dat Vercel dat ook daadwerkelijk toelaat).
+    maxUploadMb: 18,
+  },
+};
+
+/** Zelfde "graceful fallback zonder sleutels"-patroon als PAYMENTS_ENABLED hierboven — de aankooppagina toont dan een nette melding i.p.v. een kale Stripe-fout. */
+export const GALLERY_PURCHASE_ENABLED = PAYMENTS_ENABLED;
+
+/**
  * Of er e-mailmeldingen worden verstuurd (nieuwe aanvraag, nieuwe offerte,
  * verlopen reactietermijn) naast de bestaande in-app-meldingen. Zonder
  * RESEND_API_KEY blijft de app volledig werken, alleen dan zonder e-mail —

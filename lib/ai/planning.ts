@@ -303,6 +303,7 @@ export function detectRisksMock(event: EventCore, categories: RequirementCategor
       eventId: event.id,
       severity: "warning",
       message: "Dit is een AI-signalering: je evenement is (deels) buiten, maar er is nog geen tent of overkapping geregeld als back-up bij regen.",
+      section: "plan",
       createdAt: new Date().toISOString(),
     });
   }
@@ -314,6 +315,7 @@ export function detectRisksMock(event: EventCore, categories: RequirementCategor
       eventId: event.id,
       severity: "warning",
       message: `Dit is een AI-signalering: bij ${totalGuests} gasten thuis is extra zitgelegenheid vaak nodig, maar meubelverhuur staat nog niet in je plan.`,
+      section: "plan",
       createdAt: new Date().toISOString(),
     });
   }
@@ -325,6 +327,7 @@ export function detectRisksMock(event: EventCore, categories: RequirementCategor
       eventId: event.id,
       severity: "info",
       message: `Dit is een AI-signalering: ${missingEssentials.length} essentiële categorie(ën) zijn nog niet aangevraagd bij leveranciers: ${missingEssentials.map((c) => c.label).join(", ")}.`,
+      section: "plan",
       createdAt: new Date().toISOString(),
     });
   }
@@ -342,14 +345,18 @@ export async function detectRisks(event: EventCore, categories: RequirementCateg
         items: {
           type: "object",
           additionalProperties: false,
-          properties: { severity: { type: "string", enum: ["warning", "info"] }, message: { type: "string" } },
-          required: ["severity", "message"],
+          properties: {
+            severity: { type: "string", enum: ["warning", "info"] },
+            message: { type: "string" },
+            section: { type: "string", enum: ["instellingen", "plan", "gasten", "budget"] },
+          },
+          required: ["severity", "message", "section"],
         },
       },
     },
     required: ["risks"],
   };
-  const { data, usedAI } = await callStructuredAI<{ risks: { severity: "warning" | "info"; message: string }[] }>({
+  const { data, usedAI } = await callStructuredAI<{ risks: { severity: "warning" | "info"; message: string; section: RiskFlag["section"] }[] }>({
     role: "risk_detection",
     system: RISK_DETECTION_PROMPT,
     user: `Evenement: ${JSON.stringify({
@@ -361,9 +368,9 @@ export async function detectRisks(event: EventCore, categories: RequirementCateg
     schema,
     schemaName: "risk_flags",
     context: { userId: event.ownerId, eventId: event.id },
-    mockFallback: () => ({ risks: detectRisksMock(event, categories).map((r) => ({ severity: r.severity, message: r.message })) }),
+    mockFallback: () => ({ risks: detectRisksMock(event, categories).map((r) => ({ severity: r.severity, message: r.message, section: r.section })) }),
   });
 
-  const risks: RiskFlag[] = data.risks.map((r) => ({ id: uid("risk"), eventId: event.id, severity: r.severity, message: r.message, createdAt: new Date().toISOString() }));
+  const risks: RiskFlag[] = data.risks.map((r) => ({ id: uid("risk"), eventId: event.id, severity: r.severity, message: r.message, section: r.section ?? "plan", createdAt: new Date().toISOString() }));
   return { risks, usedAI };
 }

@@ -339,8 +339,8 @@ function buildWeddingEvent(ownerId: string): EventBundle {
   ];
 
   const risks: RiskFlag[] = [
-    { id: uid("risk"), eventId, severity: "warning", message: "Dit is een AI-signalering: je hebt nog geen back-upplan voor regen tijdens het buitengedeelte van de ceremonie.", createdAt: now.toISOString() },
-    { id: uid("risk"), eventId, severity: "warning", message: "Dit is een AI-signalering: Videografie, Licht & geluid en Schoonmaak hebben nog niet gereageerd — de deadline van 48 uur nadert voor deze aanvragen.", createdAt: now.toISOString() },
+    { id: uid("risk"), eventId, severity: "warning", message: "Dit is een AI-signalering: je hebt nog geen back-upplan voor regen tijdens het buitengedeelte van de ceremonie.", section: "plan", createdAt: now.toISOString() },
+    { id: uid("risk"), eventId, severity: "warning", message: "Dit is een AI-signalering: Videografie, Licht & geluid en Schoonmaak hebben nog niet gereageerd — de deadline van 48 uur nadert voor deze aanvragen.", section: "plan", createdAt: now.toISOString() },
   ];
 
   const messages: Message[] = [
@@ -441,8 +441,8 @@ function buildBirthdayEvent(ownerId: string): EventBundle {
   ];
 
   const risks: RiskFlag[] = [
-    { id: uid("risk"), eventId, severity: "warning", message: "Dit is een AI-signalering: je viert buiten in de tuin, maar er is nog geen partytent of overkapping geregeld voor bij regen.", createdAt: now.toISOString() },
-    { id: uid("risk"), eventId, severity: "info", message: "Dit is een AI-signalering: de ontvangen cateringofferte van De Gastvrije Tafel ligt 8% boven je opgegeven budget voor deze categorie.", createdAt: now.toISOString() },
+    { id: uid("risk"), eventId, severity: "warning", message: "Dit is een AI-signalering: je viert buiten in de tuin, maar er is nog geen partytent of overkapping geregeld voor bij regen.", section: "plan", createdAt: now.toISOString() },
+    { id: uid("risk"), eventId, severity: "info", message: "Dit is een AI-signalering: de ontvangen cateringofferte van De Gastvrije Tafel ligt 8% boven je opgegeven budget voor deze categorie.", section: "budget", createdAt: now.toISOString() },
   ];
 
   const messages: Message[] = [];

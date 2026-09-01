@@ -19,13 +19,36 @@ import { LinkButton } from "@/components/ui/Button";
 import { formatCurrency } from "@/lib/config";
 import { formatDateNL } from "@/lib/utils";
 import { toggleTaskAction } from "@/lib/actions/misc-actions";
-import { AlertTriangle, CheckCircle2, Circle, MapPin, Sparkles, Users, Wallet } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronRight, Circle, MapPin, Sparkles, Users, Wallet } from "lucide-react";
 import { SubmitButton } from "@/components/ui/SubmitButton";
+import type { RiskFlag } from "@/lib/types";
 
 function categoryHref(eventId: string, status: string, categoryKey: string) {
   if (status === "suggested" || status === "selected") return `/events/${eventId}/plan`;
   if (status === "requested" || status === "awaiting_response") return `/events/${eventId}/requests`;
   return `/events/${eventId}/offers/${categoryKey}`;
+}
+
+/**
+ * Cems feedback (sep. 2026): de gele AI-signaleringen op het dashboard
+ * deden niks bij een klik — puur tekst. Elk risico krijgt sindsdien een
+ * `section` mee van de AI (zie RISK_DETECTION_PROMPT/detectRisksMock), die
+ * hier naar het bijbehorende tabblad wijst. `null` bij oudere, nog niet
+ * geclassificeerde rijen (van vóór deze wijziging) valt terug op "plan" —
+ * de meest voorkomende bestemming — in plaats van een dode link te tonen.
+ */
+function riskSectionHref(eventId: string, section: RiskFlag["section"]): string {
+  switch (section) {
+    case "instellingen":
+      return `/events/${eventId}/settings`;
+    case "gasten":
+      return `/events/${eventId}/guests`;
+    case "budget":
+      return `/events/${eventId}/budget`;
+    case "plan":
+    default:
+      return `/events/${eventId}/plan`;
+  }
 }
 
 export default async function EventDashboardPage(props: PageProps<"/events/[id]">) {
@@ -67,10 +90,15 @@ export default async function EventDashboardPage(props: PageProps<"/events/[id]"
         {risks.length > 0 && (
           <div className="space-y-2.5">
             {risks.map((r) => (
-              <div key={r.id} className="flex items-start gap-2.5 rounded-2xl border border-warning-50 bg-warning-50 px-4 py-3 text-sm text-warning">
+              <Link
+                key={r.id}
+                href={riskSectionHref(id, r.section)}
+                className="chip-hover flex items-start gap-2.5 rounded-2xl border border-warning-50 bg-warning-50 px-4 py-3 text-sm text-warning transition hover:border-warning hover:bg-warning-50/80"
+              >
                 <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-                <p>{r.message}</p>
-              </div>
+                <p className="flex-1">{r.message}</p>
+                <ChevronRight className="mt-0.5 size-4 shrink-0 opacity-60" />
+              </Link>
             ))}
           </div>
         )}

@@ -8,7 +8,7 @@
  * overal wordt meegegeven waar dat onderscheid ertoe doet.
  */
 
-import type { SubscriptionTier } from "@/lib/config";
+import type { GalleryTier, SubscriptionTier } from "@/lib/config";
 
 export type Provenance = "user" | "ai_recommendation" | "supplier" | "system";
 
@@ -220,11 +220,15 @@ export interface EventTask {
   relatedCategory?: SupplierCategory;
 }
 
+export type RiskSection = "instellingen" | "plan" | "gasten" | "budget";
+
 export interface RiskFlag {
   id: string;
   eventId: string;
   severity: "warning" | "info";
   message: string;
+  /** Op welk tabblad dit risico op te lossen is — laat de kaart klikbaar zijn naar de juiste plek i.p.v. een dode melding. `null` bij oudere, nog niet geclassificeerde rijen. */
+  section: RiskSection | null;
   createdAt: string;
 }
 
@@ -967,4 +971,68 @@ export interface NextStep {
   ctaLabel: string;
   icon: "sparkles" | "send" | "wallet" | "clock" | "inbox" | "check-circle";
   tone: "action" | "warning" | "success";
+}
+
+/* ------------------------------------------------------------------ */
+/* GASTENFOTO-PAGINA ("Deel C", migratie 0052)                         */
+/* ------------------------------------------------------------------ */
+
+export type GalleryStatus = "pending_payment" | "active" | "expired";
+export type GalleryModerationStatus = "pending" | "approved" | "rejected";
+
+/**
+ * Eén gastenfoto-pagina per evenement — pas aangemaakt zodra de organisator
+ * 'm koopt (zie lib/config.ts GALLERY_TIERS). `uploadToken` is het
+ * niet-raadbare deel van zowel de gast-uploadlink als de QR-code (zie
+ * `/gallery/[token]`) — kennis van deze ene waarde is de enige toegangscontrole
+ * voor gasten, hetzelfde patroon als de bestaande RSVP-link
+ * (get_guest_public/submit_rsvp in migratie 0006).
+ */
+export interface EventGallery {
+  id: string;
+  eventId: string;
+  tier: GalleryTier;
+  status: GalleryStatus;
+  uploadToken: string;
+  /** Kleurthema-sleutel (Plus/Premium); `null` = standaard Vyra-thema. */
+  theme: string | null;
+  /** Gekozen uitnodigingssjabloon (Premium, zie Deel C.5); `null` = nog geen keuze gemaakt. */
+  invitationTemplateKey: string | null;
+  /** Berekend bij activatie: evenementdatum + retentionDays van het gekozen niveau. `null` zolang nog niet actief. */
+  expiresAt: string | null;
+  createdAt: string;
+  purchasedAt: string | null;
+}
+
+export interface GalleryPhoto {
+  id: string;
+  galleryId: string;
+  guestName: string | null;
+  storagePath: string;
+  publicUrl: string;
+  isVideo: boolean;
+  moderationStatus: GalleryModerationStatus;
+  createdAt: string;
+}
+
+export interface GalleryMessage {
+  id: string;
+  galleryId: string;
+  guestName: string | null;
+  message: string;
+  moderationStatus: GalleryModerationStatus;
+  createdAt: string;
+}
+
+/** Wat de publieke, ongeauthenticeerde gastenpagina (`/gallery/[token]`) nodig heeft — nooit meer dan dit blootstellen. */
+export interface GalleryPublicInfo {
+  eventName: string;
+  eventDate: string | null;
+  tier: GalleryTier;
+  theme: string | null;
+  status: GalleryStatus;
+  expiresAt: string | null;
+  allowVideo: boolean;
+  allowGuestbook: boolean;
+  maxUploadMb: number;
 }
