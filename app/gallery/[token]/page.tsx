@@ -3,8 +3,9 @@ import { getGalleryMessagesPublic, getGalleryPhotosPublic, getGalleryPublic } fr
 import { Logo } from "@/components/marketing/Logo";
 import { GalleryUploadForm } from "@/components/app/GalleryUploadForm";
 import { GalleryMessageForm } from "@/components/app/GalleryMessageForm";
+import { GalleryPhotoGrid } from "@/components/app/GalleryPhotoGrid";
 import { formatDateNL } from "@/lib/utils";
-import { CalendarDays, ImageOff, MessageSquareText } from "lucide-react";
+import { CalendarDays, Camera, ImageOff, MessageSquareText } from "lucide-react";
 
 export const metadata = { title: "Gastenfoto's — Vyra" };
 
@@ -33,46 +34,52 @@ export default async function PublicGalleryPage(props: PageProps<"/gallery/[toke
     gallery.allowGuestbook ? getGalleryMessagesPublic(token) : Promise.resolve([]),
   ]);
 
-  return (
-    <div className="min-h-screen bg-paper-dim px-4 py-10 sm:px-6">
-      <div className="mx-auto max-w-3xl">
-        <div className="mb-8 flex justify-center"><Logo /></div>
+  const guestbookAvatarTint = ["bg-clay-50 text-clay-dark", "bg-sage-50 text-sage-dark", "bg-warning-50 text-warning"];
 
-        <div className="rounded-2xl border border-line bg-white p-8 text-center [box-shadow:var(--shadow-card)]">
-          <p className="text-sm text-ink-faint">Je bent uitgenodigd om foto&apos;s te delen van</p>
-          <h1 className="mt-0.5 font-display text-2xl text-ink">{gallery.eventName}</h1>
+  return (
+    <div className="min-h-screen bg-paper-dim pb-16">
+      {/* Feestelijke kopband — bewust de merkkleuren (clay/sage) i.p.v. een generieke gradient, zodat dit nog steeds als Vyra voelt. */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-clay-50 via-paper to-sage-50 px-4 pb-10 pt-8 sm:px-6 sm:pt-10">
+        <div className="pointer-events-none absolute -right-16 -top-20 size-56 rounded-full bg-clay/10 blur-2xl" />
+        <div className="pointer-events-none absolute -bottom-24 -left-10 size-56 rounded-full bg-sage/10 blur-2xl" />
+
+        <div className="relative mx-auto max-w-3xl text-center">
+          <div className="mb-6 flex justify-center"><Logo /></div>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/70 px-3 py-1 text-xs font-medium uppercase tracking-wide text-clay-dark ring-1 ring-clay/20">
+            <Camera className="size-3.5" /> Gastenfoto&apos;s
+          </span>
+          <h1 className="mt-3 text-balance font-display text-3xl text-ink sm:text-4xl">{gallery.eventName}</h1>
           {gallery.eventDate && (
             <div className="mt-2 flex items-center justify-center gap-2 text-sm text-ink-soft">
               <CalendarDays className="size-4 text-ink-faint" /> {formatDateNL(gallery.eventDate, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
             </div>
           )}
-          <p className="mt-3 text-sm text-ink-faint">Upload je mooiste kiekjes — na een korte controle staan ze hier voor iedereen.</p>
+          <p className="mx-auto mt-4 max-w-md text-sm text-ink-soft">
+            Deel je mooiste kiekjes van dit feest — na een korte controle staan ze hier voor iedereen, zolang deze pagina online blijft.
+          </p>
         </div>
+      </div>
 
-        <div className="mt-6">
-          <GalleryUploadForm uploadToken={token} allowVideo={gallery.allowVideo} maxUploadMb={gallery.maxUploadMb} />
-        </div>
+      <div className="mx-auto -mt-4 max-w-3xl px-4 sm:px-6">
+        <GalleryUploadForm uploadToken={token} allowVideo={gallery.allowVideo} maxUploadMb={gallery.maxUploadMb} />
 
-        {photos.length > 0 && (
-          <div className="mt-8">
-            <h2 className="mb-3 font-display text-lg text-ink">Foto&apos;s van gasten</h2>
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-              {photos.map((photo) => (
-                <div key={photo.id} className="aspect-square overflow-hidden rounded-xl border border-line bg-white">
-                  {photo.isVideo ? (
-                    <video src={photo.publicUrl} className="size-full object-cover" controls />
-                  ) : (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={photo.publicUrl} alt={photo.guestName ? `Foto van ${photo.guestName}` : "Gastenfoto"} className="size-full object-cover" loading="lazy" />
-                  )}
-                </div>
-              ))}
+        {photos.length > 0 ? (
+          <div className="mt-10">
+            <div className="mb-3 flex items-baseline justify-between">
+              <h2 className="font-display text-lg text-ink">De collage</h2>
+              <span className="text-xs text-ink-faint">{photos.length === 1 ? "1 foto" : `${photos.length} foto's`}</span>
             </div>
+            <GalleryPhotoGrid photos={photos} />
+          </div>
+        ) : (
+          <div className="mt-10 rounded-2xl border border-dashed border-line bg-white/60 px-6 py-10 text-center">
+            <ImageOff className="mx-auto size-6 text-ink-faint" />
+            <p className="mt-3 text-sm text-ink-soft">Hier verschijnt de collage zodra de eerste foto&apos;s zijn goedgekeurd. Wees de eerste!</p>
           </div>
         )}
 
         {gallery.allowGuestbook && (
-          <div className="mt-8">
+          <div className="mt-10">
             <div className="mb-3 flex items-center gap-2">
               <MessageSquareText className="size-4 text-ink-faint" />
               <h2 className="font-display text-lg text-ink">Gastenboek</h2>
@@ -81,11 +88,16 @@ export default async function PublicGalleryPage(props: PageProps<"/gallery/[toke
               <GalleryMessageForm uploadToken={token} />
             </div>
             {messages.length > 0 && (
-              <div className="space-y-2.5">
-                {messages.map((message) => (
-                  <div key={message.id} className="rounded-xl border border-line-soft bg-white px-4 py-3">
-                    <p className="text-sm text-ink">{message.message}</p>
-                    <p className="mt-1 text-xs text-ink-faint">— {message.guestName ?? "Anoniem"}</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {messages.map((message, i) => (
+                  <div key={message.id} className="rounded-2xl border border-line-soft bg-white p-4 [box-shadow:var(--shadow-card)]">
+                    <p className="text-sm leading-relaxed text-ink">{message.message}</p>
+                    <div className="mt-3 flex items-center gap-2">
+                      <span className={`flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${guestbookAvatarTint[i % guestbookAvatarTint.length]}`}>
+                        {(message.guestName ?? "?").trim().charAt(0).toUpperCase()}
+                      </span>
+                      <p className="text-xs text-ink-faint">{message.guestName ?? "Anoniem"}</p>
+                    </div>
                   </div>
                 ))}
               </div>
