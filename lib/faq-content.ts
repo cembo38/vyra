@@ -171,6 +171,12 @@ export const ORGANIZER_FAQ: FaqCategory[] = [
         answer:
           "Je kunt je eigen gegevens (evenementen, gasten, je reviews) als bestand downloaden via je profielpagina. Account verwijderen kun je aanvragen vanaf je profiel; omdat dit lopende boekingen kan raken, wordt zo'n aanvraag door ons handmatig beoordeeld en uitgevoerd in plaats van meteen automatisch.",
       },
+      {
+        id: "org-account-hulp-knop",
+        question: "Ik loop tegen iets aan of iets werkt niet — wat nu?",
+        answer:
+          "Rechtsonder op elke pagina zit een klein rond hulp-icoon. Klik erop en kies 'Ik heb een vraag' of 'Het werkt niet' — je bericht komt direct bij ons binnen, ook zonder dat je bent ingelogd. Laat je e-mailadres achter als je een reactie wilt.",
+      },
     ],
   },
 ];
@@ -287,6 +293,18 @@ export const SUPPLIER_FAQ: FaqCategory[] = [
         id: "sup-marketing-pakketten",
         question: "Wat zijn 'Pakketten' op mijn profiel?",
         answer: "Vaste, kant-en-klare dienstenpakketten (bijvoorbeeld Basis/Standaard/Premium) die je zelf samenstelt en die organisatoren direct als opties op je profiel zien. Beschikbaar vanaf het Pro-abonnement.",
+      },
+    ],
+  },
+  {
+    id: "hulp",
+    label: "Hulp en contact",
+    entries: [
+      {
+        id: "sup-hulp-knop",
+        question: "Ik loop tegen iets aan of iets werkt niet — wat nu?",
+        answer:
+          "Rechtsonder op elke pagina zit een klein rond hulp-icoon. Klik erop en kies 'Ik heb een vraag' of 'Het werkt niet' — je bericht komt direct bij ons binnen. Laat je e-mailadres achter als je een reactie wilt.",
       },
     ],
   },

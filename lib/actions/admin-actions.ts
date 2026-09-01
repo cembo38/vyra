@@ -12,6 +12,7 @@ import {
   pushNotification,
   resolveAccountDeletionRequest,
   resolveDispute,
+  setFeedbackReportStatus,
   resolveSpotlightBoostRequest,
   resolveTierUpgradeRequest,
   generateAndStoreDailyBriefing,
@@ -467,4 +468,37 @@ export async function backfillSupplierCoordinatesAction(): Promise<
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : "Dit is niet gelukt." };
   }
+}
+
+/**
+ * Een feedback-melding (vraag of bug, via de FAB op elke pagina) markeren
+ * als afgehandeld. Zelfde patroon als resolveDisputeAction, maar zonder
+ * verplichte toelichting — dit gaat naar niemand anders dan Cem zelf, een
+ * korte interne notitie is optioneel.
+ */
+export async function resolveFeedbackReportAction(formData: FormData): Promise<ActionResult> {
+  return runAction(async () => {
+    await requireAdmin();
+    const reportId = String(formData.get("reportId") ?? "").trim();
+    if (!reportId) throw new Error("Geen melding opgegeven.");
+    const adminNote = String(formData.get("adminNote") ?? "").trim() || null;
+
+    const ok = await setFeedbackReportStatus(reportId, "resolved", adminNote);
+    if (!ok) throw new Error("Kon melding niet afhandelen (service-role sleutel niet geconfigureerd?).");
+
+    revalidatePath("/admin/feedback");
+  });
+}
+
+export async function reopenFeedbackReportAction(formData: FormData): Promise<ActionResult> {
+  return runAction(async () => {
+    await requireAdmin();
+    const reportId = String(formData.get("reportId") ?? "").trim();
+    if (!reportId) throw new Error("Geen melding opgegeven.");
+
+    const ok = await setFeedbackReportStatus(reportId, "open", null);
+    if (!ok) throw new Error("Kon melding niet heropenen (service-role sleutel niet geconfigureerd?).");
+
+    revalidatePath("/admin/feedback");
+  });
 }

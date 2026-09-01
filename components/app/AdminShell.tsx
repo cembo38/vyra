@@ -3,7 +3,7 @@
 import { ReactNode, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, LayoutDashboard, Users, Building2, AlertCircle, CreditCard, Sparkles, Settings, LogOut, ShieldCheck } from "lucide-react";
+import { Menu, X, LayoutDashboard, Users, Building2, AlertCircle, CreditCard, Sparkles, Settings, LogOut, ShieldCheck, LifeBuoy } from "lucide-react";
 import { Drawer } from "@/components/ui/Drawer";
 import { adminLogoutAction } from "@/lib/actions/admin-auth-actions";
 import { SubmitButton } from "@/components/ui/SubmitButton";
@@ -14,6 +14,7 @@ const ADMIN_NAV_ITEMS = [
   { href: "/admin/gebruikers", label: "Gebruikers", icon: <Users className="size-5 shrink-0" /> },
   { href: "/admin/leveranciers", label: "Leveranciers", icon: <Building2 className="size-5 shrink-0" /> },
   { href: "/admin/geschillen", label: "Geschillen", icon: <AlertCircle className="size-5 shrink-0" /> },
+  { href: "/admin/feedback", label: "Feedback", icon: <LifeBuoy className="size-5 shrink-0" /> },
   { href: "/admin/transacties", label: "Transacties", icon: <CreditCard className="size-5 shrink-0" /> },
   { href: "/admin/activiteit", label: "Activiteit", icon: <Sparkles className="size-5 shrink-0" /> },
   { href: "/admin/instellingen", label: "Instellingen", icon: <Settings className="size-5 shrink-0" /> },

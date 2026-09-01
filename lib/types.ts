@@ -1037,3 +1037,21 @@ export interface GalleryPublicInfo {
   allowGuestbook: boolean;
   maxUploadMb: number;
 }
+
+export type FeedbackType = "question" | "bug";
+export type FeedbackStatus = "open" | "resolved";
+
+/** Een melding via de "hulp"-FAB die op elke pagina staat (zowel ingelogd als anoniem). */
+export interface FeedbackReport {
+  id: string;
+  type: FeedbackType;
+  message: string;
+  pagePath: string | null;
+  userId: string | null;
+  email: string | null;
+  role: string | null;
+  status: FeedbackStatus;
+  adminNote: string | null;
+  resolvedAt: string | null;
+  createdAt: string;
+}

@@ -18,6 +18,7 @@ import "@fontsource-variable/fraunces/full.css";
 import "@fontsource-variable/fraunces/full-italic.css";
 import "@fontsource-variable/plus-jakarta-sans";
 import { SITE_URL } from "@/lib/config";
+import { FeedbackFab } from "@/components/app/FeedbackFab";
 
 export const metadata: Metadata = {
   // Nodig zodat relatieve URL's in metadata (bv. Open Graph-afbeeldingen)
@@ -52,7 +53,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="nl" data-scroll-behavior="smooth" className="h-full antialiased">
-      <body className="min-h-full flex flex-col bg-paper text-ink">{children}</body>
+      <body className="min-h-full flex flex-col bg-paper text-ink">
+        {children}
+        <FeedbackFab />
+      </body>
     </html>
   );
 }

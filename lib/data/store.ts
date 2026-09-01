@@ -32,6 +32,9 @@ import {
   DISPUTE_CATEGORY_LABELS,
   DisputeCategory,
   DisputeFiledByRole,
+  FeedbackReport,
+  FeedbackStatus,
+  FeedbackType,
   DisputeStatus,
   EventBudgetSummary,
   EventCore,
@@ -393,6 +396,22 @@ function rowToSupplierFavorite(r: Row): SupplierFavorite {
 
 function rowToSupplierFavoriteCollection(r: Row): SupplierFavoriteCollection {
   return { id: r.id, userId: r.user_id, name: r.name, createdAt: r.created_at };
+}
+
+function rowToFeedbackReport(r: Row): FeedbackReport {
+  return {
+    id: r.id,
+    type: r.type,
+    message: r.message,
+    pagePath: r.page_path ?? null,
+    userId: r.user_id ?? null,
+    email: r.email ?? null,
+    role: r.role ?? null,
+    status: r.status,
+    adminNote: r.admin_note ?? null,
+    resolvedAt: r.resolved_at ?? null,
+    createdAt: r.created_at,
+  };
 }
 
 function rowToDispute(r: Row): Dispute {
@@ -4497,6 +4516,50 @@ export async function resolveDispute(
   }
 
   return dispute;
+}
+
+/**
+ * Feedback-FAB (vraag/bug-melding, sep. 2026) — werkt bewust ook zonder
+ * ingelogde gebruiker (zelfde reden als bij de gastenfoto-upload: er kan
+ * op elke pagina, ook publiek, iets misgaan). Gebruikt de gewone (RLS-
+ * beperkte) client: de INSERT-policy in migratie 0055 staat dit toe voor
+ * iedereen, dus geen service-role nodig om te MELDEN — alleen om ze terug
+ * te LEZEN in de admin-omgeving (zie listAllFeedbackReports hieronder).
+ */
+export async function createFeedbackReport(params: {
+  type: FeedbackType;
+  message: string;
+  pagePath: string | null;
+  userId: string | null;
+  email: string | null;
+  role: string | null;
+}): Promise<boolean> {
+  const supabase = await sb();
+  const { error } = await supabase.from("feedback_reports").insert({
+    type: params.type,
+    message: params.message,
+    page_path: params.pagePath,
+    user_id: params.userId,
+    email: params.email,
+    role: params.role,
+  });
+  return !error;
+}
+
+export async function listAllFeedbackReports(): Promise<FeedbackReport[]> {
+  const supabase = createSupabaseAdminClient() ?? (await sb());
+  const { data } = await supabase.from("feedback_reports").select("*").order("created_at", { ascending: false });
+  return (data ?? []).map(rowToFeedbackReport);
+}
+
+export async function setFeedbackReportStatus(id: string, status: FeedbackStatus, adminNote: string | null): Promise<boolean> {
+  const admin = createSupabaseAdminClient();
+  const supabase = admin ?? (await sb());
+  const { error } = await supabase
+    .from("feedback_reports")
+    .update({ status, admin_note: adminNote, resolved_at: status === "resolved" ? new Date().toISOString() : null })
+    .eq("id", id);
+  return !error;
 }
 
 export async function listAllDisputes(): Promise<Dispute[]> {
