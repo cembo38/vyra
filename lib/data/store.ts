@@ -1217,6 +1217,61 @@ export async function activateEventGalleryFromWebhook(galleryId: string): Promis
     .eq("id", galleryId);
 }
 
+/**
+ * Dagelijkse opschoon-cron (zie app/api/cron/gallery-cleanup/route.ts,
+ * Deel C.4): verwijdert de daadwerkelijke foto's/video's ÉN
+ * gastenboek-berichten van elke gastenfoto-pagina waarvan de bewaartermijn
+ * is verstreken, en zet de pagina op `expired` (de rij zelf blijft bestaan
+ * — de organisator ziet dan netjes "verlopen" i.p.v. dat de hele pagina
+ * ineens spoorloos is, zie de `expired`-tak op
+ * app/events/[id]/gallery/page.tsx).
+ *
+ * Bewust ALLES verwijderen (niet alleen de foto's): gastenboek-berichten
+ * bevatten net zo goed namen/persoonlijke tekst van gasten die nooit zelf
+ * bij Vyra hebben ingelogd — dezelfde AVG-gedachte als de bewaartermijn
+ * zelf. Zie de bijgewerkte tekst in app/voorwaarden/page.tsx voor de
+ * publieke belofte die dit hier waarmaakt.
+ */
+export async function deleteExpiredGalleriesFromCron(): Promise<{ checked: number; expired: number; photosDeleted: number }> {
+  const admin = createSupabaseAdminClient();
+  if (!admin) return { checked: 0, expired: 0, photosDeleted: 0 };
+
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: expiredGalleries } = await admin
+    .from("event_galleries")
+    .select("id")
+    .eq("status", "active")
+    .not("expires_at", "is", null)
+    .lt("expires_at", today);
+
+  let expiredCount = 0;
+  let photosDeleted = 0;
+
+  for (const row of expiredGalleries ?? []) {
+    const { data: photoRows } = await admin.from("gallery_photos").select("storage_path").eq("gallery_id", row.id);
+    const paths = (photoRows ?? []).map((p) => p.storage_path as string);
+    if (paths.length > 0) {
+      const { error: removeError } = await admin.storage.from("gallery-media").remove(paths);
+      if (removeError) {
+        // Best-effort: als het opruimen van bestanden mislukt, gaan we toch
+        // door met de rest (rijen opruimen + status bijwerken) — een paar
+        // achtergebleven bestanden in een niet meer gelinkte map is minder
+        // erg dan de hele opschoning laten stokken op één falende galerij.
+        console.error(`[deleteExpiredGalleriesFromCron] opslag opruimen mislukt voor galerij ${row.id}:`, removeError.message);
+      } else {
+        photosDeleted += paths.length;
+      }
+    }
+
+    await admin.from("gallery_photos").delete().eq("gallery_id", row.id);
+    await admin.from("gallery_messages").delete().eq("gallery_id", row.id);
+    await admin.from("event_galleries").update({ status: "expired" }).eq("id", row.id);
+    expiredCount++;
+  }
+
+  return { checked: expiredGalleries?.length ?? 0, expired: expiredCount, photosDeleted };
+}
+
 /** Publieke gastenpagina (`/gallery/[token]`) — combineert de DB-rij met de bijbehorende perks uit GALLERY_TIERS (dezelfde "DB kent alleen het niveau, config bepaalt de rest"-aanpak als abonnementen). */
 export async function getGalleryPublic(uploadToken: string): Promise<GalleryPublicInfo | null> {
   const supabase = await sb();

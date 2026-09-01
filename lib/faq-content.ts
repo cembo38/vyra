@@ -132,6 +132,30 @@ export const ORGANIZER_FAQ: FaqCategory[] = [
     ],
   },
   {
+    id: "gastenfoto",
+    label: "Gastenfoto-pagina",
+    entries: [
+      {
+        id: "org-gastenfoto-wat-is-het",
+        question: "Wat is een gastenfoto-pagina?",
+        answer:
+          "Een eigen, deelbare webpagina voor je evenement waar gasten via een link of QR-code rechtstreeks foto's (en bij het Premium-pakket video's) kunnen uploaden — zonder dat ze zelf een Vyra-account nodig hebben. Je vindt en koopt deze onder het tabblad 'Gastenfoto's' bij je evenement; de prijzen en precieze verschillen tussen de pakketten staan daar bij elk pakket vermeld.",
+      },
+      {
+        id: "org-gastenfoto-moderatie",
+        question: "Zien gasten elkaars foto's meteen?",
+        answer:
+          "Nee. Elke upload komt eerst bij jou terecht als 'te beoordelen' op het tabblad 'Gastenfoto's'. Pas als jij een foto, video of gastenboek-bericht goedkeurt, wordt deze zichtbaar voor iedereen die de pagina bezoekt. Zo houd jij de controle over wat er op de pagina van je evenement verschijnt.",
+      },
+      {
+        id: "org-gastenfoto-bewaartermijn",
+        question: "Hoe lang blijft de gastenfoto-pagina online?",
+        answer:
+          "Dat hangt af van het gekozen pakket (60 dagen, een half jaar of een jaar na de evenementdatum — zie het tabblad 'Gastenfoto's' voor de exacte termijn van jouw pakket). Daarna worden alle foto's, video's en gastenboek-berichten automatisch en onomkeerbaar verwijderd. Wil je ze bewaren, download ze dan op tijd (bij Plus en Premium kan dat in één keer als zip-bestand).",
+      },
+    ],
+  },
+  {
     id: "account",
     label: "Account en privacy",
     entries: [

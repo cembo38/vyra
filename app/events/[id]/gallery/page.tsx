@@ -5,13 +5,15 @@ import {
   getGalleryMessagesForOrganizer,
   getGalleryPhotosForOrganizer,
 } from "@/lib/data/store";
-import { formatCurrency, GALLERY_PURCHASE_ENABLED, GALLERY_TIER_ORDER, GALLERY_TIERS } from "@/lib/config";
+import { formatCurrency, GALLERY_PURCHASE_ENABLED, GALLERY_TIER_ORDER, GALLERY_TIERS, SITE_URL } from "@/lib/config";
 import { formatDateNL } from "@/lib/utils";
+import { generateQrCodeDataUrl } from "@/lib/qrcode";
 import { Card } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { CopyGalleryLinkButton } from "@/components/app/CopyGalleryLinkButton";
 import { GalleryPurchaseButton } from "@/components/app/GalleryPurchaseButton";
+import { GalleryPaymentPendingNotice } from "@/components/app/GalleryPaymentPendingNotice";
 import {
   deleteGalleryMessageAction,
   deleteGalleryPhotoAction,
@@ -40,6 +42,24 @@ export default async function EventGalleryPage(props: PageProps<"/events/[id]/ga
   const gallery = await getEventGallery(id);
 
   if (!gallery || gallery.status === "pending_payment") {
+    // Net terug van Stripe, maar de webhook heeft de betaling nog niet
+    // verwerkt (of de organisator kwam op een ander moment op deze pagina
+    // terwijl er toevallig al een pending_payment-rij bestond, bv. een
+    // eerdere afgebroken poging) — toon dan NOOIT stilzwijgend de
+    // koopknoppen opnieuw, dat oogt na het betalen alsof er niets is
+    // gebeurd. Zie GalleryPaymentPendingNotice.tsx.
+    if (purchaseSuccess && gallery) {
+      return (
+        <div className="space-y-6">
+          <div>
+            <h1 className="font-display text-2xl text-ink">Gastenfoto-pagina</h1>
+            <p className="mt-1 text-sm text-ink-faint">Voor {event.name}.</p>
+          </div>
+          <GalleryPaymentPendingNotice />
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-6">
         <div>
@@ -104,9 +124,11 @@ export default async function EventGalleryPage(props: PageProps<"/events/[id]/ga
   }
 
   const def = GALLERY_TIERS[gallery.tier];
-  const [photos, messages] = await Promise.all([
+  const galleryUrl = `${SITE_URL}/gallery/${gallery.uploadToken}`;
+  const [photos, messages, qrCodeDataUrl] = await Promise.all([
     getGalleryPhotosForOrganizer(gallery.id),
     def.allowGuestbook ? getGalleryMessagesForOrganizer(gallery.id) : Promise.resolve([]),
+    generateQrCodeDataUrl(galleryUrl),
   ]);
   const pendingPhotos = photos.filter((p) => p.moderationStatus === "pending");
   const decidedPhotos = photos.filter((p) => p.moderationStatus !== "pending");
@@ -118,16 +140,27 @@ export default async function EventGalleryPage(props: PageProps<"/events/[id]/ga
       {purchaseSuccess && <div className="rounded-xl bg-success-50 px-4 py-2.5 text-sm text-success">Gastenfoto-pagina geactiveerd — deel de link hieronder met je gasten.</div>}
 
       <Card className="bg-ink text-paper">
-        <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/80">
-          <Sparkles className="motion-icon-twinkle size-3.5" /> {def.label}-pakket actief
-        </div>
-        <h1 className="font-display text-2xl">Gastenfoto-pagina voor {event.name}</h1>
-        <p className="mt-1.5 text-sm text-white/70">
-          Zichtbaar tot {gallery.expiresAt ? formatDateNL(gallery.expiresAt, { day: "numeric", month: "long", year: "numeric" }) : "onbekend"}.
-        </p>
-        <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-white/10 pt-5">
-          <CopyGalleryLinkButton uploadToken={gallery.uploadToken} />
-          <span className="text-xs text-white/50">QR-code om te printen/delen volgt in een volgende update.</span>
+        <div className="flex flex-wrap items-start justify-between gap-6">
+          <div className="min-w-0 flex-1">
+            <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/80">
+              <Sparkles className="motion-icon-twinkle size-3.5" /> {def.label}-pakket actief
+            </div>
+            <h1 className="font-display text-2xl">Gastenfoto-pagina voor {event.name}</h1>
+            <p className="mt-1.5 text-sm text-white/70">
+              Zichtbaar tot {gallery.expiresAt ? formatDateNL(gallery.expiresAt, { day: "numeric", month: "long", year: "numeric" }) : "onbekend"}.
+            </p>
+            <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-white/10 pt-5">
+              <CopyGalleryLinkButton uploadToken={gallery.uploadToken} />
+            </div>
+          </div>
+
+          {qrCodeDataUrl && (
+            <div className="shrink-0 rounded-2xl bg-white p-3 text-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={qrCodeDataUrl} alt={`QR-code naar de gastenfoto-pagina van ${event.name}`} className="size-32 sm:size-36" />
+              <p className="mt-1.5 text-[11px] font-medium text-ink-soft">Scan om foto&apos;s te delen</p>
+            </div>
+          )}
         </div>
       </Card>
 

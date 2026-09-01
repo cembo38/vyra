@@ -20,7 +20,7 @@ export default function PrivacyPage() {
       <main className="mx-auto max-w-3xl px-6 py-16">
         <span className="text-sm font-medium uppercase tracking-wide text-clay">Juridisch</span>
         <h1 className="mt-2 font-display text-3xl tracking-tight text-ink sm:text-4xl">Privacyverklaring</h1>
-        <p className="mt-3 text-sm text-ink-faint">Laatst bijgewerkt: 12 augustus 2026</p>
+        <p className="mt-3 text-sm text-ink-faint">Laatst bijgewerkt: 1 september 2026</p>
 
         <Card className="mt-8 divide-y divide-line-soft p-0">
           <div className="px-6">
@@ -38,7 +38,8 @@ export default function PrivacyPage() {
               <p><strong className="text-ink">Gesprekken met de AI:</strong> de tekst die je typt tijdens het AI-interview en in de AI-assistent-chat.</p>
               <p><strong className="text-ink">Aanvraag- en offertegegevens:</strong> welke leveranciers je aanvraagt, ontvangen offertes, en je keuzes (swipes, shortlist, acceptaties).</p>
               <p><strong className="text-ink">Betaalgegevens (boekingen tussen organisator en leverancier):</strong> bedrag en bevestigingsstatus van een boeking. Zolang betalen via het platform nog niet beschikbaar is, verwerkt Vyra zelf geen betalingen en ontvangen of bewaren wij dus ook geen betaalgegevens zoals kaartnummers voor déze stroom — de organisator en de leverancier rekenen rechtstreeks met elkaar af. Zodra betalen via het platform beschikbaar komt, verloopt dat via een externe, gecertificeerde betaaldienst die zelf nooit kaartgegevens aan Vyra doorgeeft.</p>
-              <p><strong className="text-ink">Betaalgegevens (leveranciersabonnement):</strong> een leverancier die een betaald abonnement kiest, betaalt dat via Stripe — een aparte, wél al actieve geldstroom, los van de boekingen hierboven. Vyra ziet en bewaart hierbij zelf geen kaart-/iDEAL-gegevens; die verwerkt Stripe rechtstreeks.</p>
+              <p><strong className="text-ink">Betaalgegevens (leveranciersabonnement en gastenfoto-pagina):</strong> een leverancier die een betaald abonnement kiest, of een organisator die een gastenfoto-pagina koopt, betaalt dat via Stripe. Vyra ziet en bewaart hierbij zelf geen kaart-/iDEAL-gegevens; die verwerkt Stripe rechtstreeks.</p>
+              <p><strong className="text-ink">Gastenfoto-pagina:</strong> koopt een organisator een gastenfoto-pagina voor zijn evenement, dan verwerken we de foto&apos;s, video&apos;s (Premium) en gastenboek-berichten die gasten daar uploaden, inclusief een eventueel opgegeven (voor)naam. Gasten die uploaden hebben zelf geen Vyra-account nodig — zie hieronder onder Bewaartermijn voor hoe lang deze content blijft staan.</p>
               <p><strong className="text-ink">Technische gegevens:</strong> IP-adres en sessiegegevens via inlogcookies, om je ingelogd te houden en het platform te beveiligen.</p>
             </Section>
 
@@ -64,6 +65,7 @@ export default function PrivacyPage() {
 
             <Section title="7. Hoe lang bewaren we je gegevens">
               <p>We bewaren je gegevens zolang je een account hebt. Verwijder je je account, dan verwijderen we je persoonsgegevens binnen 30 dagen — met uitzondering van gegevens die we wettelijk verplicht langer moeten bewaren, zoals factuurgegevens (7 jaar fiscale bewaarplicht).</p>
+              <p>Foto&apos;s, video&apos;s en gastenboek-berichten op een gastenfoto-pagina bewaren we tot en met de bewaartermijn van het door de organisator gekozen pakket (60 dagen, een half jaar of een jaar na de evenementdatum, zie de algemene voorwaarden) — daarna worden deze automatisch en onomkeerbaar verwijderd, ook als de organisator zijn Vyra-account behoudt.</p>
             </Section>
 
             <Section title="8. Jouw rechten">

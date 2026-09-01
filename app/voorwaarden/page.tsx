@@ -1,7 +1,7 @@
 import { MarketingHeader } from "@/components/marketing/MarketingHeader";
 import { Footer } from "@/components/marketing/Footer";
 import { Card } from "@/components/ui/Card";
-import { SUBSCRIPTION_TIERS, SUBSCRIPTION_TIER_ORDER, TRIAL_BOOKING_COUNT, formatCurrency } from "@/lib/config";
+import { GALLERY_TIER_ORDER, GALLERY_TIERS, SUBSCRIPTION_TIERS, SUBSCRIPTION_TIER_ORDER, TRIAL_BOOKING_COUNT, formatCurrency } from "@/lib/config";
 
 export const metadata = { title: "Algemene voorwaarden — Vyra" };
 
@@ -21,7 +21,7 @@ export default function TermsPage() {
       <main className="mx-auto max-w-3xl px-6 py-16">
         <span className="text-sm font-medium uppercase tracking-wide text-clay">Juridisch</span>
         <h1 className="mt-2 font-display text-3xl tracking-tight text-ink sm:text-4xl">Algemene voorwaarden</h1>
-        <p className="mt-3 text-sm text-ink-faint">Laatst bijgewerkt: 12 augustus 2026</p>
+        <p className="mt-3 text-sm text-ink-faint">Laatst bijgewerkt: 1 september 2026</p>
 
         <Card className="mt-8 divide-y divide-line-soft p-0">
           <div className="px-6">
@@ -108,44 +108,75 @@ export default function TermsPage() {
               </p>
             </Article>
 
-            <Article title="Artikel 6 — Verplichtingen van de organisator">
+            <Article title="Artikel 6 — Gastenfoto-pagina">
+              <p>
+                Een organisator kan tegen eenmalige betaling een gastenfoto-pagina voor zijn evenement aanschaffen: een aparte,
+                deelbare webpagina (via link of QR-code) waarop gasten — zonder zelf een Vyra-account nodig te hebben — foto&apos;s
+                (en bij het Premium-pakket video&apos;s) kunnen uploaden. De organisator beoordeelt elke upload voordat deze voor
+                andere gasten zichtbaar wordt. De volgende pakketten zijn beschikbaar, elk eenmalig per evenement:
+              </p>
+              <ul className="mt-2.5 list-disc space-y-1 pl-5">
+                {GALLERY_TIER_ORDER.map((key) => {
+                  const def = GALLERY_TIERS[key];
+                  return (
+                    <li key={key}>
+                      <strong className="text-ink">{def.label}</strong> — {formatCurrency(def.priceCents)}, {def.retentionDays} dagen zichtbaar voor gasten.
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="mt-2.5">
+                Na de bewaartermijn van het gekozen pakket worden alle geüploade foto&apos;s, video&apos;s en gastenboek-berichten van
+                die gastenfoto-pagina automatisch en onomkeerbaar verwijderd; de pagina zelf blijft als &quot;verlopen&quot;
+                zichtbaar in het evenement. Een organisator die de foto&apos;s wil bewaren, downloadt deze dus vóór het einde van de
+                bewaartermijn (bij Plus en Premium kan dat in één keer als zip-bestand). De betaling voor een gastenfoto-pagina
+                loopt, net als een leveranciersabonnement, automatisch via Stripe en is voor overige bepalingen onderworpen aan
+                dezelfde regels als de rest van deze voorwaarden.
+              </p>
+            </Article>
+
+            <Article title="Artikel 7 — Verplichtingen van de organisator">
               <p>
                 Je verstrekt correcte en volledige informatie over je evenement. Je bent zelf verantwoordelijk voor het
                 beoordelen en accepteren van offertes. Zodra betalen via het platform beschikbaar is, gebruik je het platform
                 niet om leveranciers die je via Vyra hebt gevonden buiten het platform om te boeken met als doel de
                 platformcommissie te omzeilen — zolang dat nog niet het geval is, is rechtstreeks afrekenen met de leverancier
-                (zie Artikel 5) juist de bedoelde werkwijze.
+                (zie Artikel 5) juist de bedoelde werkwijze. Gebruik je een gastenfoto-pagina (Artikel 6), dan ben je zelf
+                verantwoordelijk voor het beoordelen van geüploade content vóór goedkeuring — Vyra modereert deze content niet
+                vooraf.
               </p>
             </Article>
 
-            <Article title="Artikel 7 — Verplichtingen van de leverancier">
+            <Article title="Artikel 8 — Verplichtingen van de leverancier">
               <p>Je reageert naar waarheid en binnen de gestelde termijn (doorgaans 48 uur) op aanvragen. Prijzen en voorwaarden in je offerte zijn bindend zodra een organisator deze accepteert.</p>
             </Article>
 
-            <Article title="Artikel 8 — Aansprakelijkheid">
+            <Article title="Artikel 9 — Aansprakelijkheid">
               <p>
                 Vyra spant zich in om een betrouwbaar platform te bieden, maar is niet aansprakelijk voor de daadwerkelijke
                 uitvoering van diensten door leveranciers, schade als gevolg van annulering door een leverancier, of
                 onjuistheden in door leveranciers verstrekte informatie. De aansprakelijkheid van Vyra is in alle gevallen beperkt
                 tot het bedrag dat Vyra voor de betreffende boeking daadwerkelijk heeft ontvangen (commissie en/of
                 abonnementsgeld); is dat nihil — bijvoorbeeld bij een boeking tijdens de proefperiode of op een 0%-commissieniveau
-                — dan is de aansprakelijkheid beperkt tot een symbolisch bedrag van €25.
+                — dan is de aansprakelijkheid beperkt tot een symbolisch bedrag van €25. Voor een gastenfoto-pagina (Artikel 6) is
+                de aansprakelijkheid van Vyra beperkt tot het daarvoor betaalde bedrag; Vyra is niet aansprakelijk voor content die
+                gasten uploaden.
               </p>
             </Article>
 
-            <Article title="Artikel 9 — Intellectueel eigendom">
+            <Article title="Artikel 10 — Intellectueel eigendom">
               <p>Alle rechten op het platform, de merknaam Vyra en de onderliggende software berusten bij Vyra.</p>
             </Article>
 
-            <Article title="Artikel 10 — Beëindiging">
+            <Article title="Artikel 11 — Beëindiging">
               <p>Je kunt je account op elk moment verwijderen via je profielpagina of door contact op te nemen. Vyra kan een account beëindigen bij misbruik of overtreding van deze voorwaarden.</p>
             </Article>
 
-            <Article title="Artikel 11 — Wijzigingen">
+            <Article title="Artikel 12 — Wijzigingen">
               <p>Vyra kan deze voorwaarden wijzigen. Bij materiële wijzigingen informeren we gebruikers vooraf via e-mail of een melding in de app.</p>
             </Article>
 
-            <Article title="Artikel 12 — Toepasselijk recht en geschillen">
+            <Article title="Artikel 13 — Toepasselijk recht en geschillen">
               <p>Op deze voorwaarden is Nederlands recht van toepassing. Geschillen worden bij voorkeur in onderling overleg opgelost.</p>
               <p className="mt-2">
                 Is een boeking betaald en loopt er onverhoopt iets mis — de leverancier komt niet opdagen, de geleverde dienst wijkt sterk af van de offerte, of er ontstaat onenigheid over een betaling —
