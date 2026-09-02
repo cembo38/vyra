@@ -29,6 +29,8 @@ export function InvitationEditor({
   initialPhotoUrl,
   initialPhotoPositionX,
   initialPhotoPositionY,
+  shareUrl,
+  qrCodeDataUrl,
 }: {
   eventId: string;
   uploadToken: string;
@@ -42,6 +44,10 @@ export function InvitationEditor({
   initialPhotoUrl: string | null;
   initialPhotoPositionX: number;
   initialPhotoPositionY: number;
+  /** Publieke uitnodigingslink (`${SITE_URL}/uitnodiging/<token>`), server-side opgebouwd in gallery/page.tsx. */
+  shareUrl: string;
+  /** Server-side gegenereerde QR-code (lib/qrcode.ts) naar diezelfde link — getoond op de download/export-voorvertoning, zie InvitationCard.tsx. */
+  qrCodeDataUrl: string | null;
 }) {
   const [templateKey, setTemplateKey] = useState(initialTemplateKey ?? INVITATION_TEMPLATES[0].key);
   const [title, setTitle] = useState(initialTitle ?? "");
@@ -287,7 +293,15 @@ export function InvitationEditor({
 
         <div className="lg:sticky lg:top-6 lg:self-start">
           <div className="mx-auto max-w-[220px]">
-            <InvitationCard ref={cardRef} templateKey={templateKey} {...preview} editable onPhotoPositionChange={handlePhotoPositionChange} />
+            <InvitationCard
+              ref={cardRef}
+              templateKey={templateKey}
+              {...preview}
+              editable
+              onPhotoPositionChange={handlePhotoPositionChange}
+              qrCodeDataUrl={qrCodeDataUrl}
+              shareUrl={shareUrl}
+            />
           </div>
           {photoUrl && (
             <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-[11px] text-ink-faint">

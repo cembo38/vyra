@@ -23,6 +23,18 @@ export interface InvitationCardProps {
   onPhotoPositionChange?: (x: number, y: number) => void;
   /** Maakt de RSVP-knop daadwerkelijk klikbaar (alleen op de publieke uitnodigingspagina, zie InvitationRsvpCard.tsx) — in de editor-voorvertoning en de sjabloon-kiezer blijft dit element decoratief. */
   onRsvpClick?: () => void;
+  /**
+   * QR-code (data-URL, server-side gegenereerd, zie lib/qrcode.ts) naar de
+   * publieke uitnodigingspagina. Wordt bewust ALLEEN getoond wanneer er
+   * geen `onRsvpClick` is (dus NIET op de publieke pagina zelf, waar de
+   * "Bevestig komst"-knop al écht werkt) — dit is puur voor de
+   * gedownloade/geëxporteerde afbeelding, die als platte foto gedeeld of
+   * geprint kan worden en dus geen klikbare knop kan bevatten. Zie
+   * InvitationEditor.tsx.
+   */
+  qrCodeDataUrl?: string | null;
+  /** Bijschrift onder de QR-code — de leesbare link als alternatief voor scannen. */
+  shareUrl?: string;
 }
 
 function clampPercent(value: number) {
@@ -129,6 +141,8 @@ export const InvitationCard = forwardRef<HTMLDivElement, InvitationCardProps>(fu
     photoPositionY = 50,
     onPhotoPositionChange,
     onRsvpClick,
+    qrCodeDataUrl,
+    shareUrl,
   },
   ref
 ) {
@@ -384,9 +398,27 @@ export const InvitationCard = forwardRef<HTMLDivElement, InvitationCardProps>(fu
       inner = <h2>{title}</h2>;
   }
 
+  // Bewust BUITEN `.frame` (die heeft `overflow:hidden` en een vaste
+  // aspect-ratio, dus alles wat daarbinnen niet past valt gewoon stil weg
+  // — dat risico wil ik niet lopen over 15 heel verschillende sjabloon-
+  // layouts heen). Als sibling bij `.frame` staat de QR-strook wel gewoon
+  // in dezelfde `ref`-node, dus hij komt netjes mee op de gedownloade
+  // afbeelding (zie downloadImage() in InvitationEditor.tsx).
+  const showQr = !onRsvpClick && !!qrCodeDataUrl;
+
   return (
     <div ref={ref} className="invitation-frame-scope">
       <div className={`frame ${tpl.className}`}>{inner}</div>
+      {showQr && (
+        <div className="invitation-qr-footer">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={qrCodeDataUrl!} alt="QR-code om te bevestigen" />
+          <div>
+            <p>Scan om te bevestigen</p>
+            {shareUrl && <p>{shareUrl.replace(/^https?:\/\//, "")}</p>}
+          </div>
+        </div>
+      )}
     </div>
   );
 });
