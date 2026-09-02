@@ -1361,6 +1361,60 @@ export async function activateEventGalleryFromWebhook(galleryId: string): Promis
 }
 
 /**
+ * Admin-testknop (sep. 2026, zie AdminGalleryTestPanel.tsx): activeert een
+ * gastenfoto-pagina/uitnodiging voor een evenement ZONDER Stripe — nodig
+ * omdat GALLERY_PURCHASE_ENABLED (lib/config.ts) pas aan gaat zodra er
+ * echte Stripe-sleutels staan, en tot die tijd is er dus principieel geen
+ * enkele manier (ook niet voor Cem zelf) om ooit bij Premium te komen en
+ * de uitnodiging te kunnen instellen/testen. Zelfde berekening van
+ * `expires_at` als de echte webhook-activatie hierboven (activateEvent
+ * GalleryFromWebhook), zodat een handmatig geactiveerde testpagina zich
+ * verder identiek gedraagt aan een echt gekochte. Bewust met de
+ * service-role client (i.p.v. de gewone `sb()`) zodat dit ook werkt voor
+ * een evenement dat niet van de ingelogde admin zelf is — de
+ * admin-check zelf gebeurt in de Server Action (requireAdmin(), zie
+ * lib/actions/admin-actions.ts), nooit hier.
+ */
+export async function adminActivateGalleryForTesting(eventId: string, tier: GalleryTier): Promise<{ ok: boolean; error?: string }> {
+  const admin = createSupabaseAdminClient();
+  if (!admin) return { ok: false, error: "Geen beheerderstoegang tot de database beschikbaar (SUPABASE_SERVICE_ROLE_KEY ontbreekt)." };
+
+  const { data: eventRow, error: eventError } = await admin.from("events").select("date").eq("id", eventId).maybeSingle();
+  if (eventError) return { ok: false, error: eventError.message };
+  if (!eventRow) return { ok: false, error: "Evenement niet gevonden." };
+
+  const retentionDays = GALLERY_TIERS[tier]?.retentionDays ?? 60;
+  const baseDate = eventRow.date ? new Date(eventRow.date) : new Date();
+  const expiresAt = new Date(baseDate);
+  expiresAt.setDate(expiresAt.getDate() + retentionDays);
+  const patch = {
+    tier,
+    price_cents: GALLERY_TIERS[tier].priceCents,
+    status: "active" as const,
+    purchased_at: new Date().toISOString(),
+    expires_at: expiresAt.toISOString().slice(0, 10),
+  };
+
+  const { data: existing, error: existingError } = await admin.from("event_galleries").select("id").eq("event_id", eventId).maybeSingle();
+  if (existingError) return { ok: false, error: existingError.message };
+
+  const { error } = existing
+    ? await admin.from("event_galleries").update(patch).eq("id", existing.id)
+    : await admin.from("event_galleries").insert({ event_id: eventId, ...patch });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** Tegenhanger van adminActivateGalleryForTesting hierboven: zet een testpagina weer op "nog niet gekocht" — bv. om ook de koopflow zelf (de pakketkaarten) terug te zien zonder de rest van de ingevulde uitnodiging kwijt te raken. */
+export async function adminResetGalleryForTesting(eventId: string): Promise<{ ok: boolean; error?: string }> {
+  const admin = createSupabaseAdminClient();
+  if (!admin) return { ok: false, error: "Geen beheerderstoegang tot de database beschikbaar (SUPABASE_SERVICE_ROLE_KEY ontbreekt)." };
+  const { error } = await admin.from("event_galleries").update({ status: "pending_payment", purchased_at: null, expires_at: null }).eq("event_id", eventId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/**
  * Dagelijkse opschoon-cron (zie app/api/cron/gallery-cleanup/route.ts,
  * Deel C.4): verwijdert de daadwerkelijke foto's/video's ÉN
  * gastenboek-berichten van elke gastenfoto-pagina waarvan de bewaartermijn

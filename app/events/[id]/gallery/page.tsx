@@ -6,7 +6,8 @@ import {
   getGalleryPhotosForOrganizer,
   getGalleryRsvps,
 } from "@/lib/data/store";
-import { formatCurrency, GALLERY_PURCHASE_ENABLED, GALLERY_TIER_ORDER, GALLERY_TIERS, SITE_URL } from "@/lib/config";
+import { ADMIN_EMAILS, formatCurrency, GALLERY_PURCHASE_ENABLED, GALLERY_TIER_ORDER, GALLERY_TIERS, SITE_URL } from "@/lib/config";
+import { getCurrentUser } from "@/lib/auth";
 import { formatDateNL } from "@/lib/utils";
 import { generateQrCodeDataUrl } from "@/lib/qrcode";
 import { Card } from "@/components/ui/Card";
@@ -15,6 +16,7 @@ import { SubmitButton } from "@/components/ui/SubmitButton";
 import { CopyGalleryLinkButton } from "@/components/app/CopyGalleryLinkButton";
 import { GalleryPurchaseButton } from "@/components/app/GalleryPurchaseButton";
 import { GalleryPaymentPendingNotice } from "@/components/app/GalleryPaymentPendingNotice";
+import { AdminGalleryTestPanel } from "@/components/app/AdminGalleryTestPanel";
 import { InvitationEditor } from "@/components/app/InvitationEditor";
 import {
   deleteGalleryMessageAction,
@@ -51,6 +53,9 @@ export default async function EventGalleryPage(props: PageProps<"/events/[id]/ga
 
   const gallery = await getEventGallery(id);
 
+  const currentUser = await getCurrentUser();
+  const isAdmin = !!currentUser && ADMIN_EMAILS.includes(currentUser.email.toLowerCase());
+
   if (!gallery || gallery.status === "pending_payment") {
     // Net terug van Stripe, maar de webhook heeft de betaling nog niet
     // verwerkt (of de organisator kwam op een ander moment op deze pagina
@@ -61,6 +66,7 @@ export default async function EventGalleryPage(props: PageProps<"/events/[id]/ga
     if (purchaseSuccess && gallery) {
       return (
         <div className="space-y-6">
+          {isAdmin && <AdminGalleryTestPanel eventId={id} currentTier={gallery.tier} currentStatus={gallery.status} />}
           <div>
             <h1 className="font-display text-2xl text-ink">Gastenfoto-pagina</h1>
             <p className="mt-1 text-sm text-ink-faint">Voor {event.name}.</p>
@@ -72,6 +78,7 @@ export default async function EventGalleryPage(props: PageProps<"/events/[id]/ga
 
     return (
       <div className="space-y-6">
+        {isAdmin && <AdminGalleryTestPanel eventId={id} currentTier={gallery?.tier ?? null} currentStatus={gallery?.status ?? null} />}
         <div>
           <h1 className="font-display text-2xl text-ink">Gastenfoto-pagina</h1>
           <p className="mt-1 text-sm text-ink-faint">
@@ -122,13 +129,16 @@ export default async function EventGalleryPage(props: PageProps<"/events/[id]/ga
 
   if (gallery.status === "expired") {
     return (
-      <div className="rounded-2xl border border-dashed border-line px-6 py-16 text-center">
-        <ImageOff className="mx-auto size-8 text-ink-faint" />
-        <h2 className="mt-4 font-display text-xl text-ink">Deze gastenfoto-pagina is verlopen</h2>
-        <p className="mx-auto mt-2 max-w-sm text-sm text-ink-soft">
-          De bewaartermijn van je {GALLERY_TIERS[gallery.tier].label}-pakket is voorbij en de foto&apos;s zijn opgeruimd. Neem contact op als je een
-          nieuwe gastenfoto-pagina voor dit evenement wilt.
-        </p>
+      <div className="space-y-6">
+        {isAdmin && <AdminGalleryTestPanel eventId={id} currentTier={gallery.tier} currentStatus={gallery.status} />}
+        <div className="rounded-2xl border border-dashed border-line px-6 py-16 text-center">
+          <ImageOff className="mx-auto size-8 text-ink-faint" />
+          <h2 className="mt-4 font-display text-xl text-ink">Deze gastenfoto-pagina is verlopen</h2>
+          <p className="mx-auto mt-2 max-w-sm text-sm text-ink-soft">
+            De bewaartermijn van je {GALLERY_TIERS[gallery.tier].label}-pakket is voorbij en de foto&apos;s zijn opgeruimd. Neem contact op als je een
+            nieuwe gastenfoto-pagina voor dit evenement wilt.
+          </p>
+        </div>
       </div>
     );
   }
@@ -154,6 +164,7 @@ export default async function EventGalleryPage(props: PageProps<"/events/[id]/ga
 
   return (
     <div className="space-y-8">
+      {isAdmin && <AdminGalleryTestPanel eventId={id} currentTier={gallery.tier} currentStatus={gallery.status} />}
       {purchaseSuccess && <div className="rounded-xl bg-success-50 px-4 py-2.5 text-sm text-success">Gastenfoto-pagina geactiveerd — deel de link hieronder met je gasten.</div>}
 
       <Card className="bg-ink text-paper">

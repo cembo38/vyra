@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
-import { ADMIN_EMAILS } from "@/lib/config";
+import { ADMIN_EMAILS, GalleryTier } from "@/lib/config";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { geocodeLocation } from "@/lib/geo";
 import {
@@ -19,6 +19,8 @@ import {
   markBriefingItemStatus,
   listAllSupplierAccounts,
   updateSupplierAccount,
+  adminActivateGalleryForTesting,
+  adminResetGalleryForTesting,
 } from "@/lib/data/store";
 
 /**
@@ -115,6 +117,35 @@ export async function unbanUserAction(formData: FormData): Promise<ActionResult>
     if (error) throw new Error(error.message);
 
     revalidatePath("/admin/gebruikers");
+  });
+}
+
+/**
+ * Test-toggle (sep. 2026, zie AdminGalleryTestPanel.tsx op
+ * app/events/[id]/gallery/page.tsx): activeert een gastenfoto-pagina/
+ * uitnodiging voor een evenement zonder Stripe. Nodig zolang
+ * GALLERY_PURCHASE_ENABLED (lib/config.ts) uit staat — tot er echte
+ * Stripe-sleutels zijn, is dit de ENIGE manier om ooit bij Premium te
+ * komen en dus de uitnodiging te kunnen instellen, ook voor Cem zelf. Puur
+ * voor testen: dit knopje staat alleen op de admin-toolbar bovenaan de
+ * gastenfoto-pagina, nooit ergens waar een gewone organisator 'm kan zien.
+ */
+export async function adminActivateGalleryAction(eventId: string, tier: GalleryTier): Promise<ActionResult> {
+  return runAction(async () => {
+    await requireAdmin();
+    const result = await adminActivateGalleryForTesting(eventId, tier);
+    if (!result.ok) throw new Error(result.error ?? "Activeren is mislukt.");
+    revalidatePath(`/events/${eventId}/gallery`);
+  });
+}
+
+/** Tegenhanger: zet de testpagina terug op "nog niet gekocht" — bv. om ook de koopflow (de pakketkaarten) terug te zien. */
+export async function adminResetGalleryAction(eventId: string): Promise<ActionResult> {
+  return runAction(async () => {
+    await requireAdmin();
+    const result = await adminResetGalleryForTesting(eventId);
+    if (!result.ok) throw new Error(result.error ?? "Resetten is mislukt.");
+    revalidatePath(`/events/${eventId}/gallery`);
   });
 }
 
