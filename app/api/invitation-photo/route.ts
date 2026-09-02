@@ -6,12 +6,12 @@ import { NextRequest, NextResponse } from "next/server";
  * onder `invitations/<eventId>/...`).
  *
  * Waarom dit nodig is: de "Download als afbeelding"-knop (InvitationEditor,
- * html-to-image) tekent de foto op een <canvas>. Zodra de browser die foto
- * als cross-origin ziet, weigert hij de canvas nog te exporteren ("tainted
- * canvas") — een browserbeveiliging, geen bug in de foto zelf. Of dat
- * gebeurt hangt af van of Supabase Storage CORS-headers meestuurt, en dat
- * bleek in de praktijk niet betrouwbaar genoeg om op te vertrouwen. Door de
- * foto via DEZE route op te halen (hetzelfde domein als de rest van de
+ * modern-screenshot) tekent de foto op een <canvas>. Zodra de browser die
+ * foto als cross-origin ziet, kan hij weigeren de canvas nog te exporteren
+ * ("tainted canvas") — een browserbeveiliging, geen bug in de foto zelf. Of
+ * dat gebeurt hangt af van of Supabase Storage CORS-headers meestuurt, en
+ * dat bleek in de praktijk niet betrouwbaar genoeg om op te vertrouwen. Door
+ * de foto via DEZE route op te halen (hetzelfde domein als de rest van de
  * app), is de foto voor de browser altijd "same origin" — dan speelt dit
  * probleem principieel niet meer, ongeacht wat Supabase zelf doet.
  *

@@ -113,7 +113,7 @@ function Rsvp({ children, onClick }: { children: React.ReactNode; onClick?: () =
  * letterlijk uit de mockup die Cem eerder goedkeurde — hier alleen de
  * structuur per stijl, met props i.p.v. de voorbeeldtekst uit de mockup.
  * `forwardRef` zodat de editor de DOM-node kan pakken voor de
- * "download als afbeelding"-knop (html-to-image, zie InvitationEditor.tsx).
+ * "download als afbeelding"-knop (modern-screenshot, zie InvitationEditor.tsx).
  */
 export const InvitationCard = forwardRef<HTMLDivElement, InvitationCardProps>(function InvitationCard(
   {

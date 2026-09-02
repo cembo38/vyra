@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
-import { toPng } from "html-to-image";
+import { domToPng } from "modern-screenshot";
 import { Check, Download, ImagePlus, Link2, Loader2, Move, Trash2 } from "lucide-react";
 import { InvitationCard } from "@/components/app/InvitationCard";
 import { Field, Input } from "@/components/ui/Form";
@@ -137,23 +137,31 @@ export function InvitationEditor({
   }
 
   /**
-   * "Downloaden is niet gelukt" bleek in de praktijk (Cem, sep. 2026) een
-   * "tainted canvas"-fout: html-to-image tekent de eigen foto van de
-   * organisator (een externe URL, bij Supabase Storage) op een <canvas>,
-   * en zodra de browser die als cross-origin beschouwt, weigert hij de
-   * canvas nog te exporteren — een browserbeveiliging, geen bug in de foto
-   * zelf. Een eerdere poging om de foto zelf met fetch() op te halen loste
-   * dit NIET op (bleek achteraf: die fetch loopt tegen precies dezelfde
-   * cross-origin muur aan als de <img> zelf). De echte oplossing: de foto
-   * ophalen via /api/invitation-photo — een route op ONS EIGEN domein die
-   * de foto server-side doorgeeft. Server-naar-server verkeer kent geen
-   * CORS-beperking, en voor de browser is het resultaat vervolgens altijd
-   * "same origin", dus dit probleem speelt principieel niet meer (zie de
-   * toelichting in app/api/invitation-photo/route.ts).
+   * "Downloaden is niet gelukt" — twee dingen bleken hier te spelen (Cem,
+   * sep. 2026):
+   *
+   * 1) Een eerste vermoeden ("tainted canvas": de browser weigert een
+   *    <canvas> te exporteren zodra er een cross-origin afbeelding op
+   *    getekend is) bleek bij nader inzien NIET de oorzaak — de foto ophalen
+   *    via /api/invitation-photo (ons eigen domein, dus altijd "same
+   *    origin" voor de browser, zie de toelichting in dat bestand) loste
+   *    het niet op. Deze stap blijft wel gewoon staan: hij is onschadelijk
+   *    en sluit één mogelijke foutbron structureel uit.
+   * 2) De echte oorzaak, gevonden aan de hand van Cems screenshot met de
+   *    technische foutmelding "[object Event]": de gebruikte bibliotheek
+   *    (html-to-image) rastert de hele kaart eerst als één grote
+   *    SVG+<foreignObject>-afbeelding en laadt DIE als <img> — precies dát
+   *    laden faalde in Cems browser, en een mislukte <img>-load levert een
+   *    kaal DOM-Event als foutreden op (geen leesbare foutmelding), vandaar
+   *    "[object Event]". Een bekende zwakte van deze SVG-als-<img>-truc,
+   *    vooral in Safari/Firefox. Opgelost door over te stappen op
+   *    `modern-screenshot`, een onderhouden opvolger die dit exact
+   *    probleemgebied aanpakt (`features.fixSvgXmlDecode`,
+   *    `drawImageInterval` — beide standaard aan).
    *
    * Als tweede vangnet: mocht de Google Fonts-inbedding zelf de
    * boosdoener zijn, proberen we het nog één keer zonder lettertypen in
-   * te sluiten (`skipFonts`) — dan mist de afbeelding het echte
+   * te sluiten (`font: false`) — dan mist de afbeelding het echte
    * sjabloonlettertype, maar downloadt hij tenminste.
    */
   async function downloadImage() {
@@ -201,10 +209,10 @@ export function InvitationEditor({
 
       let pngDataUrl: string;
       try {
-        pngDataUrl = await toPng(cardRef.current, { pixelRatio: 3, cacheBust: true });
+        pngDataUrl = await domToPng(cardRef.current, { scale: 3 });
       } catch (firstErr) {
         console.warn("[InvitationEditor] Eerste downloadpoging mislukt, probeer opnieuw zonder lettertypen in te sluiten.", firstErr);
-        pngDataUrl = await toPng(cardRef.current, { pixelRatio: 3, cacheBust: true, skipFonts: true });
+        pngDataUrl = await domToPng(cardRef.current, { scale: 3, font: false });
       }
 
       const link = document.createElement("a");
