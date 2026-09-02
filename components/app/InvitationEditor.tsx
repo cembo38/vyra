@@ -136,19 +136,92 @@ export function InvitationEditor({
     }, 500);
   }
 
+  /**
+   * "Downloaden is niet gelukt" bleek in de praktijk (Cem, sep. 2026) een
+   * "tainted canvas"-fout: html-to-image tekent de eigen foto van de
+   * organisator (een externe URL, bij Supabase Storage) op een <canvas>,
+   * en zodra de browser die als cross-origin beschouwt, weigert hij de
+   * canvas nog te exporteren — een browserbeveiliging, geen bug in de foto
+   * zelf. Een eerdere poging om de foto zelf met fetch() op te halen loste
+   * dit NIET op (bleek achteraf: die fetch loopt tegen precies dezelfde
+   * cross-origin muur aan als de <img> zelf). De echte oplossing: de foto
+   * ophalen via /api/invitation-photo — een route op ONS EIGEN domein die
+   * de foto server-side doorgeeft. Server-naar-server verkeer kent geen
+   * CORS-beperking, en voor de browser is het resultaat vervolgens altijd
+   * "same origin", dus dit probleem speelt principieel niet meer (zie de
+   * toelichting in app/api/invitation-photo/route.ts).
+   *
+   * Als tweede vangnet: mocht de Google Fonts-inbedding zelf de
+   * boosdoener zijn, proberen we het nog één keer zonder lettertypen in
+   * te sluiten (`skipFonts`) — dan mist de afbeelding het echte
+   * sjabloonlettertype, maar downloadt hij tenminste.
+   */
   async function downloadImage() {
     if (!cardRef.current) return;
     setDownloading(true);
     setError(null);
+
+    const imgEl = cardRef.current.querySelector<HTMLImageElement>(".photo-slot img");
+    const originalSrc = imgEl?.src;
+    let restoreSrc = false;
+
     try {
-      const dataUrl = await toPng(cardRef.current, { pixelRatio: 3, cacheBust: true });
+      const storagePathMarker = "/storage/v1/object/public/gallery-media/";
+      const markerIndex = originalSrc?.indexOf(storagePathMarker) ?? -1;
+
+      if (imgEl && originalSrc && markerIndex !== -1) {
+        try {
+          const storagePath = originalSrc.slice(markerIndex + storagePathMarker.length);
+          const res = await fetch(`/api/invitation-photo?path=${encodeURIComponent(storagePath)}`, { cache: "no-store" });
+          if (!res.ok) throw new Error(`Foto ophalen via /api/invitation-photo gaf status ${res.status}`);
+          const blob = await res.blob();
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.onerror = () => reject(new Error("FileReader mislukt"));
+            reader.readAsDataURL(blob);
+          });
+          imgEl.src = dataUrl;
+          restoreSrc = true;
+          // Wacht tot de browser de nieuwe data-URL echt heeft gedecodeerd
+          // voordat html-to-image de kaart rastert — anders bestaat de kans
+          // dat de foto nog niet klaar is en leeg meekomt op de afbeelding.
+          if (imgEl.decode) {
+            try {
+              await imgEl.decode();
+            } catch {
+              // Negeren — toPng() wacht zelf ook nog op de load van elke
+              // afbeelding, dit is puur een extra zekerheidje.
+            }
+          }
+        } catch (fetchErr) {
+          console.warn("[InvitationEditor] Foto kon niet via /api/invitation-photo geladen worden, ga door met de originele afbeelding.", fetchErr);
+        }
+      }
+
+      let pngDataUrl: string;
+      try {
+        pngDataUrl = await toPng(cardRef.current, { pixelRatio: 3, cacheBust: true });
+      } catch (firstErr) {
+        console.warn("[InvitationEditor] Eerste downloadpoging mislukt, probeer opnieuw zonder lettertypen in te sluiten.", firstErr);
+        pngDataUrl = await toPng(cardRef.current, { pixelRatio: 3, cacheBust: true, skipFonts: true });
+      }
+
       const link = document.createElement("a");
       link.download = `uitnodiging-${eventName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`;
-      link.href = dataUrl;
+      link.href = pngDataUrl;
       link.click();
-    } catch {
-      setError("Downloaden is niet gelukt — probeer het nog eens.");
+    } catch (err) {
+      console.error("[InvitationEditor] Downloaden als afbeelding definitief mislukt.", err);
+      // De technische foutmelding wordt bewust WEL getoond (i.p.v. alleen
+      // in de browserconsole te loggen) — Cem is geen developer en kan geen
+      // devtools-console openen om 'm door te sturen; met de tekst erbij
+      // kan hij gewoon een screenshot sturen en is de oorzaak meteen
+      // zichtbaar i.p.v. blind verder te moeten zoeken.
+      const detail = err instanceof Error && err.message ? err.message : String(err);
+      setError(`Downloaden is niet gelukt — probeer het nog eens. (${detail})`);
     } finally {
+      if (restoreSrc && imgEl && originalSrc) imgEl.src = originalSrc;
       setDownloading(false);
     }
   }
