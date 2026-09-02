@@ -16,31 +16,41 @@ export interface InvitationTemplateDef {
   className: string;
   /** Placeholder/standaardtekst voor het kleine "eyebrow"-regeltje boven de titel, als de organisator zelf nog niets heeft ingevuld. */
   defaultWelcomeText: string;
-  /** Tekst op de RSVP-achtige knop — puur sfeer, de knop linkt altijd naar de gastenfoto-pagina. */
+  /**
+   * Tekst op de RSVP-knop. Sinds de "download als PDF"-functie (sep. 2026,
+   * zie InvitationEditor.tsx) is dit bewust GEEN sfeervolle, aan-yes-
+   * veronderstellende tekst meer (zoals eerder "Ik kom!" of "Bevestig
+   * komst") — op de gedownloade PDF is de hele kaart klikbaar (een echte,
+   * ingebakken hyperlink, geen QR-omweg), maar dat is voor een ontvanger
+   * onzichtbaar. De knoptekst is daarmee het ENIGE zichtbare signaal dat
+   * er iets te doen valt, dus moet hij expliciet uitnodigen om te
+   * reageren — mét de mogelijkheid om af te zeggen, niet alleen te
+   * bevestigen.
+   */
   rsvpLabel: string;
 }
 
 export const INVITATION_TEMPLATE_CATEGORIES = ["Klassiek & verfijnd", "Speels & kleurrijk", "Rustig & natuurlijk", "Zakelijk & internationaal"] as const;
 
 export const INVITATION_TEMPLATES: InvitationTemplateDef[] = [
-  { key: "klassiek", label: "Klassiek Elegant", category: "Klassiek & verfijnd", fit: "Bruiloften, jubilea", className: "t-klassiek", defaultWelcomeText: "U bent van harte uitgenodigd", rsvpLabel: "Bevestig komst" },
-  { key: "vintage", label: "Warm & Vintage", category: "Klassiek & verfijnd", fit: "Mijlpaal-verjaardagen, reünies", className: "t-vintage", defaultWelcomeText: "", rsvpLabel: "Doe mee" },
-  { key: "chic", label: "Zwart-wit Chic", category: "Klassiek & verfijnd", fit: "Gala's, formele feesten", className: "t-chic", defaultWelcomeText: "Save the date", rsvpLabel: "RSVP" },
-  { key: "fotolijst", label: "Fotolijst Klassiek", category: "Klassiek & verfijnd", fit: "Elk evenement — de foto staat centraal", className: "t-fotolijst", defaultWelcomeText: "", rsvpLabel: "Bevestig komst" },
+  { key: "klassiek", label: "Klassiek Elegant", category: "Klassiek & verfijnd", fit: "Bruiloften, jubilea", className: "t-klassiek", defaultWelcomeText: "U bent van harte uitgenodigd", rsvpLabel: "Laat het weten" },
+  { key: "vintage", label: "Warm & Vintage", category: "Klassiek & verfijnd", fit: "Mijlpaal-verjaardagen, reünies", className: "t-vintage", defaultWelcomeText: "", rsvpLabel: "Laat het weten" },
+  { key: "chic", label: "Zwart-wit Chic", category: "Klassiek & verfijnd", fit: "Gala's, formele feesten", className: "t-chic", defaultWelcomeText: "Save the date", rsvpLabel: "Laat het weten" },
+  { key: "fotolijst", label: "Fotolijst Klassiek", category: "Klassiek & verfijnd", fit: "Elk evenement — de foto staat centraal", className: "t-fotolijst", defaultWelcomeText: "", rsvpLabel: "Laat het weten" },
 
-  { key: "speels", label: "Speels & Kleurrijk", category: "Speels & kleurrijk", fit: "Kinderfeestjes", className: "t-speels", defaultWelcomeText: "", rsvpLabel: "Ik kom!" },
-  { key: "neon", label: "Neon Nachtfeest", category: "Speels & kleurrijk", fit: "18/21/30-feesten, dansfeesten", className: "t-neon", defaultWelcomeText: "Feest!", rsvpLabel: "Ik ben erbij" },
-  { key: "retro", label: "Retro Jaren 70", category: "Speels & kleurrijk", fit: "Verjaardagen, reünies", className: "t-retro", defaultWelcomeText: "Groovy uitnodiging", rsvpLabel: "Reserveer je plek" },
-  { key: "confetti", label: "Feestelijk Confetti", category: "Speels & kleurrijk", fit: "Diploma's, jubilea, pensioen", className: "t-confetti", defaultWelcomeText: "Gefeliciteerd!", rsvpLabel: "Kom vieren" },
+  { key: "speels", label: "Speels & Kleurrijk", category: "Speels & kleurrijk", fit: "Kinderfeestjes", className: "t-speels", defaultWelcomeText: "", rsvpLabel: "Kom je? Laat het weten" },
+  { key: "neon", label: "Neon Nachtfeest", category: "Speels & kleurrijk", fit: "18/21/30-feesten, dansfeesten", className: "t-neon", defaultWelcomeText: "Feest!", rsvpLabel: "Kom je? Laat het weten" },
+  { key: "retro", label: "Retro Jaren 70", category: "Speels & kleurrijk", fit: "Verjaardagen, reünies", className: "t-retro", defaultWelcomeText: "Groovy uitnodiging", rsvpLabel: "Laat het weten" },
+  { key: "confetti", label: "Feestelijk Confetti", category: "Speels & kleurrijk", fit: "Diploma's, jubilea, pensioen", className: "t-confetti", defaultWelcomeText: "Gefeliciteerd!", rsvpLabel: "Kom je? Laat het weten" },
 
   { key: "botanisch", label: "Botanisch Minimalistisch", category: "Rustig & natuurlijk", fit: "Babyshowers, housewarmings", className: "t-botanisch", defaultWelcomeText: "", rsvpLabel: "Laat het weten" },
-  { key: "scandi", label: "Scandinavisch Chic", category: "Rustig & natuurlijk", fit: "Housewarmings, doopfeesten", className: "t-scandi", defaultWelcomeText: "", rsvpLabel: "Ik kom langs" },
-  { key: "aquarel", label: "Aquarel Droom", category: "Rustig & natuurlijk", fit: "Verlovingen, bruidsshowers", className: "t-aquarel", defaultWelcomeText: "Save the date", rsvpLabel: "Kom vieren" },
-  { key: "vyra", label: "Vyra Signature", category: "Rustig & natuurlijk", fit: "Elk evenement — sluit aan bij de huisstijl van het platform", className: "t-vyra", defaultWelcomeText: "", rsvpLabel: "Aanmelden" },
+  { key: "scandi", label: "Scandinavisch Chic", category: "Rustig & natuurlijk", fit: "Housewarmings, doopfeesten", className: "t-scandi", defaultWelcomeText: "", rsvpLabel: "Laat het weten" },
+  { key: "aquarel", label: "Aquarel Droom", category: "Rustig & natuurlijk", fit: "Verlovingen, bruidsshowers", className: "t-aquarel", defaultWelcomeText: "Save the date", rsvpLabel: "Laat het weten" },
+  { key: "vyra", label: "Vyra Signature", category: "Rustig & natuurlijk", fit: "Elk evenement — sluit aan bij de huisstijl van het platform", className: "t-vyra", defaultWelcomeText: "", rsvpLabel: "Laat het weten" },
 
-  { key: "zakelijk", label: "Modern Zakelijk", category: "Zakelijk & internationaal", fit: "Bedrijfsevents, netwerkborrels", className: "t-zakelijk", defaultWelcomeText: "Vyra nodigt uit", rsvpLabel: "Aanmelden" },
-  { key: "zomer", label: "Zonnig Zomerfeest", category: "Zakelijk & internationaal", fit: "Tuinfeesten, BBQ's", className: "t-zomer", defaultWelcomeText: "", rsvpLabel: "Ik ben erbij" },
-  { key: "tropisch", label: "Tropisch Paradijs", category: "Zakelijk & internationaal", fit: "Destination weddings, zomerfeesten", className: "t-tropisch", defaultWelcomeText: "Destination wedding", rsvpLabel: "Bevestig komst" },
+  { key: "zakelijk", label: "Modern Zakelijk", category: "Zakelijk & internationaal", fit: "Bedrijfsevents, netwerkborrels", className: "t-zakelijk", defaultWelcomeText: "Vyra nodigt uit", rsvpLabel: "Laat het weten" },
+  { key: "zomer", label: "Zonnig Zomerfeest", category: "Zakelijk & internationaal", fit: "Tuinfeesten, BBQ's", className: "t-zomer", defaultWelcomeText: "", rsvpLabel: "Kom je? Laat het weten" },
+  { key: "tropisch", label: "Tropisch Paradijs", category: "Zakelijk & internationaal", fit: "Destination weddings, zomerfeesten", className: "t-tropisch", defaultWelcomeText: "Destination wedding", rsvpLabel: "Laat het weten" },
 ];
 
 export function getInvitationTemplate(key: string | null): InvitationTemplateDef | null {

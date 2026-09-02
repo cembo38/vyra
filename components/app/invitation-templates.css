@@ -71,48 +71,6 @@
   text-align: center;
 }
 
-/*
- * Losse "ticketstrook" onder de kaart met een QR-code naar de publieke
- * uitnodigingspagina — alleen zichtbaar op de te downloaden/exporteren
- * voorvertoning (zie InvitationCard.tsx: `showQr`). Bewust generiek/
- * neutraal wit i.p.v. per sjabloon gestyled, en bewust BUITEN `.frame`
- * geplaatst (die knipt met `overflow:hidden` af wat niet past) — dit is
- * de enige manier om er zeker van te zijn dat 'm nooit stilletjes wegvalt
- * bij een van de 15 heel verschillende sjabloon-layouts.
- */
-.invitation-frame-scope .invitation-qr-footer {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 10px;
-  padding: 9px 12px;
-  border-radius: 14px;
-  background: #fff;
-  border: 1px solid var(--inv-border);
-  box-shadow: var(--inv-shadow-lg);
-}
-.invitation-frame-scope .invitation-qr-footer img {
-  width: 42px;
-  height: 42px;
-  flex-shrink: 0;
-  border-radius: 4px;
-}
-.invitation-frame-scope .invitation-qr-footer p {
-  margin: 0;
-  font-family: var(--inv-font-body);
-  color: var(--inv-text);
-  line-height: 1.35;
-}
-.invitation-frame-scope .invitation-qr-footer p:first-child {
-  font-size: 10.5px;
-  font-weight: 600;
-}
-.invitation-frame-scope .invitation-qr-footer p:last-child {
-  font-size: 9px;
-  color: var(--inv-text-faint);
-  word-break: break-all;
-}
-
 /* ---------- 1. Klassiek Elegant ---------- */
 .invitation-frame-scope .t-klassiek { background: #fdfbf3; color: #2b2620; font-family: "Cormorant Garamond", serif; justify-content: center; align-items: center; text-align: center; padding: 26px 22px; border: 1px solid #e7ddbd; }
 .invitation-frame-scope .t-klassiek::before { content: ""; position: absolute; inset: 14px; border: 1px solid #c9a24b; pointer-events: none; }

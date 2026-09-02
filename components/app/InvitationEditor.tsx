@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition } from "react";
-import { domToPng } from "modern-screenshot";
+import { domToCanvas } from "modern-screenshot";
+import { jsPDF } from "jspdf";
 import { Check, Download, ImagePlus, Link2, Loader2, Move, Trash2 } from "lucide-react";
 import { InvitationCard } from "@/components/app/InvitationCard";
 import { Field, Input } from "@/components/ui/Form";
@@ -18,7 +19,6 @@ import { formatDateNL } from "@/lib/utils";
 
 export function InvitationEditor({
   eventId,
-  uploadToken,
   eventName,
   eventDate,
   eventStartTime,
@@ -30,10 +30,8 @@ export function InvitationEditor({
   initialPhotoPositionX,
   initialPhotoPositionY,
   shareUrl,
-  qrCodeDataUrl,
 }: {
   eventId: string;
-  uploadToken: string;
   eventName: string;
   eventDate: string | null;
   eventStartTime: string | null;
@@ -44,10 +42,8 @@ export function InvitationEditor({
   initialPhotoUrl: string | null;
   initialPhotoPositionX: number;
   initialPhotoPositionY: number;
-  /** Publieke uitnodigingslink (`${SITE_URL}/uitnodiging/<token>`), server-side opgebouwd in gallery/page.tsx. */
+  /** Publieke uitnodigingslink (`${SITE_URL}/uitnodiging/<token>`), server-side opgebouwd in gallery/page.tsx — het doel van de klikbare link die in de gedownloade PDF wordt gebakken (zie downloadPdf hieronder) én van de "Kopieer link"-knop. */
   shareUrl: string;
-  /** Server-side gegenereerde QR-code (lib/qrcode.ts) naar diezelfde link — getoond op de download/export-voorvertoning, zie InvitationCard.tsx. */
-  qrCodeDataUrl: string | null;
 }) {
   const [templateKey, setTemplateKey] = useState(initialTemplateKey ?? INVITATION_TEMPLATES[0].key);
   const [title, setTitle] = useState(initialTitle ?? "");
@@ -143,34 +139,40 @@ export function InvitationEditor({
   }
 
   /**
-   * "Downloaden is niet gelukt" — twee dingen bleken hier te spelen (Cem,
-   * sep. 2026):
+   * "Download als PDF" (Cem, sep. 2026: eerst "Download als afbeelding",
+   * later omgezet naar PDF). De achtergrond van twee eerdere fixes:
    *
    * 1) Een eerste vermoeden ("tainted canvas": de browser weigert een
    *    <canvas> te exporteren zodra er een cross-origin afbeelding op
-   *    getekend is) bleek bij nader inzien NIET de oorzaak — de foto ophalen
-   *    via /api/invitation-photo (ons eigen domein, dus altijd "same
-   *    origin" voor de browser, zie de toelichting in dat bestand) loste
-   *    het niet op. Deze stap blijft wel gewoon staan: hij is onschadelijk
-   *    en sluit één mogelijke foutbron structureel uit.
-   * 2) De echte oorzaak, gevonden aan de hand van Cems screenshot met de
-   *    technische foutmelding "[object Event]": de gebruikte bibliotheek
+   *    getekend is) bleek NIET de oorzaak — de foto ophalen via
+   *    /api/invitation-photo (ons eigen domein, dus altijd "same origin"
+   *    voor de browser, zie de toelichting in dat bestand) loste een
+   *    eerdere downloadfout niet op. Deze stap blijft wel gewoon staan: hij
+   *    is onschadelijk en sluit één mogelijke foutbron structureel uit.
+   * 2) De echte oorzaak van die eerdere fout: de toenmalige bibliotheek
    *    (html-to-image) rastert de hele kaart eerst als één grote
-   *    SVG+<foreignObject>-afbeelding en laadt DIE als <img> — precies dát
-   *    laden faalde in Cems browser, en een mislukte <img>-load levert een
-   *    kaal DOM-Event als foutreden op (geen leesbare foutmelding), vandaar
-   *    "[object Event]". Een bekende zwakte van deze SVG-als-<img>-truc,
-   *    vooral in Safari/Firefox. Opgelost door over te stappen op
+   *    SVG+<foreignObject>-afbeelding en laadt DIE als <img> — dat laden
+   *    faalde in Cems browser. Opgelost door over te stappen op
    *    `modern-screenshot`, een onderhouden opvolger die dit exact
-   *    probleemgebied aanpakt (`features.fixSvgXmlDecode`,
-   *    `drawImageInterval` — beide standaard aan).
+   *    probleemgebied aanpakt.
+   *
+   * PNG → PDF (deze keer): een gedownloade PNG is een platte foto — een
+   * knop erop kan nooit klikbaar zijn, wat óók bij WhatsApp/printen alsnog
+   * geen actie triggert. Een PDF kan wél een echte, klikbare hyperlink
+   * bevatten (een "link annotation", zie jsPDF's `link()`), dus wordt de
+   * kaart nu met modern-screenshot naar een <canvas> gerasterd, in een PDF
+   * gezet met jsPDF, en krijgt de HELE pagina — niet alleen de knop, dat
+   * scheelt precieze coördinaten uitrekenen per sjabloon-layout — een
+   * klikbare link naar de publieke uitnodigingspagina (`shareUrl`). Wie
+   * de PDF opent (Voorvertoning, Acrobat, de meeste PDF-viewers in de
+   * browser) kan dus overal op de kaart tikken om te bevestigen.
    *
    * Als tweede vangnet: mocht de Google Fonts-inbedding zelf de
    * boosdoener zijn, proberen we het nog één keer zonder lettertypen in
    * te sluiten (`font: false`) — dan mist de afbeelding het echte
    * sjabloonlettertype, maar downloadt hij tenminste.
    */
-  async function downloadImage() {
+  async function downloadPdf() {
     if (!cardRef.current) return;
     setDownloading(true);
     setError(null);
@@ -198,14 +200,14 @@ export function InvitationEditor({
           imgEl.src = dataUrl;
           restoreSrc = true;
           // Wacht tot de browser de nieuwe data-URL echt heeft gedecodeerd
-          // voordat html-to-image de kaart rastert — anders bestaat de kans
-          // dat de foto nog niet klaar is en leeg meekomt op de afbeelding.
+          // voordat modern-screenshot de kaart rastert — anders bestaat de
+          // kans dat de foto nog niet klaar is en leeg meekomt op de PDF.
           if (imgEl.decode) {
             try {
               await imgEl.decode();
             } catch {
-              // Negeren — toPng() wacht zelf ook nog op de load van elke
-              // afbeelding, dit is puur een extra zekerheidje.
+              // Negeren — domToCanvas() wacht zelf ook nog op de load van
+              // elke afbeelding, dit is puur een extra zekerheidje.
             }
           }
         } catch (fetchErr) {
@@ -213,20 +215,32 @@ export function InvitationEditor({
         }
       }
 
-      let pngDataUrl: string;
+      let canvas: HTMLCanvasElement;
       try {
-        pngDataUrl = await domToPng(cardRef.current, { scale: 3 });
+        canvas = await domToCanvas(cardRef.current, { scale: 3 });
       } catch (firstErr) {
         console.warn("[InvitationEditor] Eerste downloadpoging mislukt, probeer opnieuw zonder lettertypen in te sluiten.", firstErr);
-        pngDataUrl = await domToPng(cardRef.current, { scale: 3, font: false });
+        canvas = await domToCanvas(cardRef.current, { scale: 3, font: false });
       }
 
-      const link = document.createElement("a");
-      link.download = `uitnodiging-${eventName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`;
-      link.href = pngDataUrl;
-      link.click();
+      // unit: "px" zodat de kaart-pixels van `canvas` 1-op-1 als PDF-
+      // paginaformaat en link-coördinaten gebruikt kunnen worden, zonder
+      // zelf mm/pt-omrekeningen te hoeven doen (jsPDF rekent zelf, maar wel
+      // consistent voor paginaformaat, addImage én link()).
+      const pdf = new jsPDF({
+        orientation: canvas.width >= canvas.height ? "landscape" : "portrait",
+        unit: "px",
+        format: [canvas.width, canvas.height],
+      });
+      pdf.addImage(canvas, "PNG", 0, 0, canvas.width, canvas.height);
+      // De hele pagina is klikbaar (i.p.v. alleen de knop) — dat is veruit
+      // de betrouwbaarste manier om dit over 15 heel verschillende
+      // sjabloon-layouts heen te garanderen, zonder per sjabloon de exacte
+      // positie van de knop te moeten uitrekenen.
+      pdf.link(0, 0, canvas.width, canvas.height, { url: shareUrl });
+      pdf.save(`uitnodiging-${eventName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.pdf`);
     } catch (err) {
-      console.error("[InvitationEditor] Downloaden als afbeelding definitief mislukt.", err);
+      console.error("[InvitationEditor] Downloaden als PDF definitief mislukt.", err);
       // De technische foutmelding wordt bewust WEL getoond (i.p.v. alleen
       // in de browserconsole te loggen) — Cem is geen developer en kan geen
       // devtools-console openen om 'm door te sturen; met de tekst erbij
@@ -241,9 +255,8 @@ export function InvitationEditor({
   }
 
   async function copyShareLink() {
-    const url = `${window.location.origin}/uitnodiging/${uploadToken}`;
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
@@ -293,15 +306,7 @@ export function InvitationEditor({
 
         <div className="lg:sticky lg:top-6 lg:self-start">
           <div className="mx-auto max-w-[220px]">
-            <InvitationCard
-              ref={cardRef}
-              templateKey={templateKey}
-              {...preview}
-              editable
-              onPhotoPositionChange={handlePhotoPositionChange}
-              qrCodeDataUrl={qrCodeDataUrl}
-              shareUrl={shareUrl}
-            />
+            <InvitationCard ref={cardRef} templateKey={templateKey} {...preview} editable onPhotoPositionChange={handlePhotoPositionChange} />
           </div>
           {photoUrl && (
             <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-[11px] text-ink-faint">
@@ -335,12 +340,12 @@ export function InvitationEditor({
             <div className="flex flex-wrap gap-2 pt-1">
               <button
                 type="button"
-                onClick={downloadImage}
+                onClick={downloadPdf}
                 disabled={downloading}
                 className="lift-hover inline-flex items-center gap-1.5 rounded-full bg-clay px-4 py-2 text-xs font-medium text-white hover:bg-clay-dark disabled:opacity-60"
               >
                 {downloading ? <VyraMarkSpinner className="text-sm" /> : <Download className="size-3.5" />}
-                Download als afbeelding
+                Download als PDF
               </button>
               <button
                 type="button"

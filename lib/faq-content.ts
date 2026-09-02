@@ -157,13 +157,13 @@ export const ORGANIZER_FAQ: FaqCategory[] = [
         id: "org-gastenfoto-uitnodiging",
         question: "Wat is een uitnodigingssjabloon?",
         answer:
-          "Bij het Premium-pakket kun je op het tabblad 'Gastenfoto's' een feestelijke uitnodiging samenstellen: kies uit 15 stijlen, vul zelf een titel, welkomstzin en eigen foto in — datum en locatie vult Vyra automatisch aan met de gegevens van je evenement. Sleep je foto binnen de uitnodiging om precies te bepalen welk deel van de foto zichtbaar is. Je kunt de unieke deel-link kopiëren (die laat gasten een eigen, feestelijke uitnodigingspagina zien met de 'Bevestig komst'-knop) of de uitnodiging downloaden als afbeelding, bijvoorbeeld om te printen of als foto via WhatsApp te versturen — op die gedownloade afbeelding staat automatisch een QR-code met link naar dezelfde pagina, zodat gasten ook vanaf een geprinte of doorgestuurde foto bij je terecht kunnen om te bevestigen (de knop zelf werkt namelijk alleen op de echte webpagina, niet op een platte afbeelding).",
+          "Bij het Premium-pakket kun je op het tabblad 'Gastenfoto's' een feestelijke uitnodiging samenstellen: kies uit 15 stijlen, vul zelf een titel, welkomstzin en eigen foto in — datum en locatie vult Vyra automatisch aan met de gegevens van je evenement. Sleep je foto binnen de uitnodiging om precies te bepalen welk deel van de foto zichtbaar is. Je kunt de unieke deel-link kopiëren (die laat gasten een eigen, feestelijke uitnodigingspagina zien met de 'Laat het weten'-knop) of de uitnodiging downloaden als PDF, bijvoorbeeld om te printen of via WhatsApp te versturen — in die PDF zit de link automatisch al ingebakken als klikbare hyperlink over de hele kaart, dus ook wie de PDF ontvangt of een geprinte kaart in handen krijgt, kan er zo op tikken om naar de echte uitnodigingspagina te gaan en te bevestigen.",
       },
       {
         id: "org-gastenfoto-aanmeldingen",
         question: "Hoe zie ik wie er komt?",
         answer:
-          "Gasten kunnen op de uitnodigingspagina op de knop 'Bevestig komst' tikken en daar hun naam, ja/misschien/nee en het aantal personen invullen (met eventueel een opmerking, bijvoorbeeld dieetwensen). Deze aanmeldingen zijn alleen voor jou zichtbaar, in de nieuwe sectie 'Aanmeldingen' op het tabblad 'Gastenfoto's' — net als de gastenfoto's en het gastenboek worden ze nooit automatisch met andere gasten gedeeld.",
+          "Gasten kunnen op de uitnodigingspagina op de knop 'Laat het weten' tikken en daar hun naam, ja/misschien/nee en het aantal personen invullen (met eventueel een opmerking, bijvoorbeeld dieetwensen). Deze aanmeldingen zijn alleen voor jou zichtbaar, in de nieuwe sectie 'Aanmeldingen' op het tabblad 'Gastenfoto's' — net als de gastenfoto's en het gastenboek worden ze nooit automatisch met andere gasten gedeeld.",
       },
     ],
   },

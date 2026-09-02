@@ -135,13 +135,16 @@ export default async function EventGalleryPage(props: PageProps<"/events/[id]/ga
 
   const def = GALLERY_TIERS[gallery.tier];
   const galleryUrl = `${SITE_URL}/gallery/${gallery.uploadToken}`;
+  // Basis voor de knop-hyperlink die zo dadelijk in de gedownloade PDF wordt
+  // gebakken (zie InvitationEditor.tsx) — altijd het echte publieke domein
+  // (SITE_URL), nooit window.location.origin: een lokaal geteste
+  // localhost-link zou voor een echte gast een dode link zijn.
   const invitationUrl = `${SITE_URL}/uitnodiging/${gallery.uploadToken}`;
-  const [photos, messages, rsvps, qrCodeDataUrl, invitationQrCodeDataUrl] = await Promise.all([
+  const [photos, messages, rsvps, qrCodeDataUrl] = await Promise.all([
     getGalleryPhotosForOrganizer(gallery.id),
     def.allowGuestbook ? getGalleryMessagesForOrganizer(gallery.id) : Promise.resolve([]),
     gallery.tier === "premium" ? getGalleryRsvps(gallery.id) : Promise.resolve([]),
     generateQrCodeDataUrl(galleryUrl),
-    gallery.tier === "premium" ? generateQrCodeDataUrl(invitationUrl) : Promise.resolve(null),
   ]);
   const pendingPhotos = photos.filter((p) => p.moderationStatus === "pending");
   const decidedPhotos = photos.filter((p) => p.moderationStatus !== "pending");
@@ -185,11 +188,10 @@ export default async function EventGalleryPage(props: PageProps<"/events/[id]/ga
             <h2 className="font-display text-lg text-ink">Uitnodiging</h2>
           </div>
           <p className="mb-4 text-sm text-ink-faint">
-            Kies een stijl, vul je eigen tekst en foto in, en deel de uitnodiging als link of download &apos;m als afbeelding.
+            Kies een stijl, vul je eigen tekst en foto in, en deel de uitnodiging als link of download &apos;m als PDF.
           </p>
           <InvitationEditor
             eventId={id}
-            uploadToken={gallery.uploadToken}
             eventName={event.name}
             eventDate={event.date}
             eventStartTime={event.startTime}
@@ -201,7 +203,6 @@ export default async function EventGalleryPage(props: PageProps<"/events/[id]/ga
             initialPhotoPositionX={gallery.invitationPhotoPositionX}
             initialPhotoPositionY={gallery.invitationPhotoPositionY}
             shareUrl={invitationUrl}
-            qrCodeDataUrl={invitationQrCodeDataUrl}
           />
         </div>
       )}
