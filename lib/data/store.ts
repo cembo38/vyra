@@ -1299,6 +1299,7 @@ function rowToGalleryRsvp(r: Row): GalleryRsvp {
     guestCount: r.guest_count,
     note: r.note ?? null,
     createdAt: r.created_at,
+    guestId: r.guest_id ?? null,
   };
 }
 
@@ -1310,10 +1311,20 @@ export async function getGalleryRsvps(galleryId: string): Promise<GalleryRsvp[]>
   return (data as Row[]).map(rowToGalleryRsvp);
 }
 
+/**
+ * Verwijdert ook meteen de gekoppelde event_guests-rij (migratie 0059) —
+ * anders zou de Gastenlijst deze aanmelding blijven tonen nadat 'm hier is
+ * weggehaald, en zouden de twee lijsten uit elkaar gaan lopen. `guest_id`
+ * wordt via `.select()` teruggekregen bij de eerste delete (Supabase geeft
+ * de verwijderde rij terug), zodat er geen aparte lees-actie nodig is.
+ */
 export async function deleteGalleryRsvp(id: string): Promise<boolean> {
   const supabase = await sb();
-  const { error } = await supabase.from("gallery_rsvps").delete().eq("id", id);
-  return !error;
+  const { data, error } = await supabase.from("gallery_rsvps").delete().eq("id", id).select("guest_id").maybeSingle();
+  if (error) return false;
+  const guestId = (data as { guest_id: string | null } | null)?.guest_id;
+  if (guestId) await supabase.from("event_guests").delete().eq("id", guestId);
+  return true;
 }
 
 /** Publieke actie (geen login) — de "Bevestig komst"-knop op /uitnodiging/[token]. Loopt via de submit_gallery_rsvp SECURITY DEFINER-functie (migratie 0058), zelfde reden als submit_gallery_photo/message: een rechtstreekse RLS-policy met een subquery op event_galleries werkt niet voor de anon-rol. */

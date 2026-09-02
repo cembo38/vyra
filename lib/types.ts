@@ -1067,6 +1067,8 @@ export interface GalleryRsvp {
   guestCount: number;
   note: string | null;
   createdAt: string;
+  /** De gekoppelde event_guests-rij die tegelijk met deze aanmelding is aangemaakt (migratie 0059) — zorgt dat verwijderen hier ook de Gastenlijst-rij opruimt. `null` bij aanmeldingen van vóór deze migratie. */
+  guestId: string | null;
 }
 
 export type FeedbackType = "question" | "bug";

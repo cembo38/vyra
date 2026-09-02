@@ -163,7 +163,7 @@ export const ORGANIZER_FAQ: FaqCategory[] = [
         id: "org-gastenfoto-aanmeldingen",
         question: "Hoe zie ik wie er komt?",
         answer:
-          "Gasten kunnen op de uitnodigingspagina op de knop 'Laat het weten' tikken en daar hun naam, ja/misschien/nee en het aantal personen invullen (met eventueel een opmerking, bijvoorbeeld dieetwensen). Deze aanmeldingen zijn alleen voor jou zichtbaar, in de nieuwe sectie 'Aanmeldingen' op het tabblad 'Gastenfoto's' — net als de gastenfoto's en het gastenboek worden ze nooit automatisch met andere gasten gedeeld.",
+          "Gasten kunnen op de uitnodigingspagina op de knop 'Laat het weten' tikken en daar hun naam, ja/misschien/nee en het aantal personen invullen (met eventueel een opmerking, bijvoorbeeld dieetwensen). Deze aanmeldingen zijn alleen voor jou zichtbaar: ze verschijnen zowel in de sectie 'Aanmeldingen' op het tabblad 'Gastenfoto's' als, gemarkeerd met 'Via uitnodiging', in je gewone tabblad 'Gastenlijst' — net als de gastenfoto's en het gastenboek worden ze nooit automatisch met andere gasten gedeeld.",
       },
     ],
   },

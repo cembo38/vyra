@@ -225,6 +225,7 @@ export default async function EventGalleryPage(props: PageProps<"/events/[id]/ga
             <h2 className="font-display text-lg text-ink">Aanmeldingen</h2>
             {confirmedGuestCount > 0 && <Badge tone="success">{confirmedGuestCount} {confirmedGuestCount === 1 ? "persoon komt" : "personen komen"}</Badge>}
           </div>
+          <p className="mb-3 text-xs text-ink-faint">Deze aanmeldingen staan ook in je Gastenlijst, gemarkeerd met &quot;Via uitnodiging&quot;.</p>
           {rsvps.length === 0 ? (
             <p className="text-sm text-ink-faint">Nog geen aanmeldingen via de &quot;Bevestig komst&quot;-knop op je uitnodiging.</p>
           ) : (

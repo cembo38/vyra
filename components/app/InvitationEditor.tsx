@@ -223,21 +223,29 @@ export function InvitationEditor({
         canvas = await domToCanvas(cardRef.current, { scale: 3, font: false });
       }
 
-      // unit: "px" zodat de kaart-pixels van `canvas` 1-op-1 als PDF-
-      // paginaformaat en link-coördinaten gebruikt kunnen worden, zonder
-      // zelf mm/pt-omrekeningen te hoeven doen (jsPDF rekent zelf, maar wel
-      // consistent voor paginaformaat, addImage én link()).
-      const pdf = new jsPDF({
-        orientation: canvas.width >= canvas.height ? "landscape" : "portrait",
-        unit: "px",
-        format: [canvas.width, canvas.height],
-      });
-      pdf.addImage(canvas, "PNG", 0, 0, canvas.width, canvas.height);
+      // Eerdere versie zette het PDF-paginaformaat gelijk aan `canvas`'s
+      // pixelafmetingen (unit:"px"). `canvas` is het scherm-formaat van de
+      // preview × scale:3 — dat heeft niets te maken met een zinnig
+      // papierformaat, en werd op Cems laptop (brede preview-kolom) een
+      // veel te grote pagina: PDF-lezers tonen zo'n pagina standaard
+      // "ingezoomd op passend", waardoor alles (tekst, foto) juist heel
+      // klein/uitgezoomd oogt. Alle 15 sjablonen hebben bovendien altijd
+      // dezelfde 5:7-verhouding (`.frame { aspect-ratio: 5/7 }` in
+      // invitation-templates.css) — dat komt vrijwel exact overeen met
+      // een A5-vel (148×210mm, verhouding 5:7.09), dus we zetten de PDF nu
+      // gewoon vast op een echt A5-formaat (unit "mm") en laten de
+      // kaart-afbeelding die pagina vullen — een voorspelbaar, herkenbaar
+      // uitnodigingsformaat ongeacht hoe breed de preview op het scherm
+      // toevallig gerenderd werd.
+      const pdf = new jsPDF({ orientation: "portrait", unit: "mm", format: "a5" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      pdf.addImage(canvas, "PNG", 0, 0, pageWidth, pageHeight);
       // De hele pagina is klikbaar (i.p.v. alleen de knop) — dat is veruit
       // de betrouwbaarste manier om dit over 15 heel verschillende
       // sjabloon-layouts heen te garanderen, zonder per sjabloon de exacte
       // positie van de knop te moeten uitrekenen.
-      pdf.link(0, 0, canvas.width, canvas.height, { url: shareUrl });
+      pdf.link(0, 0, pageWidth, pageHeight, { url: shareUrl });
       pdf.save(`uitnodiging-${eventName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.pdf`);
     } catch (err) {
       console.error("[InvitationEditor] Downloaden als PDF definitief mislukt.", err);
