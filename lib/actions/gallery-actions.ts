@@ -8,17 +8,23 @@ import {
   deleteGalleryMessage,
   deleteGalleryPhoto,
   getEvent,
+  getEventGallery,
   getGalleryPublic,
+  removeInvitationPhoto,
   setGalleryMessageModeration,
   setGalleryPhotoModeration,
   setGalleryStripeCheckoutSessionId,
+  setInvitationTemplate,
   submitGalleryMessage,
   submitGalleryPhoto,
+  updateInvitationText,
   uploadGalleryMedia,
+  uploadInvitationPhoto,
 } from "@/lib/data/store";
 import { GALLERY_TIERS, GalleryTier, SITE_URL } from "@/lib/config";
 import { getStripeClient } from "@/lib/payments/stripe";
 import { GalleryModerationStatus } from "@/lib/types";
+import { INVITATION_TEMPLATES } from "@/lib/invitation-templates";
 
 /**
  * Gastenfoto-pagina kopen ("Deel C") — eenmalige Stripe-betaling (mode
@@ -146,4 +152,77 @@ export async function submitGalleryMessageAction(uploadToken: string, formData: 
 
   revalidatePath(`/gallery/${uploadToken}`);
   return { ok: true };
+}
+
+/**
+ * Uitnodigingssjablonen (Deel C.5) — alleen bij Premium, en alleen op een
+ * `active` gastenfoto-pagina van het eigen evenement (dubbele check: eerst
+ * of het evenement van de aanroeper is, dan of het niveau het toestaat —
+ * dezelfde volgorde als bij de video/gastenboek-server-checks hierboven).
+ * Bewust ÉÉN gedeelde helper i.p.v. dat in elke actie te herhalen.
+ */
+async function requireOwnedPremiumGallery(eventId: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  const event = await getEvent(eventId);
+  if (!event) throw new Error("Evenement niet gevonden.");
+  const gallery = await getEventGallery(eventId);
+  if (!gallery || gallery.status !== "active") throw new Error("Er is geen actieve gastenfoto-pagina voor dit evenement.");
+  if (gallery.tier !== "premium") throw new Error("Uitnodigingssjablonen zijn alleen beschikbaar bij Premium.");
+  return gallery;
+}
+
+export async function setInvitationTemplateAction(eventId: string, templateKey: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const gallery = await requireOwnedPremiumGallery(eventId);
+    if (!INVITATION_TEMPLATES.some((t) => t.key === templateKey)) return { ok: false, error: "Onbekend sjabloon." };
+    const ok = await setInvitationTemplate(gallery.id, templateKey);
+    if (!ok) return { ok: false, error: "Opslaan is mislukt. Probeer het nog eens." };
+    revalidatePath(`/events/${eventId}/gallery`);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Dit is niet gelukt." };
+  }
+}
+
+export async function updateInvitationTextAction(eventId: string, formData: FormData): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const gallery = await requireOwnedPremiumGallery(eventId);
+    const title = String(formData.get("title") ?? "").trim().slice(0, 120) || null;
+    const welcomeText = String(formData.get("welcomeText") ?? "").trim().slice(0, 80) || null;
+    const ok = await updateInvitationText(gallery.id, title, welcomeText);
+    if (!ok) return { ok: false, error: "Opslaan is mislukt. Probeer het nog eens." };
+    revalidatePath(`/events/${eventId}/gallery`);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Dit is niet gelukt." };
+  }
+}
+
+export async function uploadInvitationPhotoAction(eventId: string, formData: FormData): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const gallery = await requireOwnedPremiumGallery(eventId);
+    const file = formData.get("file");
+    if (!(file instanceof File) || file.size === 0) return { ok: false, error: "Kies eerst een foto." };
+    if (file.size > 8 * 1024 * 1024) return { ok: false, error: "Dit bestand is groter dan de toegestane 8MB." };
+    const ok = await uploadInvitationPhoto(eventId, gallery.id, file);
+    if (!ok) return { ok: false, error: "Uploaden is mislukt. Probeer het nog eens." };
+    revalidatePath(`/events/${eventId}/gallery`);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Dit is niet gelukt." };
+  }
+}
+
+export async function removeInvitationPhotoAction(eventId: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const gallery = await requireOwnedPremiumGallery(eventId);
+    if (!gallery.invitationPhotoPath) return { ok: true };
+    const ok = await removeInvitationPhoto(gallery.id, gallery.invitationPhotoPath);
+    if (!ok) return { ok: false, error: "Verwijderen is mislukt. Probeer het nog eens." };
+    revalidatePath(`/events/${eventId}/gallery`);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Dit is niet gelukt." };
+  }
 }

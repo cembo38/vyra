@@ -203,8 +203,16 @@ describe("mockSupplierAssistantAnswer", () => {
   });
 
   it("noemt het juiste aantal aankomende boekingen bij een planning-vraag", () => {
-    const ver = makeOrder({ eventDate: "2026-12-25" });
-    const dichtbij = makeOrder({ eventDate: "2026-09-01" });
+    // Bewust twee datums die altijd in de toekomst blijven (relatief aan "vandaag"), i.p.v.
+    // vaste kalenderdatums — een hardgecodeerde datum verstrijkt op den duur en laat deze
+    // test dan stilzwijgend falen (upcoming filtert op event.date >= todayISO, zie
+    // lib/ai/supplierAssistantMock.ts).
+    const inTweeMaanden = new Date();
+    inTweeMaanden.setMonth(inTweeMaanden.getMonth() + 2);
+    const inTienMaanden = new Date();
+    inTienMaanden.setMonth(inTienMaanden.getMonth() + 10);
+    const ver = makeOrder({ eventDate: inTienMaanden.toISOString().slice(0, 10) });
+    const dichtbij = makeOrder({ eventDate: inTweeMaanden.toISOString().slice(0, 10) });
     const answer = mockSupplierAssistantAnswer("Wat komt er deze maand aan?", baseCtx({ orders: [ver, dichtbij] }));
     expect(answer).toMatch(/2 aankomende boeking/);
   });

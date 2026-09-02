@@ -153,6 +153,12 @@ export const ORGANIZER_FAQ: FaqCategory[] = [
         answer:
           "Dat hangt af van het gekozen pakket (60 dagen, een half jaar of een jaar na de evenementdatum — zie het tabblad 'Gastenfoto's' voor de exacte termijn van jouw pakket). Daarna worden alle foto's, video's en gastenboek-berichten automatisch en onomkeerbaar verwijderd. Wil je ze bewaren, download ze dan op tijd (bij Plus en Premium kan dat in één keer als zip-bestand).",
       },
+      {
+        id: "org-gastenfoto-uitnodiging",
+        question: "Wat is een uitnodigingssjabloon?",
+        answer:
+          "Bij het Premium-pakket kun je op het tabblad 'Gastenfoto's' een feestelijke uitnodiging samenstellen: kies uit 15 stijlen, vul zelf een titel, welkomstzin en eigen foto in — datum en locatie vult Vyra automatisch aan met de gegevens van je evenement. Je kunt de uitnodiging downloaden als afbeelding (bijvoorbeeld om te versturen via WhatsApp) of de unieke deel-link kopiëren; die link laat gasten een eigen, feestelijke pagina zien met een knop naar de gastenfoto-pagina, los van jouw organisator-overzicht.",
+      },
     ],
   },
   {

@@ -998,6 +998,12 @@ export interface EventGallery {
   theme: string | null;
   /** Gekozen uitnodigingssjabloon (Premium, zie Deel C.5); `null` = nog geen keuze gemaakt. */
   invitationTemplateKey: string | null;
+  /** Override van de evenementnaam speciaal voor de uitnodiging; `null` = gebruik event.name. */
+  invitationTitle: string | null;
+  /** Korte intro-/welkomstzin bovenaan de uitnodiging (bv. "U bent van harte uitgenodigd"). */
+  invitationWelcomeText: string | null;
+  invitationPhotoPath: string | null;
+  invitationPhotoUrl: string | null;
   /** Berekend bij activatie: evenementdatum + retentionDays van het gekozen niveau. `null` zolang nog niet actief. */
   expiresAt: string | null;
   createdAt: string;
@@ -1028,6 +1034,8 @@ export interface GalleryMessage {
 export interface GalleryPublicInfo {
   eventName: string;
   eventDate: string | null;
+  eventStartTime: string | null;
+  eventLocationLabel: string | null;
   organizerFirstName: string | null;
   tier: GalleryTier;
   theme: string | null;
@@ -1036,6 +1044,10 @@ export interface GalleryPublicInfo {
   allowVideo: boolean;
   allowGuestbook: boolean;
   maxUploadMb: number;
+  invitationTemplateKey: string | null;
+  invitationTitle: string | null;
+  invitationWelcomeText: string | null;
+  invitationPhotoUrl: string | null;
 }
 
 export type FeedbackType = "question" | "bug";

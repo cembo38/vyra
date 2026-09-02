@@ -14,13 +14,14 @@ import { SubmitButton } from "@/components/ui/SubmitButton";
 import { CopyGalleryLinkButton } from "@/components/app/CopyGalleryLinkButton";
 import { GalleryPurchaseButton } from "@/components/app/GalleryPurchaseButton";
 import { GalleryPaymentPendingNotice } from "@/components/app/GalleryPaymentPendingNotice";
+import { InvitationEditor } from "@/components/app/InvitationEditor";
 import {
   deleteGalleryMessageAction,
   deleteGalleryPhotoAction,
   moderateGalleryMessageAction,
   moderateGalleryPhotoAction,
 } from "@/lib/actions/gallery-actions";
-import { Camera, Check, ImageOff, MessageSquareText, Sparkles, Trash2, X } from "lucide-react";
+import { Camera, Check, ImageOff, Mail, MessageSquareText, Sparkles, Trash2, X } from "lucide-react";
 
 export const metadata = { title: "Gastenfoto's — Vyra" };
 
@@ -163,6 +164,30 @@ export default async function EventGalleryPage(props: PageProps<"/events/[id]/ga
           )}
         </div>
       </Card>
+
+      {gallery.tier === "premium" && (
+        <div>
+          <div className="mb-3 flex items-center gap-2">
+            <Mail className="size-4 text-ink-faint" />
+            <h2 className="font-display text-lg text-ink">Uitnodiging</h2>
+          </div>
+          <p className="mb-4 text-sm text-ink-faint">
+            Kies een stijl, vul je eigen tekst en foto in, en deel de uitnodiging als link of download &apos;m als afbeelding.
+          </p>
+          <InvitationEditor
+            eventId={id}
+            uploadToken={gallery.uploadToken}
+            eventName={event.name}
+            eventDate={event.date}
+            eventStartTime={event.startTime}
+            eventLocationLabel={event.locationLabel}
+            initialTemplateKey={gallery.invitationTemplateKey}
+            initialTitle={gallery.invitationTitle}
+            initialWelcomeText={gallery.invitationWelcomeText}
+            initialPhotoUrl={gallery.invitationPhotoUrl}
+          />
+        </div>
+      )}
 
       <div>
         <div className="mb-3 flex items-center gap-2">

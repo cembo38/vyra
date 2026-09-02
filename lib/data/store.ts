@@ -1147,7 +1147,7 @@ export async function uploadSupplierFile(ownerId: string, file: File, folder: "l
 /* GASTENFOTO-PAGINA ("Deel C", migratie 0052)                         */
 /* ------------------------------------------------------------------ */
 
-function rowToEventGallery(r: Row): EventGallery {
+function rowToEventGallery(r: Row, supabase: Awaited<ReturnType<typeof sb>>): EventGallery {
   return {
     id: r.id,
     eventId: r.event_id,
@@ -1156,6 +1156,10 @@ function rowToEventGallery(r: Row): EventGallery {
     uploadToken: r.upload_token,
     theme: r.theme ?? null,
     invitationTemplateKey: r.invitation_template_key ?? null,
+    invitationTitle: r.invitation_title ?? null,
+    invitationWelcomeText: r.invitation_welcome_text ?? null,
+    invitationPhotoPath: r.invitation_photo_path ?? null,
+    invitationPhotoUrl: r.invitation_photo_path ? supabase.storage.from("gallery-media").getPublicUrl(r.invitation_photo_path).data.publicUrl : null,
     expiresAt: r.expires_at ?? null,
     createdAt: r.created_at,
     purchasedAt: r.purchased_at ?? null,
@@ -1166,7 +1170,7 @@ function rowToEventGallery(r: Row): EventGallery {
 export async function getEventGallery(eventId: string): Promise<EventGallery | null> {
   const supabase = await sb();
   const { data } = await supabase.from("event_galleries").select("*").eq("event_id", eventId).maybeSingle();
-  return data ? rowToEventGallery(data) : null;
+  return data ? rowToEventGallery(data, supabase) : null;
 }
 
 /**
@@ -1194,7 +1198,7 @@ export async function createOrUpdatePendingGalleryPurchase(eventId: string, tier
       .select()
       .single();
     if (error || !data) return null;
-    return rowToEventGallery(data);
+    return rowToEventGallery(data, supabase);
   }
   const { data, error } = await supabase
     .from("event_galleries")
@@ -1202,13 +1206,57 @@ export async function createOrUpdatePendingGalleryPurchase(eventId: string, tier
     .select()
     .single();
   if (error || !data) return null;
-  return rowToEventGallery(data);
+  return rowToEventGallery(data, supabase);
 }
 
 /** Voor de webhook: koppelt de Stripe Checkout-sessie aan de al aangemaakte `pending_payment`-rij (zie createOrUpdatePendingGalleryPurchase), vóór de redirect naar Stripe. */
 export async function setGalleryStripeCheckoutSessionId(galleryId: string, sessionId: string): Promise<void> {
   const supabase = await sb();
   await supabase.from("event_galleries").update({ stripe_checkout_session_id: sessionId }).eq("id", galleryId);
+}
+
+/**
+ * Uitnodigingssjablonen (Deel C.5, Premium) — de organisator kiest een
+ * sjabloon en/of past de tekst aan. Tier-check (alleen Premium) gebeurt in
+ * de Server Action (lib/actions/gallery-actions.ts), niet hier — deze
+ * functie voert gewoon uit wat gevraagd wordt, net als bij
+ * setGalleryPhotoModeration hieronder.
+ */
+export async function setInvitationTemplate(galleryId: string, templateKey: string | null): Promise<boolean> {
+  const supabase = await sb();
+  const { error } = await supabase.from("event_galleries").update({ invitation_template_key: templateKey }).eq("id", galleryId);
+  return !error;
+}
+
+export async function updateInvitationText(galleryId: string, title: string | null, welcomeText: string | null): Promise<boolean> {
+  const supabase = await sb();
+  const { error } = await supabase.from("event_galleries").update({ invitation_title: title, invitation_welcome_text: welcomeText }).eq("id", galleryId);
+  return !error;
+}
+
+/**
+ * Uploadt de eigen foto van de organisator voor de uitnodiging. Gaat naar
+ * `invitations/<eventId>/...` in dezelfde "gallery-media"-bucket als
+ * gastenfoto's, maar via een aparte, eigenaar-gebonden storage-policy (zie
+ * migratie 0056) — dit is de gewone, ingelogde sessie van de organisator,
+ * dus geen publiek token nodig zoals bij een gast-upload.
+ */
+export async function uploadInvitationPhoto(eventId: string, galleryId: string, file: File): Promise<boolean> {
+  if (!file || file.size === 0 || !file.type.startsWith("image/")) return false;
+  const supabase = await sb();
+  const ext = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
+  const path = `invitations/${eventId}/${Date.now()}.${ext}`;
+  const { error: uploadError } = await supabase.storage.from("gallery-media").upload(path, file, { upsert: true, contentType: file.type || undefined });
+  if (uploadError) return false;
+  const { error } = await supabase.from("event_galleries").update({ invitation_photo_path: path }).eq("id", galleryId);
+  return !error;
+}
+
+export async function removeInvitationPhoto(galleryId: string, storagePath: string): Promise<boolean> {
+  const supabase = await sb();
+  await supabase.storage.from("gallery-media").remove([storagePath]);
+  const { error } = await supabase.from("event_galleries").update({ invitation_photo_path: null }).eq("id", galleryId);
+  return !error;
 }
 
 /**
@@ -1302,6 +1350,8 @@ export async function getGalleryPublic(uploadToken: string): Promise<GalleryPubl
   return {
     eventName: r.event_name,
     eventDate: r.event_date,
+    eventStartTime: r.event_start_time ?? null,
+    eventLocationLabel: r.event_location_label ?? null,
     organizerFirstName: r.organizer_first_name ?? null,
     tier,
     theme: r.theme ?? null,
@@ -1310,6 +1360,10 @@ export async function getGalleryPublic(uploadToken: string): Promise<GalleryPubl
     allowVideo: def?.allowVideo ?? false,
     allowGuestbook: def?.allowGuestbook ?? false,
     maxUploadMb: def?.maxUploadMb ?? 15,
+    invitationTemplateKey: r.invitation_template_key ?? null,
+    invitationTitle: r.invitation_title ?? null,
+    invitationWelcomeText: r.invitation_welcome_text ?? null,
+    invitationPhotoUrl: r.invitation_photo_path ? supabase.storage.from("gallery-media").getPublicUrl(r.invitation_photo_path).data.publicUrl : null,
   };
 }
 

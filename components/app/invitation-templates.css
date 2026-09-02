@@ -1,0 +1,181 @@
+/**
+ * Deel C.5 — CSS voor de 15 uitnodigingssjablonen, bijna letterlijk
+ * overgenomen uit de eerder aan Cem voorgelegde en goedgekeurde mockup
+ * (vyra-uitnodigingssjablonen.html). Alles hier staat onder
+ * `.invitation-frame-scope` zodat het nooit iets in de rest van de app kan
+ * raken, ook al zijn de klassenamen (t-klassiek, t-speels, ...) op zichzelf
+ * al onwaarschijnlijk om ergens anders voor te komen. Bewust GEEN
+ * donker-thema-variant — de rest van deze app heeft die ook niet (zie
+ * app/globals.css), en elk sjabloon heeft toch al zijn eigen vaste
+ * kleurenpalet, los van het app-brede thema.
+ */
+
+.invitation-frame-scope {
+  --inv-bg: #fbf7ea;
+  --inv-text: #24271a;
+  --inv-text-soft: #4b4e33;
+  --inv-text-faint: #7e7c55;
+  --inv-border: #e7d9a6;
+  --inv-accent: #7fa23e;
+  --inv-accent-dark: #5a7429;
+  --inv-shadow-lg: 0 4px 10px rgba(36, 39, 26, 0.06), 0 24px 56px -22px rgba(36, 39, 26, 0.26);
+  --inv-radius: 18px;
+  --inv-font-display: "Fraunces Variable", Georgia, serif;
+  --inv-font-body: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--inv-font-body);
+}
+
+.invitation-frame-scope .frame {
+  border-radius: var(--inv-radius);
+  box-shadow: var(--inv-shadow-lg);
+  overflow: hidden;
+  aspect-ratio: 5/7;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  width: 100%;
+}
+
+.invitation-frame-scope .photo-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-family: var(--inv-font-body);
+  font-size: 9.5px;
+  letter-spacing: 0.03em;
+  border: 1.4px dashed currentColor;
+  opacity: 0.68;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.invitation-frame-scope .photo-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ---------- 1. Klassiek Elegant ---------- */
+.invitation-frame-scope .t-klassiek { background: #fdfbf3; color: #2b2620; font-family: "Cormorant Garamond", serif; justify-content: center; align-items: center; text-align: center; padding: 26px 22px; border: 1px solid #e7ddbd; }
+.invitation-frame-scope .t-klassiek::before { content: ""; position: absolute; inset: 14px; border: 1px solid #c9a24b; pointer-events: none; }
+.invitation-frame-scope .t-klassiek .eyebrow2 { font-family: var(--inv-font-body); font-size: 9.5px; letter-spacing: 0.22em; text-transform: uppercase; color: #b08a2e; margin-bottom: 12px; }
+.invitation-frame-scope .t-klassiek h2 { font-size: 28px; font-weight: 600; margin: 0 0 8px; line-height: 1.15; }
+.invitation-frame-scope .t-klassiek .rule { width: 34px; height: 1px; background: #c9a24b; margin: 10px auto; }
+.invitation-frame-scope .t-klassiek .meta { font-size: 14.5px; font-style: italic; margin: 3px 0; }
+.invitation-frame-scope .t-klassiek .photo-slot { width: 56px; height: 56px; border-radius: 50%; color: #b08a2e; margin: 8px 0; }
+.invitation-frame-scope .t-klassiek .rsvp { margin-top: 12px; font-family: var(--inv-font-body); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; border: 1px solid #2b2620; padding: 7px 16px; border-radius: 999px; }
+
+/* ---------- 2. Speels & Kleurrijk ---------- */
+.invitation-frame-scope .t-speels { background: #ffd93d; font-family: "Baloo 2", sans-serif; justify-content: flex-end; padding: 0; }
+.invitation-frame-scope .t-speels .top { flex: 1; background: linear-gradient(135deg, #ff6b9d, #ff9770); display: flex; align-items: center; justify-content: center; padding: 14px; }
+.invitation-frame-scope .t-speels .top .photo-slot { width: 100%; height: 100%; border-radius: 14px; color: #fff; font-weight: 600; }
+.invitation-frame-scope .t-speels .bottom { background: #4ecdc4; padding: 18px; text-align: center; color: #12312e; }
+.invitation-frame-scope .t-speels h2 { font-size: 22px; font-weight: 800; margin: 0 0 5px; }
+.invitation-frame-scope .t-speels .meta { font-size: 13px; font-weight: 500; margin: 2px 0; }
+.invitation-frame-scope .t-speels .rsvp { display: inline-block; margin-top: 10px; background: #fff; color: #12312e; font-weight: 700; font-size: 11px; padding: 7px 16px; border-radius: 999px; }
+
+/* ---------- 3. Botanisch Minimalistisch ---------- */
+.invitation-frame-scope .t-botanisch { background: #f6f4ea; color: #3c4a35; font-family: "EB Garamond", serif; justify-content: center; align-items: center; text-align: center; padding: 30px 24px; }
+.invitation-frame-scope .t-botanisch svg { width: 40px; height: 40px; margin-bottom: 10px; opacity: 0.8; }
+.invitation-frame-scope .t-botanisch .eyebrow2 { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: #7c9468; margin-bottom: 10px; }
+.invitation-frame-scope .t-botanisch h2 { font-style: italic; font-size: 25px; font-weight: 500; margin: 0 0 8px; }
+.invitation-frame-scope .t-botanisch .meta { font-size: 14px; margin: 2px 0; color: #57624c; }
+.invitation-frame-scope .t-botanisch .photo-slot { width: 90%; height: 46px; color: #7c9468; margin: 10px 0; }
+.invitation-frame-scope .t-botanisch .rsvp { margin-top: 14px; font-family: var(--inv-font-body); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #7c9468; border-bottom: 1px solid #7c9468; padding-bottom: 2px; }
+
+/* ---------- 4. Modern Zakelijk ---------- */
+.invitation-frame-scope .t-zakelijk { background: #12203b; color: #eef1f6; font-family: "IBM Plex Sans", sans-serif; padding: 24px; justify-content: space-between; background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px); background-size: 18px 18px; }
+.invitation-frame-scope .t-zakelijk .eyebrow2 { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: #7fa2e0; font-weight: 600; }
+.invitation-frame-scope .t-zakelijk h2 { font-size: 22px; font-weight: 600; margin: 8px 0; line-height: 1.2; }
+.invitation-frame-scope .t-zakelijk .meta { font-size: 12px; color: #b7c2d6; margin: 2px 0; }
+.invitation-frame-scope .t-zakelijk .photo-slot { width: 100%; height: 44px; color: #7fa2e0; margin-top: 8px; }
+.invitation-frame-scope .t-zakelijk .rsvp { align-self: flex-start; margin-top: 10px; background: #4d8bff; color: #fff; font-weight: 600; font-size: 11px; padding: 8px 16px; border-radius: 6px; }
+
+/* ---------- 5. Warm & Vintage ---------- */
+.invitation-frame-scope .t-vintage { background: #f3e6d3; color: #4a2f1e; font-family: "Playfair Display", serif; justify-content: center; align-items: center; text-align: center; padding: 26px 22px; }
+.invitation-frame-scope .t-vintage .photo-slot { width: 78px; height: 78px; border-radius: 50%; color: #a8552e; margin-bottom: 12px; background: #fff; border-style: solid; border-width: 3px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15); }
+.invitation-frame-scope .t-vintage h2 { font-style: italic; font-weight: 700; font-size: 24px; margin: 0 0 6px; }
+.invitation-frame-scope .t-vintage .meta { font-family: var(--inv-font-body); font-size: 12.5px; margin: 2px 0; color: #6b4b34; }
+.invitation-frame-scope .t-vintage .rsvp { margin-top: 12px; font-family: var(--inv-font-body); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; background: #a8552e; color: #f3e6d3; padding: 7px 16px; border-radius: 3px; }
+
+/* ---------- 6. Zwart-wit Chic ---------- */
+.invitation-frame-scope .t-chic { background: #0d0d0d; color: #f5f5f5; font-family: "Bodoni Moda", serif; padding: 24px; justify-content: space-between; }
+.invitation-frame-scope .t-chic .eyebrow2 { font-size: 9.5px; letter-spacing: 0.24em; text-transform: uppercase; color: #999; }
+.invitation-frame-scope .t-chic .big { font-size: 50px; font-weight: 900; line-height: 0.9; margin: 10px 0; }
+.invitation-frame-scope .t-chic h2 { font-size: 19px; font-weight: 500; margin: 0 0 6px; }
+.invitation-frame-scope .t-chic .meta { font-family: var(--inv-font-body); font-size: 11px; color: #ccc; margin: 2px 0; }
+.invitation-frame-scope .t-chic .photo-slot { width: 100%; height: 40px; color: #999; margin-top: 6px; }
+.invitation-frame-scope .t-chic .rsvp { align-self: flex-start; margin-top: 10px; font-family: var(--inv-font-body); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; border: 1px solid #f5f5f5; padding: 7px 15px; }
+
+/* ---------- 7. Zonnig Zomerfeest ---------- */
+.invitation-frame-scope .t-zomer { background: linear-gradient(160deg, #ffd166 0%, #ff8a3d 100%); color: #4a2500; font-family: "Fredoka", sans-serif; justify-content: center; align-items: center; text-align: center; padding: 26px 22px; }
+.invitation-frame-scope .t-zomer .photo-slot { width: 66px; height: 66px; border-radius: 50%; color: #4a2500; margin-bottom: 10px; }
+.invitation-frame-scope .t-zomer h2 { font-size: 23px; font-weight: 700; margin: 0 0 6px; }
+.invitation-frame-scope .t-zomer .meta { font-size: 13px; font-weight: 500; margin: 2px 0; color: #5c3300; }
+.invitation-frame-scope .t-zomer .rsvp { margin-top: 12px; background: #4a2500; color: #ffd166; font-weight: 600; font-size: 11px; padding: 8px 18px; border-radius: 999px; }
+
+/* ---------- 8. Vyra Signature ---------- */
+.invitation-frame-scope .t-vyra { background: var(--inv-bg); color: var(--inv-text); font-family: var(--inv-font-body); justify-content: center; align-items: center; text-align: center; padding: 26px 22px; border: 1px solid var(--inv-border); }
+.invitation-frame-scope .t-vyra .mark { width: 36px; height: 36px; border-radius: 11px; background: var(--inv-text); display: flex; align-items: center; justify-content: center; margin-bottom: 12px; }
+.invitation-frame-scope .t-vyra .mark span { font-family: var(--inv-font-display); font-style: italic; color: var(--inv-bg); font-size: 20px; }
+.invitation-frame-scope .t-vyra h2 { font-family: var(--inv-font-display); font-size: 24px; font-weight: 600; margin: 0 0 8px; }
+.invitation-frame-scope .t-vyra .meta { font-size: 13px; margin: 2px 0; color: var(--inv-text-soft); }
+.invitation-frame-scope .t-vyra .photo-slot { width: 100%; height: 44px; color: var(--inv-accent-dark); margin-top: 8px; }
+.invitation-frame-scope .t-vyra .rsvp { margin-top: 12px; background: var(--inv-accent); color: #fff; font-weight: 600; font-size: 11px; padding: 8px 18px; border-radius: 999px; }
+
+/* ---------- 9. Aquarel Droom ---------- */
+.invitation-frame-scope .t-aquarel { background: radial-gradient(ellipse at 30% 20%, #f6d9e4, transparent 60%), radial-gradient(ellipse at 80% 80%, #d9e3f6, transparent 60%), #fdfbfa; color: #5c4657; font-family: "Cormorant", serif; font-style: italic; justify-content: center; align-items: center; text-align: center; padding: 26px 22px; }
+.invitation-frame-scope .t-aquarel .eyebrow2 { font-family: "Caveat", cursive; font-style: normal; font-size: 22px; color: #b98aa8; margin-bottom: 8px; }
+.invitation-frame-scope .t-aquarel .photo-slot { width: 84px; height: 84px; border-radius: 50%; color: #b98aa8; margin-bottom: 10px; }
+.invitation-frame-scope .t-aquarel h2 { font-size: 25px; font-weight: 500; margin: 0 0 6px; }
+.invitation-frame-scope .t-aquarel .meta { font-size: 13.5px; margin: 2px 0; }
+.invitation-frame-scope .t-aquarel .rsvp { margin-top: 12px; font-family: "Caveat", cursive; font-style: normal; font-size: 17px; color: #b98aa8; }
+
+/* ---------- 10. Neon Nachtfeest ---------- */
+.invitation-frame-scope .t-neon { background: #0a0a14; color: #fff; font-family: "Poppins", sans-serif; justify-content: center; align-items: center; text-align: center; padding: 24px; background-image: radial-gradient(circle at 20% 20%, rgba(255, 0, 180, 0.25), transparent 40%), radial-gradient(circle at 80% 75%, rgba(0, 225, 255, 0.25), transparent 40%); }
+.invitation-frame-scope .t-neon .eyebrow2 { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: #ff4fd8; text-shadow: 0 0 8px #ff4fd8; }
+.invitation-frame-scope .t-neon h2 { font-size: 26px; font-weight: 700; margin: 10px 0; color: #4ff0ff; text-shadow: 0 0 10px #4ff0ff; }
+.invitation-frame-scope .t-neon .meta { font-size: 12.5px; color: #d9d9ff; margin: 2px 0; }
+.invitation-frame-scope .t-neon .photo-slot { width: 100%; height: 46px; color: #ff4fd8; margin-top: 10px; }
+.invitation-frame-scope .t-neon .rsvp { margin-top: 12px; background: linear-gradient(90deg, #ff4fd8, #4ff0ff); color: #0a0a14; font-weight: 700; font-size: 11px; padding: 8px 18px; border-radius: 999px; }
+
+/* ---------- 11. Scandinavisch Chic ---------- */
+.invitation-frame-scope .t-scandi { background: #f5f4f0; color: #383632; font-family: "DM Sans", sans-serif; justify-content: center; align-items: center; text-align: center; padding: 30px 24px; }
+.invitation-frame-scope .t-scandi svg { width: 44px; height: 44px; margin-bottom: 12px; }
+.invitation-frame-scope .t-scandi .eyebrow2 { font-size: 9.5px; letter-spacing: 0.22em; text-transform: uppercase; color: #9a968c; margin-bottom: 10px; }
+.invitation-frame-scope .t-scandi h2 { font-size: 21px; font-weight: 500; margin: 0 0 8px; }
+.invitation-frame-scope .t-scandi .meta { font-size: 12.5px; margin: 2px 0; color: #6b675e; }
+.invitation-frame-scope .t-scandi .photo-slot { width: 90%; height: 42px; color: #9a968c; margin: 10px 0; }
+.invitation-frame-scope .t-scandi .rsvp { margin-top: 12px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; border-bottom: 1.5px solid #383632; padding-bottom: 2px; }
+
+/* ---------- 12. Retro Jaren 70 ---------- */
+.invitation-frame-scope .t-retro { background: #e8c37e; color: #52310f; font-family: "Fjalla One", sans-serif; justify-content: center; align-items: center; text-align: center; padding: 24px; background-image: radial-gradient(circle at 15% 85%, #d9793c 0 60px, transparent 61px), radial-gradient(circle at 90% 10%, #9c6b3e 0 40px, transparent 41px); }
+.invitation-frame-scope .t-retro .eyebrow2 { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: #9c4a1f; margin-bottom: 8px; }
+.invitation-frame-scope .t-retro .photo-slot { width: 76px; height: 76px; border-radius: 50%; color: #9c4a1f; margin-bottom: 10px; }
+.invitation-frame-scope .t-retro h2 { font-size: 25px; margin: 0 0 8px; text-transform: uppercase; }
+.invitation-frame-scope .t-retro .meta { font-family: var(--inv-font-body); font-size: 12.5px; margin: 2px 0; }
+.invitation-frame-scope .t-retro .rsvp { margin-top: 12px; background: #9c4a1f; color: #f6dfb2; font-weight: 500; font-size: 10.5px; letter-spacing: 0.05em; text-transform: uppercase; padding: 8px 18px; border-radius: 999px; }
+
+/* ---------- 13. Tropisch Paradijs ---------- */
+.invitation-frame-scope .t-tropisch { background: linear-gradient(160deg, #0e7d7a, #0a5a63); color: #fff; font-family: "Cormorant Garamond", serif; justify-content: center; align-items: center; text-align: center; padding: 26px 22px; }
+.invitation-frame-scope .t-tropisch svg { width: 52px; height: 52px; margin-bottom: 10px; }
+.invitation-frame-scope .t-tropisch .eyebrow2 { font-family: var(--inv-font-body); font-size: 9.5px; letter-spacing: 0.2em; text-transform: uppercase; color: #ffb87a; margin-bottom: 8px; }
+.invitation-frame-scope .t-tropisch h2 { font-size: 27px; font-weight: 600; margin: 0 0 6px; }
+.invitation-frame-scope .t-tropisch .meta { font-size: 14px; margin: 2px 0; color: #d4f3f0; }
+.invitation-frame-scope .t-tropisch .photo-slot { width: 90%; height: 44px; color: #ffb87a; margin: 10px 0; }
+.invitation-frame-scope .t-tropisch .rsvp { margin-top: 12px; background: #ffb87a; color: #0a5a63; font-family: var(--inv-font-body); font-weight: 700; font-size: 11px; padding: 8px 18px; border-radius: 999px; }
+
+/* ---------- 14. Feestelijk Confetti ---------- */
+.invitation-frame-scope .t-confetti { background: #fff; color: #241a3d; font-family: "Righteous", sans-serif; justify-content: center; align-items: center; text-align: center; padding: 24px; background-image: radial-gradient(#ffb703 3px, transparent 3px), radial-gradient(#fb5607 3px, transparent 3px), radial-gradient(#8338ec 3px, transparent 3px), radial-gradient(#3a86ff 3px, transparent 3px); background-size: 46px 46px; background-position: 0 0, 23px 23px, 12px 34px, 34px 8px; }
+.invitation-frame-scope .t-confetti .eyebrow2 { font-family: var(--inv-font-body); font-weight: 700; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: #8338ec; margin-bottom: 8px; }
+.invitation-frame-scope .t-confetti .photo-slot { width: 80px; height: 80px; border-radius: 50%; color: #8338ec; margin-bottom: 10px; background: #fff; }
+.invitation-frame-scope .t-confetti h2 { font-size: 21px; margin: 0 0 8px; }
+.invitation-frame-scope .t-confetti .meta { font-family: var(--inv-font-body); font-weight: 500; font-size: 12.5px; margin: 2px 0; color: #4a3d66; }
+.invitation-frame-scope .t-confetti .rsvp { margin-top: 12px; background: #241a3d; color: #fff; font-family: var(--inv-font-body); font-weight: 700; font-size: 11px; padding: 8px 18px; border-radius: 999px; }
+
+/* ---------- 15. Fotolijst Klassiek ---------- */
+.invitation-frame-scope .t-fotolijst { background: #efe9dd; color: #322c22; font-family: "Playfair Display", serif; padding: 18px; justify-content: flex-start; align-items: center; text-align: center; }
+.invitation-frame-scope .t-fotolijst .photo-slot { width: 100%; flex: 1; color: #a3906a; border-width: 2px; margin-bottom: 12px; }
+.invitation-frame-scope .t-fotolijst h2 { font-size: 21px; font-style: italic; font-weight: 500; margin: 0 0 6px; }
+.invitation-frame-scope .t-fotolijst .meta { font-family: var(--inv-font-body); font-size: 12px; margin: 2px 0; color: #6b6151; }
+.invitation-frame-scope .t-fotolijst .rsvp { margin-top: 10px; margin-bottom: 4px; font-family: var(--inv-font-body); font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; border: 1px solid #322c22; padding: 6px 14px; border-radius: 999px; }
