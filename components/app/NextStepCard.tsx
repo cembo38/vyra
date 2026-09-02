@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { CheckCircle2, Clock, Inbox, MoveRight, Send, Sparkles, Wallet } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronRight, Clock, Inbox, MoveRight, Send, Sparkles, Wallet } from "lucide-react";
 import { NextStep } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { ExpandToggle } from "@/components/ui/ExpandToggle";
 
 const ICONS = {
   sparkles: Sparkles,
@@ -23,8 +24,16 @@ const TONE_STYLES: Record<NextStep["tone"], { bg: string; iconBg: string; iconTe
  * oogopslag de belangrijkste eerstvolgende actie (zie computeNextStep in
  * lib/data/store.ts), zodat de organisator nooit zelf hoeft te zoeken langs
  * welk tabblad die verder moet.
+ *
+ * Herontwerp (sep. 2026): de gele AI-risicomeldingen stonden voorheen als
+ * losse, altijd-zichtbare kaartjes los onder deze kaart — twee aparte
+ * "let hier op"-signalen tegelijk op het scherm. Nu zit dat ene extra
+ * signaal (`risks`) hierin verwerkt als een ingeklapte "+N andere
+ * aandachtspunten"-link (via `ExpandToggle`, onthoudt de open/dicht-status
+ * — zie dat component). De hoofdactie blijft altijd meteen zichtbaar; de
+ * rest is één klik verder, maar nooit weg.
  */
-export function NextStepCard({ step }: { step: NextStep }) {
+export function NextStepCard({ step, risks = [] }: { step: NextStep; risks?: { id: string; message: string; href: string }[] }) {
   const Icon = ICONS[step.icon];
   const tone = TONE_STYLES[step.tone];
 
@@ -50,6 +59,30 @@ export function NextStepCard({ step }: { step: NextStep }) {
           {step.ctaLabel} <MoveRight className="size-4" />
         </Link>
       </div>
+
+      {risks.length > 0 && (
+        <div className="mt-1">
+          <ExpandToggle
+            storageKey="dashboard-aandachtspunten"
+            moreLabel={`+ ${risks.length} ${risks.length === 1 ? "ander aandachtspunt" : "andere aandachtspunten"}`}
+            lessLabel="Verberg aandachtspunten"
+          >
+            <div className="mt-3 space-y-2">
+              {risks.map((r) => (
+                <Link
+                  key={r.id}
+                  href={r.href}
+                  className="chip-hover flex items-start gap-2.5 rounded-xl border border-warning-50 bg-warning-50 px-4 py-3 text-sm text-warning transition hover:border-warning hover:bg-warning-50/80"
+                >
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0" />
+                  <p className="flex-1">{r.message}</p>
+                  <ChevronRight className="mt-0.5 size-4 shrink-0 opacity-60" />
+                </Link>
+              ))}
+            </div>
+          </ExpandToggle>
+        </div>
+      )}
     </div>
   );
 }

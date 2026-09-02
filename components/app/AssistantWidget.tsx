@@ -4,14 +4,31 @@ import { useState, useTransition, useRef } from "react";
 import { Sparkles, ArrowUp, Loader2 } from "lucide-react";
 import { askAssistantAction } from "@/lib/actions/assistant-actions";
 import { VoiceInputButton } from "@/components/app/VoiceInputButton";
+import { usePersistedBoolean } from "@/lib/hooks/usePersistedBoolean";
 
 const SUGGESTIONS = ["Wat moet ik nog regelen?", "Welke leveranciers hebben nog niet gereageerd?", "Hoe staat mijn budget ervoor?", "Wat is urgent deze week?"];
 
+/**
+ * Herontwerp (sep. 2026): stond voorheen altijd volledig open — een hele
+ * chatkaart, ook als 'm nooit gebruikt werd. Nu standaard een rustige,
+ * ingeklapte balk; open 'm eenmaal en dat blijft onthouden (zelfde
+ * localStorage-aanpak als ExpandToggle, via usePersistedBoolean — zie
+ * lib/hooks/usePersistedBoolean.ts — hier net iets anders opgebouwd omdat
+ * de "dicht"-stand een hele andere knop is, geen "toon meer"-link onder
+ * bestaande inhoud). Een lopend gesprek (`thread`) blijft altijd
+ * zichtbaar, ongeacht de onthouden voorkeur — die zou anders verdwijnen
+ * zodra je 'm net had ingeklapt.
+ */
 export function AssistantWidget({ eventId }: { eventId: string }) {
   const [thread, setThread] = useState<{ q: string; a: string }[]>([]);
   const [input, setInput] = useState("");
   const [pending, startTransition] = useTransition();
+  const [collapsed, setCollapsed] = usePersistedBoolean("vyra:uitgeklapt:assistant", true);
   const endRef = useRef<HTMLDivElement>(null);
+
+  function expand() {
+    setCollapsed(false);
+  }
 
   function ask(question: string) {
     if (!question.trim() || pending) return;
@@ -21,6 +38,19 @@ export function AssistantWidget({ eventId }: { eventId: string }) {
       setThread((t) => [...t, { q: question, a: res.answer }]);
       requestAnimationFrame(() => endRef.current?.scrollIntoView({ behavior: "smooth" }));
     });
+  }
+
+  if (collapsed && thread.length === 0) {
+    return (
+      <button
+        type="button"
+        onClick={expand}
+        className="chip-hover flex w-full items-center gap-2.5 rounded-2xl border border-line bg-paper-dim px-4 py-3 text-left [box-shadow:var(--shadow-card)]"
+      >
+        <Sparkles className="size-4 shrink-0 text-sage" />
+        <span className="text-sm text-ink-faint">Vraag het aan je AI Event Manager…</span>
+      </button>
+    );
   }
 
   return (
