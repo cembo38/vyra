@@ -208,8 +208,7 @@ export async function uploadInvitationPhotoAction(eventId: string, formData: For
     const file = formData.get("file");
     if (!(file instanceof File) || file.size === 0) return { ok: false, error: "Kies eerst een foto." };
     if (file.size > 8 * 1024 * 1024) return { ok: false, error: "Dit bestand is groter dan de toegestane 8MB." };
-    const ok = await uploadInvitationPhoto(eventId, gallery.id, file);
-    if (!ok) return { ok: false, error: "Uploaden is mislukt. Probeer het nog eens." };
+    await uploadInvitationPhoto(eventId, gallery.id, file);
     revalidatePath(`/events/${eventId}/gallery`);
     return { ok: true };
   } catch (err) {
@@ -221,8 +220,7 @@ export async function removeInvitationPhotoAction(eventId: string): Promise<{ ok
   try {
     const gallery = await requireOwnedPremiumGallery(eventId);
     if (!gallery.invitationPhotoPath) return { ok: true };
-    const ok = await removeInvitationPhoto(gallery.id, gallery.invitationPhotoPath);
-    if (!ok) return { ok: false, error: "Verwijderen is mislukt. Probeer het nog eens." };
+    await removeInvitationPhoto(gallery.id, gallery.invitationPhotoPath);
     revalidatePath(`/events/${eventId}/gallery`);
     return { ok: true };
   } catch (err) {
@@ -236,8 +234,7 @@ export async function updateInvitationPhotoPositionAction(eventId: string, x: nu
     const gallery = await requireOwnedPremiumGallery(eventId);
     const clampedX = Math.min(100, Math.max(0, Math.round(x)));
     const clampedY = Math.min(100, Math.max(0, Math.round(y)));
-    const ok = await updateInvitationPhotoPosition(gallery.id, clampedX, clampedY);
-    if (!ok) return { ok: false, error: "Opslaan is mislukt. Probeer het nog eens." };
+    await updateInvitationPhotoPosition(gallery.id, clampedX, clampedY);
     return { ok: true };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Dit is niet gelukt." };

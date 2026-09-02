@@ -135,11 +135,13 @@ export default async function EventGalleryPage(props: PageProps<"/events/[id]/ga
 
   const def = GALLERY_TIERS[gallery.tier];
   const galleryUrl = `${SITE_URL}/gallery/${gallery.uploadToken}`;
-  const [photos, messages, rsvps, qrCodeDataUrl] = await Promise.all([
+  const invitationUrl = `${SITE_URL}/uitnodiging/${gallery.uploadToken}`;
+  const [photos, messages, rsvps, qrCodeDataUrl, invitationQrCodeDataUrl] = await Promise.all([
     getGalleryPhotosForOrganizer(gallery.id),
     def.allowGuestbook ? getGalleryMessagesForOrganizer(gallery.id) : Promise.resolve([]),
     gallery.tier === "premium" ? getGalleryRsvps(gallery.id) : Promise.resolve([]),
     generateQrCodeDataUrl(galleryUrl),
+    gallery.tier === "premium" ? generateQrCodeDataUrl(invitationUrl) : Promise.resolve(null),
   ]);
   const pendingPhotos = photos.filter((p) => p.moderationStatus === "pending");
   const decidedPhotos = photos.filter((p) => p.moderationStatus !== "pending");
@@ -198,6 +200,8 @@ export default async function EventGalleryPage(props: PageProps<"/events/[id]/ga
             initialPhotoUrl={gallery.invitationPhotoUrl}
             initialPhotoPositionX={gallery.invitationPhotoPositionX}
             initialPhotoPositionY={gallery.invitationPhotoPositionY}
+            shareUrl={invitationUrl}
+            qrCodeDataUrl={invitationQrCodeDataUrl}
           />
         </div>
       )}

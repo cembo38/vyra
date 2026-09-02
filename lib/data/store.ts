@@ -1244,38 +1244,46 @@ export async function updateInvitationText(galleryId: string, title: string | nu
  * gastenfoto's, maar via een aparte, eigenaar-gebonden storage-policy (zie
  * migratie 0056) — dit is de gewone, ingelogde sessie van de organisator,
  * dus geen publiek token nodig zoals bij een gast-upload.
+ *
+ * Gooit (i.p.v. `false` terug te geven) met de ECHTE Supabase-foutmelding
+ * erin — uploadInvitationPhotoAction hierboven vangt dit op en toont de
+ * tekst gewoon in de foutmelding in de UI. Zelfde reden als bij de
+ * "download als afbeelding"-fix eerder in dit project: Cem is geen
+ * developer en kan geen devtools-console openen, dus moet een screenshot
+ * van de foutmelding zelf al genoeg zijn om de oorzaak te vinden (bv. een
+ * kolom die nog ontbreekt omdat een migratie nog niet geplakt is).
  */
-export async function uploadInvitationPhoto(eventId: string, galleryId: string, file: File): Promise<boolean> {
-  if (!file || file.size === 0 || !file.type.startsWith("image/")) return false;
+export async function uploadInvitationPhoto(eventId: string, galleryId: string, file: File): Promise<void> {
+  if (!file || file.size === 0 || !file.type.startsWith("image/")) throw new Error("Kies een geldig fotobestand.");
   const supabase = await sb();
   const ext = file.name.includes(".") ? file.name.split(".").pop() : "jpg";
   const path = `invitations/${eventId}/${Date.now()}.${ext}`;
   const { error: uploadError } = await supabase.storage.from("gallery-media").upload(path, file, { upsert: true, contentType: file.type || undefined });
-  if (uploadError) return false;
+  if (uploadError) throw new Error(`Foto opslaan is mislukt: ${uploadError.message}`);
   // Een nieuwe foto begint altijd weer gecentreerd — een eerder ingesteld
   // sleeppositie hoort bij de OUDE foto, niet bij deze nieuwe.
   const { error } = await supabase
     .from("event_galleries")
     .update({ invitation_photo_path: path, invitation_photo_position_x: 50, invitation_photo_position_y: 50 })
     .eq("id", galleryId);
-  return !error;
+  if (error) throw new Error(`Foto is geüpload, maar opslaan bij het evenement is mislukt: ${error.message}`);
 }
 
-export async function removeInvitationPhoto(galleryId: string, storagePath: string): Promise<boolean> {
+export async function removeInvitationPhoto(galleryId: string, storagePath: string): Promise<void> {
   const supabase = await sb();
   await supabase.storage.from("gallery-media").remove([storagePath]);
   const { error } = await supabase
     .from("event_galleries")
     .update({ invitation_photo_path: null, invitation_photo_position_x: 50, invitation_photo_position_y: 50 })
     .eq("id", galleryId);
-  return !error;
+  if (error) throw new Error(`Verwijderen is mislukt: ${error.message}`);
 }
 
 /** Bijgewerkt terwijl de organisator de foto in de editor versleept (zie InvitationCard.tsx/InvitationEditor.tsx) — bepaalt via CSS object-position welk deel van de foto zichtbaar blijft in het (vaak niet-vierkante) kader. */
-export async function updateInvitationPhotoPosition(galleryId: string, x: number, y: number): Promise<boolean> {
+export async function updateInvitationPhotoPosition(galleryId: string, x: number, y: number): Promise<void> {
   const supabase = await sb();
   const { error } = await supabase.from("event_galleries").update({ invitation_photo_position_x: x, invitation_photo_position_y: y }).eq("id", galleryId);
-  return !error;
+  if (error) throw new Error(`Opslaan is mislukt: ${error.message}`);
 }
 
 /* ------------------------------------------------------------------ */
