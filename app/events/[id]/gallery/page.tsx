@@ -4,6 +4,7 @@ import {
   getEventGallery,
   getGalleryMessagesForOrganizer,
   getGalleryPhotosForOrganizer,
+  getGalleryRsvps,
 } from "@/lib/data/store";
 import { formatCurrency, GALLERY_PURCHASE_ENABLED, GALLERY_TIER_ORDER, GALLERY_TIERS, SITE_URL } from "@/lib/config";
 import { formatDateNL } from "@/lib/utils";
@@ -18,10 +19,12 @@ import { InvitationEditor } from "@/components/app/InvitationEditor";
 import {
   deleteGalleryMessageAction,
   deleteGalleryPhotoAction,
+  deleteGalleryRsvpAction,
   moderateGalleryMessageAction,
   moderateGalleryPhotoAction,
 } from "@/lib/actions/gallery-actions";
-import { Camera, Check, ImageOff, Mail, MessageSquareText, Sparkles, Trash2, X } from "lucide-react";
+import { GalleryRsvpStatus } from "@/lib/types";
+import { Camera, Check, ImageOff, Mail, MessageSquareText, Sparkles, Trash2, UserCheck, X } from "lucide-react";
 
 export const metadata = { title: "Gastenfoto's — Vyra" };
 
@@ -29,6 +32,12 @@ const MODERATION_LABEL: Record<string, { label: string; tone: "warning" | "succe
   pending: { label: "Wacht op goedkeuring", tone: "warning" },
   approved: { label: "Zichtbaar voor gasten", tone: "success" },
   rejected: { label: "Afgekeurd", tone: "danger" },
+};
+
+const RSVP_LABEL: Record<GalleryRsvpStatus, { label: string; tone: "success" | "warning" | "danger" }> = {
+  yes: { label: "Komt", tone: "success" },
+  maybe: { label: "Misschien", tone: "warning" },
+  no: { label: "Kan niet", tone: "danger" },
 };
 
 export default async function EventGalleryPage(props: PageProps<"/events/[id]/gallery">) {
@@ -126,15 +135,17 @@ export default async function EventGalleryPage(props: PageProps<"/events/[id]/ga
 
   const def = GALLERY_TIERS[gallery.tier];
   const galleryUrl = `${SITE_URL}/gallery/${gallery.uploadToken}`;
-  const [photos, messages, qrCodeDataUrl] = await Promise.all([
+  const [photos, messages, rsvps, qrCodeDataUrl] = await Promise.all([
     getGalleryPhotosForOrganizer(gallery.id),
     def.allowGuestbook ? getGalleryMessagesForOrganizer(gallery.id) : Promise.resolve([]),
+    gallery.tier === "premium" ? getGalleryRsvps(gallery.id) : Promise.resolve([]),
     generateQrCodeDataUrl(galleryUrl),
   ]);
   const pendingPhotos = photos.filter((p) => p.moderationStatus === "pending");
   const decidedPhotos = photos.filter((p) => p.moderationStatus !== "pending");
   const pendingMessages = messages.filter((m) => m.moderationStatus === "pending");
   const decidedMessages = messages.filter((m) => m.moderationStatus !== "pending");
+  const confirmedGuestCount = rsvps.filter((r) => r.status === "yes").reduce((sum, r) => sum + r.guestCount, 0);
 
   return (
     <div className="space-y-8">
@@ -185,7 +196,47 @@ export default async function EventGalleryPage(props: PageProps<"/events/[id]/ga
             initialTitle={gallery.invitationTitle}
             initialWelcomeText={gallery.invitationWelcomeText}
             initialPhotoUrl={gallery.invitationPhotoUrl}
+            initialPhotoPositionX={gallery.invitationPhotoPositionX}
+            initialPhotoPositionY={gallery.invitationPhotoPositionY}
           />
+        </div>
+      )}
+
+      {gallery.tier === "premium" && (
+        <div>
+          <div className="mb-3 flex items-center gap-2">
+            <UserCheck className="size-4 text-ink-faint" />
+            <h2 className="font-display text-lg text-ink">Aanmeldingen</h2>
+            {confirmedGuestCount > 0 && <Badge tone="success">{confirmedGuestCount} {confirmedGuestCount === 1 ? "persoon komt" : "personen komen"}</Badge>}
+          </div>
+          {rsvps.length === 0 ? (
+            <p className="text-sm text-ink-faint">Nog geen aanmeldingen via de &quot;Bevestig komst&quot;-knop op je uitnodiging.</p>
+          ) : (
+            <div className="space-y-2.5">
+              {rsvps.map((r) => (
+                <Card key={r.id} className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-ink">
+                        {r.guestName}
+                        {r.status !== "no" && r.guestCount > 1 && <span className="text-ink-faint"> (+{r.guestCount - 1})</span>}
+                      </p>
+                      {r.note && <p className="mt-1 text-sm text-ink-soft">{r.note}</p>}
+                      <p className="mt-1 text-xs text-ink-faint">{formatDateNL(r.createdAt, { day: "numeric", month: "short" })}</p>
+                    </div>
+                    <Badge tone={RSVP_LABEL[r.status].tone}>{RSVP_LABEL[r.status].label}</Badge>
+                  </div>
+                  <div className="mt-3">
+                    <form action={deleteGalleryRsvpAction.bind(null, id, r.id)}>
+                      <SubmitButton iconOnly pendingLabel="…" className="chip-hover flex items-center gap-1 rounded-full px-2 py-1.5 text-xs text-ink-faint hover:bg-paper-dim hover:text-danger">
+                        <Trash2 className="size-3.5" />
+                      </SubmitButton>
+                    </form>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

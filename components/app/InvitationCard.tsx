@@ -1,4 +1,6 @@
-import { forwardRef } from "react";
+"use client";
+
+import { forwardRef, useRef } from "react";
 import { Camera } from "lucide-react";
 import { getInvitationTemplate } from "@/lib/invitation-templates";
 import "@/components/app/invitation-templates.css";
@@ -14,14 +16,72 @@ export interface InvitationCardProps {
   dayNumber?: number | null;
   /** Editor-modus: lege foto-vakjes tonen een "tik om te uploaden"-hint i.p.v. leeg/verborgen te blijven (voor gasten op de publieke deelpagina). */
   editable?: boolean;
+  /** Positie (0-100, standaard 50 = gecentreerd) van de foto binnen zijn kader — CSS object-position. */
+  photoPositionX?: number;
+  photoPositionY?: number;
+  /** Alleen aangeroepen tijdens het slepen in `editable`-modus (zie InvitationEditor.tsx) — bewust NIET aangeroepen voor de kleine sjabloon-voorbeelden. */
+  onPhotoPositionChange?: (x: number, y: number) => void;
+  /** Maakt de RSVP-knop daadwerkelijk klikbaar (alleen op de publieke uitnodigingspagina, zie InvitationRsvpCard.tsx) — in de editor-voorvertoning en de sjabloon-kiezer blijft dit element decoratief. */
+  onRsvpClick?: () => void;
 }
 
-function PhotoSlot({ photoUrl, editable, optional, alt }: { photoUrl: string | null; editable: boolean; optional: boolean; alt: string }) {
+function clampPercent(value: number) {
+  return Math.min(100, Math.max(0, value));
+}
+
+function PhotoSlot({
+  photoUrl,
+  editable,
+  optional,
+  alt,
+  positionX = 50,
+  positionY = 50,
+  onPositionChange,
+}: {
+  photoUrl: string | null;
+  editable: boolean;
+  optional: boolean;
+  alt: string;
+  positionX?: number;
+  positionY?: number;
+  onPositionChange?: (x: number, y: number) => void;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const draggingRef = useRef(false);
+
+  function updateFromPointer(e: React.PointerEvent<HTMLDivElement>) {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect || rect.width === 0 || rect.height === 0) return;
+    onPositionChange?.(clampPercent(((e.clientX - rect.left) / rect.width) * 100), clampPercent(((e.clientY - rect.top) / rect.height) * 100));
+  }
+
+  function handlePointerDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (!onPositionChange) return;
+    draggingRef.current = true;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    updateFromPointer(e);
+  }
+  function handlePointerMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!draggingRef.current) return;
+    updateFromPointer(e);
+  }
+  function handlePointerUp() {
+    draggingRef.current = false;
+  }
+
   if (photoUrl) {
     return (
-      <div className="photo-slot" style={{ border: "none", opacity: 1 }}>
+      <div
+        ref={containerRef}
+        className="photo-slot"
+        style={{ border: "none", opacity: 1, cursor: onPositionChange ? "grab" : undefined, touchAction: onPositionChange ? "none" : undefined }}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={photoUrl} alt={alt} crossOrigin="anonymous" />
+        <img src={photoUrl} alt={alt} crossOrigin="anonymous" draggable={false} style={{ objectPosition: `${positionX}% ${positionY}%` }} />
       </div>
     );
   }
@@ -36,7 +96,14 @@ function PhotoSlot({ photoUrl, editable, optional, alt }: { photoUrl: string | n
   return <div className="photo-slot" style={{ border: "none", opacity: 0.14, background: "currentColor" }} />;
 }
 
-function Rsvp({ children }: { children: React.ReactNode }) {
+function Rsvp({ children, onClick }: { children: React.ReactNode; onClick?: () => void }) {
+  if (onClick) {
+    return (
+      <button type="button" className="rsvp" onClick={onClick}>
+        {children}
+      </button>
+    );
+  }
   return <div className="rsvp">{children}</div>;
 }
 
@@ -49,7 +116,20 @@ function Rsvp({ children }: { children: React.ReactNode }) {
  * "download als afbeelding"-knop (html-to-image, zie InvitationEditor.tsx).
  */
 export const InvitationCard = forwardRef<HTMLDivElement, InvitationCardProps>(function InvitationCard(
-  { templateKey, title, welcomeText, dateLabel, locationLabel, photoUrl, dayNumber = null, editable = false },
+  {
+    templateKey,
+    title,
+    welcomeText,
+    dateLabel,
+    locationLabel,
+    photoUrl,
+    dayNumber = null,
+    editable = false,
+    photoPositionX = 50,
+    photoPositionY = 50,
+    onPhotoPositionChange,
+    onRsvpClick,
+  },
   ref
 ) {
   const tpl = getInvitationTemplate(templateKey);
@@ -64,17 +144,45 @@ export const InvitationCard = forwardRef<HTMLDivElement, InvitationCardProps>(fu
     </>
   );
 
+  // Eén keer opgebouwd i.p.v. bij elk van de 15 sjabloon-cases hieronder
+  // herhaald — de foto-positie is alleen versleepbaar in editable-modus, de
+  // RSVP-knop alleen klikbaar wanneer de aanroeper (InvitationRsvpCard) dat
+  // expliciet wil.
+  const photoSlotRequired = (
+    <PhotoSlot
+      photoUrl={photoUrl}
+      editable={editable}
+      optional={false}
+      alt={title}
+      positionX={photoPositionX}
+      positionY={photoPositionY}
+      onPositionChange={editable ? onPhotoPositionChange : undefined}
+    />
+  );
+  const photoSlotOptional = (
+    <PhotoSlot
+      photoUrl={photoUrl}
+      editable={editable}
+      optional
+      alt={title}
+      positionX={photoPositionX}
+      positionY={photoPositionY}
+      onPositionChange={editable ? onPhotoPositionChange : undefined}
+    />
+  );
+  const rsvpElement = <Rsvp onClick={onRsvpClick}>{rsvpLabel}</Rsvp>;
+
   let inner: React.ReactNode;
   switch (tpl.className) {
     case "t-klassiek":
       inner = (
         <>
           {eyebrow && <div className="eyebrow2">{eyebrow}</div>}
-          <PhotoSlot photoUrl={photoUrl} editable={editable} optional={false} alt={title} />
+          {photoSlotRequired}
           <h2>{title}</h2>
           <div className="rule" />
           {meta}
-          <Rsvp>{rsvpLabel}</Rsvp>
+          {rsvpElement}
         </>
       );
       break;
@@ -83,12 +191,12 @@ export const InvitationCard = forwardRef<HTMLDivElement, InvitationCardProps>(fu
       inner = (
         <>
           <div className="top">
-            <PhotoSlot photoUrl={photoUrl} editable={editable} optional={false} alt={title} />
+            {photoSlotRequired}
           </div>
           <div className="bottom">
             <h2>{title}</h2>
             {meta}
-            <Rsvp>{rsvpLabel}</Rsvp>
+            {rsvpElement}
           </div>
         </>
       );
@@ -106,8 +214,8 @@ export const InvitationCard = forwardRef<HTMLDivElement, InvitationCardProps>(fu
           {eyebrow && <div className="eyebrow2">{eyebrow}</div>}
           <h2>{title}</h2>
           {meta}
-          <PhotoSlot photoUrl={photoUrl} editable={editable} optional alt={title} />
-          <Rsvp>{rsvpLabel}</Rsvp>
+          {photoSlotOptional}
+          {rsvpElement}
         </>
       );
       break;
@@ -122,9 +230,9 @@ export const InvitationCard = forwardRef<HTMLDivElement, InvitationCardProps>(fu
           <div style={grid}>
             <h2>{title}</h2>
             {meta}
-            <PhotoSlot photoUrl={photoUrl} editable={editable} optional alt={title} />
+            {photoSlotOptional}
           </div>
-          <Rsvp>{rsvpLabel}</Rsvp>
+          {rsvpElement}
         </>
       );
       break;
@@ -133,10 +241,10 @@ export const InvitationCard = forwardRef<HTMLDivElement, InvitationCardProps>(fu
     case "t-vintage":
       inner = (
         <>
-          <PhotoSlot photoUrl={photoUrl} editable={editable} optional={false} alt={title} />
+          {photoSlotRequired}
           <h2>{title}</h2>
           {meta}
-          <Rsvp>{rsvpLabel}</Rsvp>
+          {rsvpElement}
         </>
       );
       break;
@@ -149,9 +257,9 @@ export const InvitationCard = forwardRef<HTMLDivElement, InvitationCardProps>(fu
             {dayNumber !== null && <div className="big">{String(dayNumber).padStart(2, "0")}</div>}
             <h2>{title}</h2>
             {meta}
-            <PhotoSlot photoUrl={photoUrl} editable={editable} optional alt={title} />
+            {photoSlotOptional}
           </div>
-          <Rsvp>{rsvpLabel}</Rsvp>
+          {rsvpElement}
         </>
       );
       break;
@@ -159,10 +267,10 @@ export const InvitationCard = forwardRef<HTMLDivElement, InvitationCardProps>(fu
     case "t-zomer":
       inner = (
         <>
-          <PhotoSlot photoUrl={photoUrl} editable={editable} optional={false} alt={title} />
+          {photoSlotRequired}
           <h2>{title}</h2>
           {meta}
-          <Rsvp>{rsvpLabel}</Rsvp>
+          {rsvpElement}
         </>
       );
       break;
@@ -175,8 +283,8 @@ export const InvitationCard = forwardRef<HTMLDivElement, InvitationCardProps>(fu
           </div>
           <h2>{title}</h2>
           {meta}
-          <PhotoSlot photoUrl={photoUrl} editable={editable} optional alt={title} />
-          <Rsvp>{rsvpLabel}</Rsvp>
+          {photoSlotOptional}
+          {rsvpElement}
         </>
       );
       break;
@@ -185,10 +293,10 @@ export const InvitationCard = forwardRef<HTMLDivElement, InvitationCardProps>(fu
       inner = (
         <>
           {eyebrow && <div className="eyebrow2">{eyebrow}</div>}
-          <PhotoSlot photoUrl={photoUrl} editable={editable} optional={false} alt={title} />
+          {photoSlotRequired}
           <h2>{title}</h2>
           {meta}
-          <Rsvp>{rsvpLabel}</Rsvp>
+          {rsvpElement}
         </>
       );
       break;
@@ -199,8 +307,8 @@ export const InvitationCard = forwardRef<HTMLDivElement, InvitationCardProps>(fu
           {eyebrow && <div className="eyebrow2">{eyebrow}</div>}
           <h2>{title}</h2>
           {meta}
-          <PhotoSlot photoUrl={photoUrl} editable={editable} optional={false} alt={title} />
-          <Rsvp>{rsvpLabel}</Rsvp>
+          {photoSlotRequired}
+          {rsvpElement}
         </>
       );
       break;
@@ -215,8 +323,8 @@ export const InvitationCard = forwardRef<HTMLDivElement, InvitationCardProps>(fu
           {eyebrow && <div className="eyebrow2">{eyebrow}</div>}
           <h2>{title}</h2>
           {meta}
-          <PhotoSlot photoUrl={photoUrl} editable={editable} optional alt={title} />
-          <Rsvp>{rsvpLabel}</Rsvp>
+          {photoSlotOptional}
+          {rsvpElement}
         </>
       );
       break;
@@ -225,10 +333,10 @@ export const InvitationCard = forwardRef<HTMLDivElement, InvitationCardProps>(fu
       inner = (
         <>
           {eyebrow && <div className="eyebrow2">{eyebrow}</div>}
-          <PhotoSlot photoUrl={photoUrl} editable={editable} optional={false} alt={title} />
+          {photoSlotRequired}
           <h2>{title}</h2>
           {meta}
-          <Rsvp>{rsvpLabel}</Rsvp>
+          {rsvpElement}
         </>
       );
       break;
@@ -243,8 +351,8 @@ export const InvitationCard = forwardRef<HTMLDivElement, InvitationCardProps>(fu
           {eyebrow && <div className="eyebrow2">{eyebrow}</div>}
           <h2>{title}</h2>
           {meta}
-          <PhotoSlot photoUrl={photoUrl} editable={editable} optional={false} alt={title} />
-          <Rsvp>{rsvpLabel}</Rsvp>
+          {photoSlotRequired}
+          {rsvpElement}
         </>
       );
       break;
@@ -253,10 +361,10 @@ export const InvitationCard = forwardRef<HTMLDivElement, InvitationCardProps>(fu
       inner = (
         <>
           {eyebrow && <div className="eyebrow2">{eyebrow}</div>}
-          <PhotoSlot photoUrl={photoUrl} editable={editable} optional={false} alt={title} />
+          {photoSlotRequired}
           <h2>{title}</h2>
           {meta}
-          <Rsvp>{rsvpLabel}</Rsvp>
+          {rsvpElement}
         </>
       );
       break;
@@ -264,10 +372,10 @@ export const InvitationCard = forwardRef<HTMLDivElement, InvitationCardProps>(fu
     case "t-fotolijst":
       inner = (
         <>
-          <PhotoSlot photoUrl={photoUrl} editable={editable} optional={false} alt={title} />
+          {photoSlotRequired}
           <h2>{title}</h2>
           {meta}
-          <Rsvp>{rsvpLabel}</Rsvp>
+          {rsvpElement}
         </>
       );
       break;

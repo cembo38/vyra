@@ -7,6 +7,7 @@ import {
   createOrUpdatePendingGalleryPurchase,
   deleteGalleryMessage,
   deleteGalleryPhoto,
+  deleteGalleryRsvp,
   getEvent,
   getEventGallery,
   getGalleryPublic,
@@ -17,13 +18,15 @@ import {
   setInvitationTemplate,
   submitGalleryMessage,
   submitGalleryPhoto,
+  submitGalleryRsvp,
+  updateInvitationPhotoPosition,
   updateInvitationText,
   uploadGalleryMedia,
   uploadInvitationPhoto,
 } from "@/lib/data/store";
 import { GALLERY_TIERS, GalleryTier, SITE_URL } from "@/lib/config";
 import { getStripeClient } from "@/lib/payments/stripe";
-import { GalleryModerationStatus } from "@/lib/types";
+import { GalleryModerationStatus, GalleryRsvpStatus } from "@/lib/types";
 import { INVITATION_TEMPLATES } from "@/lib/invitation-templates";
 
 /**
@@ -225,4 +228,52 @@ export async function removeInvitationPhotoAction(eventId: string): Promise<{ ok
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Dit is niet gelukt." };
   }
+}
+
+/** Bijgewerkt terwijl de organisator de foto in de editor versleept — bewust GEEN revalidatePath op elke sleepbeweging (dat zou te vaak zijn), de al bijgewerkte lokale voorvertoning in InvitationEditor.tsx is leidend totdat de organisator de pagina zelf ververst. */
+export async function updateInvitationPhotoPositionAction(eventId: string, x: number, y: number): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const gallery = await requireOwnedPremiumGallery(eventId);
+    const clampedX = Math.min(100, Math.max(0, Math.round(x)));
+    const clampedY = Math.min(100, Math.max(0, Math.round(y)));
+    const ok = await updateInvitationPhotoPosition(gallery.id, clampedX, clampedY);
+    if (!ok) return { ok: false, error: "Opslaan is mislukt. Probeer het nog eens." };
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Dit is niet gelukt." };
+  }
+}
+
+/**
+ * Publieke actie (geen login) — de "Bevestig komst"-knop op de
+ * uitnodigingspagina (/uitnodiging/[token]). Elke check die de client al
+ * doet, wordt hier server-side herhaald (zelfde gedachte als
+ * uploadGalleryPhotoAction hierboven): een gast met een aangepast verzoek
+ * kan de client-kant altijd omzeilen.
+ */
+export async function submitGalleryRsvpAction(uploadToken: string, formData: FormData): Promise<{ ok: boolean; error?: string }> {
+  const gallery = await getGalleryPublic(uploadToken);
+  if (!gallery || gallery.status !== "active") return { ok: false, error: "Deze uitnodiging is niet (meer) actief." };
+  if (gallery.tier !== "premium") return { ok: false, error: "Aanmelden is alleen beschikbaar bij Premium." };
+
+  const guestName = String(formData.get("guestName") ?? "").trim().slice(0, 100);
+  if (!guestName) return { ok: false, error: "Vul je naam in." };
+
+  const status = String(formData.get("status") ?? "");
+  if (status !== "yes" && status !== "maybe" && status !== "no") return { ok: false, error: "Onbekende status." };
+
+  const guestCountRaw = Number(formData.get("guestCount") ?? 1);
+  const guestCount = Number.isFinite(guestCountRaw) ? Math.min(20, Math.max(1, Math.round(guestCountRaw))) : 1;
+  const note = String(formData.get("note") ?? "").trim().slice(0, 500) || null;
+
+  const ok = await submitGalleryRsvp(uploadToken, guestName, status as GalleryRsvpStatus, guestCount, note);
+  if (!ok) return { ok: false, error: "Versturen is mislukt. Probeer het nog eens." };
+  return { ok: true };
+}
+
+export async function deleteGalleryRsvpAction(eventId: string, rsvpId: string) {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  await deleteGalleryRsvp(rsvpId);
+  revalidatePath(`/events/${eventId}/gallery`);
 }

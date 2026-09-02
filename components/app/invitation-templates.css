@@ -55,6 +55,22 @@
   object-fit: cover;
 }
 
+/*
+ * De RSVP-knop is soms een <div> (decoratief, bv. in de sjabloon-kiezer)
+ * en soms een echte <button> (klikbaar, alleen op de publieke
+ * uitnodigingspagina — zie InvitationCard.tsx/InvitationRsvpCard.tsx). Elk
+ * sjabloon hieronder stelt zelf al kleur/rand/padding in via `.t-xxx
+ * .rsvp` — deze reset haalt alleen de standaard knop-opmaak (rand,
+ * achtergrond, lettertype) weg zodat een <button> er identiek uitziet als
+ * de oude <div>.
+ */
+.invitation-frame-scope button.rsvp {
+  all: unset;
+  cursor: pointer;
+  display: inline-block;
+  text-align: center;
+}
+
 /* ---------- 1. Klassiek Elegant ---------- */
 .invitation-frame-scope .t-klassiek { background: #fdfbf3; color: #2b2620; font-family: "Cormorant Garamond", serif; justify-content: center; align-items: center; text-align: center; padding: 26px 22px; border: 1px solid #e7ddbd; }
 .invitation-frame-scope .t-klassiek::before { content: ""; position: absolute; inset: 14px; border: 1px solid #c9a24b; pointer-events: none; }

@@ -2,13 +2,14 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { toPng } from "html-to-image";
-import { Check, Download, ImagePlus, Link2, Loader2, Trash2 } from "lucide-react";
+import { Check, Download, ImagePlus, Link2, Loader2, Move, Trash2 } from "lucide-react";
 import { InvitationCard } from "@/components/app/InvitationCard";
 import { Field, Input } from "@/components/ui/Form";
 import { VyraMarkSpinner } from "@/components/ui/PageLoader";
 import {
   removeInvitationPhotoAction,
   setInvitationTemplateAction,
+  updateInvitationPhotoPositionAction,
   updateInvitationTextAction,
   uploadInvitationPhotoAction,
 } from "@/lib/actions/gallery-actions";
@@ -26,6 +27,8 @@ export function InvitationEditor({
   initialTitle,
   initialWelcomeText,
   initialPhotoUrl,
+  initialPhotoPositionX,
+  initialPhotoPositionY,
 }: {
   eventId: string;
   uploadToken: string;
@@ -37,11 +40,15 @@ export function InvitationEditor({
   initialTitle: string | null;
   initialWelcomeText: string | null;
   initialPhotoUrl: string | null;
+  initialPhotoPositionX: number;
+  initialPhotoPositionY: number;
 }) {
   const [templateKey, setTemplateKey] = useState(initialTemplateKey ?? INVITATION_TEMPLATES[0].key);
   const [title, setTitle] = useState(initialTitle ?? "");
   const [welcomeText, setWelcomeText] = useState(initialWelcomeText ?? "");
   const [photoUrl, setPhotoUrl] = useState(initialPhotoUrl);
+  const [photoPositionX, setPhotoPositionX] = useState(initialPhotoPositionX);
+  const [photoPositionY, setPhotoPositionY] = useState(initialPhotoPositionY);
   const [savedTick, setSavedTick] = useState(0);
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -49,6 +56,7 @@ export function InvitationEditor({
   const [pending, startTransition] = useTransition();
   const cardRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const positionSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const dateLabel = useMemo(() => {
     const d = formatDateNL(eventDate, { day: "numeric", month: "long", year: "numeric" });
@@ -88,6 +96,11 @@ export function InvitationEditor({
     }
     const previewUrl = URL.createObjectURL(file);
     setPhotoUrl(previewUrl);
+    // Een nieuwe foto begint altijd gecentreerd — een eerder ingestelde
+    // sleeppositie hoorde bij de vorige foto (zie ook uploadInvitationPhoto
+    // in lib/data/store.ts, die dit server-side hetzelfde doet).
+    setPhotoPositionX(50);
+    setPhotoPositionY(50);
     const formData = new FormData();
     formData.set("file", file);
     startTransition(async () => {
@@ -99,9 +112,28 @@ export function InvitationEditor({
 
   function removePhoto() {
     setPhotoUrl(null);
+    setPhotoPositionX(50);
+    setPhotoPositionY(50);
     startTransition(async () => {
       await removeInvitationPhotoAction(eventId);
     });
+  }
+
+  /**
+   * Aangeroepen bij elke sleepbeweging (zie InvitationCard.tsx/PhotoSlot) —
+   * de lokale voorvertoning volgt direct mee (optimistic), het opslaan
+   * naar de server wordt bewust gedebounced (pas 500ms na de laatste
+   * beweging) zodat niet elke pixel sleep een eigen server-aanroep wordt.
+   */
+  function handlePhotoPositionChange(x: number, y: number) {
+    setPhotoPositionX(x);
+    setPhotoPositionY(y);
+    if (positionSaveTimer.current) clearTimeout(positionSaveTimer.current);
+    positionSaveTimer.current = setTimeout(() => {
+      startTransition(async () => {
+        await updateInvitationPhotoPositionAction(eventId, Math.round(x), Math.round(y));
+      });
+    }, 500);
   }
 
   async function downloadImage() {
@@ -140,8 +172,10 @@ export function InvitationEditor({
       locationLabel: eventLocationLabel,
       photoUrl,
       dayNumber,
+      photoPositionX,
+      photoPositionY,
     }),
-    [title, eventName, welcomeText, dateLabel, eventLocationLabel, photoUrl, dayNumber]
+    [title, eventName, welcomeText, dateLabel, eventLocationLabel, photoUrl, dayNumber, photoPositionX, photoPositionY]
   );
 
   return (
@@ -172,8 +206,13 @@ export function InvitationEditor({
 
         <div className="lg:sticky lg:top-6 lg:self-start">
           <div className="mx-auto max-w-[220px]">
-            <InvitationCard ref={cardRef} templateKey={templateKey} {...preview} editable />
+            <InvitationCard ref={cardRef} templateKey={templateKey} {...preview} editable onPhotoPositionChange={handlePhotoPositionChange} />
           </div>
+          {photoUrl && (
+            <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-[11px] text-ink-faint">
+              <Move className="size-3 shrink-0" /> Sleep de foto hierboven om het beeld te verplaatsen
+            </p>
+          )}
 
           <div className="mt-5 space-y-3">
             <Field label="Titel" hint={`Standaard: "${eventName}"`}>

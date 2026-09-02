@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getGalleryPublic } from "@/lib/data/store";
 import { Logo } from "@/components/marketing/Logo";
-import { InvitationCard } from "@/components/app/InvitationCard";
+import { InvitationRsvpCard } from "@/components/app/InvitationRsvpCard";
 import { INVITATION_FONTS_URL } from "@/lib/invitation-templates";
 import { formatDateNL } from "@/lib/utils";
 import { Camera, MailOpen } from "lucide-react";
@@ -60,15 +60,17 @@ export default async function InvitationPage(props: PageProps<"/uitnodiging/[tok
       <div className="relative mx-auto max-w-sm">
         <div className="mb-7 flex justify-center"><Logo /></div>
 
-        <InvitationCard
+        <InvitationRsvpCard
+          uploadToken={token}
           templateKey={templateKey}
           title={gallery.invitationTitle || gallery.eventName}
           welcomeText={gallery.invitationWelcomeText ?? ""}
           dateLabel={dateLabel}
           locationLabel={gallery.eventLocationLabel}
           photoUrl={gallery.invitationPhotoUrl}
+          photoPositionX={gallery.invitationPhotoPositionX}
+          photoPositionY={gallery.invitationPhotoPositionY}
           dayNumber={dayNumber}
-          editable={false}
         />
 
         <div className="mt-7 text-center">

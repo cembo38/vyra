@@ -1004,6 +1004,9 @@ export interface EventGallery {
   invitationWelcomeText: string | null;
   invitationPhotoPath: string | null;
   invitationPhotoUrl: string | null;
+  /** Positie (0-100, standaard 50 = gecentreerd) van de foto binnen zijn kader — bepaalt via CSS object-position welk deel van de foto zichtbaar is; door de organisator versleepbaar in de editor. */
+  invitationPhotoPositionX: number;
+  invitationPhotoPositionY: number;
   /** Berekend bij activatie: evenementdatum + retentionDays van het gekozen niveau. `null` zolang nog niet actief. */
   expiresAt: string | null;
   createdAt: string;
@@ -1048,6 +1051,22 @@ export interface GalleryPublicInfo {
   invitationTitle: string | null;
   invitationWelcomeText: string | null;
   invitationPhotoUrl: string | null;
+  invitationPhotoPositionX: number;
+  invitationPhotoPositionY: number;
+}
+
+export type GalleryRsvpStatus = "yes" | "maybe" | "no";
+
+/** Een privé aanmelding via de "Bevestig komst"-knop op de uitnodiging (/uitnodiging/[token]) — alleen zichtbaar voor de organisator, geen moderatie (zie migratie 0058). */
+export interface GalleryRsvp {
+  id: string;
+  galleryId: string;
+  guestName: string;
+  status: GalleryRsvpStatus;
+  /** Aantal personen inclusief de gast zelf (1-20). */
+  guestCount: number;
+  note: string | null;
+  createdAt: string;
 }
 
 export type FeedbackType = "question" | "bug";

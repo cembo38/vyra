@@ -49,6 +49,8 @@ import {
   GalleryModerationStatus,
   GalleryPhoto,
   GalleryPublicInfo,
+  GalleryRsvp,
+  GalleryRsvpStatus,
   GuestPublicInfo,
   Message,
   MessageAttachment,
@@ -1160,6 +1162,8 @@ function rowToEventGallery(r: Row, supabase: Awaited<ReturnType<typeof sb>>): Ev
     invitationWelcomeText: r.invitation_welcome_text ?? null,
     invitationPhotoPath: r.invitation_photo_path ?? null,
     invitationPhotoUrl: r.invitation_photo_path ? supabase.storage.from("gallery-media").getPublicUrl(r.invitation_photo_path).data.publicUrl : null,
+    invitationPhotoPositionX: r.invitation_photo_position_x ?? 50,
+    invitationPhotoPositionY: r.invitation_photo_position_y ?? 50,
     expiresAt: r.expires_at ?? null,
     createdAt: r.created_at,
     purchasedAt: r.purchased_at ?? null,
@@ -1248,14 +1252,78 @@ export async function uploadInvitationPhoto(eventId: string, galleryId: string, 
   const path = `invitations/${eventId}/${Date.now()}.${ext}`;
   const { error: uploadError } = await supabase.storage.from("gallery-media").upload(path, file, { upsert: true, contentType: file.type || undefined });
   if (uploadError) return false;
-  const { error } = await supabase.from("event_galleries").update({ invitation_photo_path: path }).eq("id", galleryId);
+  // Een nieuwe foto begint altijd weer gecentreerd — een eerder ingesteld
+  // sleeppositie hoort bij de OUDE foto, niet bij deze nieuwe.
+  const { error } = await supabase
+    .from("event_galleries")
+    .update({ invitation_photo_path: path, invitation_photo_position_x: 50, invitation_photo_position_y: 50 })
+    .eq("id", galleryId);
   return !error;
 }
 
 export async function removeInvitationPhoto(galleryId: string, storagePath: string): Promise<boolean> {
   const supabase = await sb();
   await supabase.storage.from("gallery-media").remove([storagePath]);
-  const { error } = await supabase.from("event_galleries").update({ invitation_photo_path: null }).eq("id", galleryId);
+  const { error } = await supabase
+    .from("event_galleries")
+    .update({ invitation_photo_path: null, invitation_photo_position_x: 50, invitation_photo_position_y: 50 })
+    .eq("id", galleryId);
+  return !error;
+}
+
+/** Bijgewerkt terwijl de organisator de foto in de editor versleept (zie InvitationCard.tsx/InvitationEditor.tsx) — bepaalt via CSS object-position welk deel van de foto zichtbaar blijft in het (vaak niet-vierkante) kader. */
+export async function updateInvitationPhotoPosition(galleryId: string, x: number, y: number): Promise<boolean> {
+  const supabase = await sb();
+  const { error } = await supabase.from("event_galleries").update({ invitation_photo_position_x: x, invitation_photo_position_y: y }).eq("id", galleryId);
+  return !error;
+}
+
+/* ------------------------------------------------------------------ */
+/* AANMELDINGEN VIA DE UITNODIGING (migratie 0058)                     */
+/* ------------------------------------------------------------------ */
+
+function rowToGalleryRsvp(r: Row): GalleryRsvp {
+  return {
+    id: r.id,
+    galleryId: r.gallery_id,
+    guestName: r.guest_name,
+    status: r.status as GalleryRsvpStatus,
+    guestCount: r.guest_count,
+    note: r.note ?? null,
+    createdAt: r.created_at,
+  };
+}
+
+/** Organisator-kant: alle aanmeldingen voor deze gastenfoto-pagina, nieuwste eerst. Toegang loopt via de gewone "owner full access"-RLS-policy (migratie 0058) — geen extra check hier nodig. */
+export async function getGalleryRsvps(galleryId: string): Promise<GalleryRsvp[]> {
+  const supabase = await sb();
+  const { data, error } = await supabase.from("gallery_rsvps").select("*").eq("gallery_id", galleryId).order("created_at", { ascending: false });
+  if (error || !data) return [];
+  return (data as Row[]).map(rowToGalleryRsvp);
+}
+
+export async function deleteGalleryRsvp(id: string): Promise<boolean> {
+  const supabase = await sb();
+  const { error } = await supabase.from("gallery_rsvps").delete().eq("id", id);
+  return !error;
+}
+
+/** Publieke actie (geen login) — de "Bevestig komst"-knop op /uitnodiging/[token]. Loopt via de submit_gallery_rsvp SECURITY DEFINER-functie (migratie 0058), zelfde reden als submit_gallery_photo/message: een rechtstreekse RLS-policy met een subquery op event_galleries werkt niet voor de anon-rol. */
+export async function submitGalleryRsvp(
+  uploadToken: string,
+  guestName: string,
+  status: GalleryRsvpStatus,
+  guestCount: number,
+  note: string | null
+): Promise<boolean> {
+  const supabase = await sb();
+  const { error } = await supabase.rpc("submit_gallery_rsvp", {
+    p_upload_token: uploadToken,
+    p_guest_name: guestName,
+    p_status: status,
+    p_guest_count: guestCount,
+    p_note: note,
+  });
   return !error;
 }
 
@@ -1364,6 +1432,8 @@ export async function getGalleryPublic(uploadToken: string): Promise<GalleryPubl
     invitationTitle: r.invitation_title ?? null,
     invitationWelcomeText: r.invitation_welcome_text ?? null,
     invitationPhotoUrl: r.invitation_photo_path ? supabase.storage.from("gallery-media").getPublicUrl(r.invitation_photo_path).data.publicUrl : null,
+    invitationPhotoPositionX: r.invitation_photo_position_x ?? 50,
+    invitationPhotoPositionY: r.invitation_photo_position_y ?? 50,
   };
 }
 
